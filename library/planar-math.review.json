@@ -1,0 +1,21 @@
+{
+  "doc_path": "planar-math.md",
+  "generated_at": 1772128823,
+  "reviewer": "BOH_WORKER_v4",
+  "non_authoritative": true,
+  "requires_explicit_confirmation": true,
+  "extracted_topics": [
+    "Definition: Plane"
+  ],
+  "extracted_definitions": [],
+  "extracted_variables": [],
+  "suspected_conflicts": [],
+  "recommended_metadata_patch": {},
+  "normalization_output_hash": "7e44657795feaf5353a3eea9b669d75d85416873624d65524eb14d7d61a2c38a",
+  "placement_suggestion": {
+    "recommended_folder": "01_sources\\working\\",
+    "reasoning": [
+      "meta.status=working \u2192 01_sources\\working\\"
+    ]
+  }
+}
