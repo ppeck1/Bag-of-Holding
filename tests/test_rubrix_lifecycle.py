@@ -1,0 +1,1 @@
+def test_rubrix(): assert True
