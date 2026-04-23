@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bag of Holding v2 — Phase 8</title>
+  <link rel="stylesheet" href="/style.css?v=8">
+  <link rel="stylesheet" href="/vendor/katex.min.css?v=8">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Top bar ──────────────────────────────────────────── -->
+  <div id="topbar">
+    <div class="wordmark">📦 Bag of Holding <span>v2</span> <span style="font-size:9px;color:var(--text-faint);letter-spacing:.08em;margin-left:4px">Phase 8</span></div>
+    <div id="conflict-badge" onclick="nav('canon-conflicts')">
+      ⚠ <span id="conflict-badge-count">0</span> open conflict(s)
+    </div>
+    <div id="topbar-right">
+      <span id="db-status">⬤ connecting…</span>
+      <a href="/docs" target="_blank" style="font-size:11px;color:var(--text-faint)">API docs ↗</a>
+    </div>
+  </div>
+
+  <!-- ── Nav sidebar ──────────────────────────────────────── -->
+  <nav id="nav" role="navigation" aria-label="Main navigation">
+    <div class="nav-section-label">Workbench</div>
+
+    <div class="nav-item active" data-panel="dashboard" onclick="nav('dashboard')" role="menuitem" tabindex="0" aria-label="Dashboard">
+      <span class="icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" data-panel="library" onclick="nav('library')" role="menuitem" tabindex="0" aria-label="Library">
+      <span class="icon">⊞</span> Library
+    </div>
+    <div class="nav-item" data-panel="search" onclick="nav('search')" role="menuitem" tabindex="0" aria-label="Search">
+      <span class="icon">⌕</span> Search
+    </div>
+    <div class="nav-item" data-panel="canon-conflicts" onclick="nav('canon-conflicts')" role="menuitem" tabindex="0" aria-label="Canon and Conflicts">
+      <span class="icon">⚖</span> Canon & Conflicts
+      <span class="badge hidden" id="nav-conflict-badge">0</span>
+    </div>
+    <div class="nav-item" data-panel="import-ingest" onclick="nav('import-ingest')" role="menuitem" tabindex="0" aria-label="Import and Ingest">
+      <span class="icon">⊕</span> Import / Ingest
+    </div>
+    <div class="nav-item" data-panel="atlas" onclick="nav('atlas')" role="menuitem" tabindex="0" aria-label="Knowledge Atlas">
+      <span class="icon">◉</span> Atlas
+    </div>
+
+    <div id="nav-footer">
+      <div>Local-first · Deterministic</div>
+      <div style="margin-top:4px"><a href="/docs" target="_blank">API reference</a></div>
+    </div>
+  </nav>
+
+  <!-- ── Main panel area ──────────────────────────────────── -->
+  <main id="main" role="main">
+
+    <!-- ╔══ Panel 1: Dashboard ══╗ -->
+    <section class="panel active" id="panel-dashboard" aria-label="Dashboard">
+      <div class="panel-header">
+        <div class="panel-title">Dashboard</div>
+        <div class="panel-subtitle">Knowledge base health at a glance</div>
+      </div>
+
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="label">Total Docs</div><div class="value" id="stat-total">—</div></div>
+        <div class="stat-card"><div class="label">Canonical</div><div class="value" id="stat-canonical" style="color:var(--green-bright)">—</div></div>
+        <div class="stat-card"><div class="label">Draft / Working</div><div class="value" id="stat-draft">—</div></div>
+        <div class="stat-card"><div class="label">Archived</div><div class="value" id="stat-archived" style="color:var(--text-faint)">—</div></div>
+        <div class="stat-card" id="stat-conflict-card"><div class="label">Open Conflicts</div><div class="value" id="stat-conflicts">—</div></div>
+        <div class="stat-card"><div class="label">Events</div><div class="value" id="stat-events">—</div></div>
+        <div class="stat-card"><div class="label">Planes Indexed</div><div class="value" id="stat-planes">—</div></div>
+        <div class="stat-card"><div class="label">Lineage Records</div><div class="value" id="stat-lineage">—</div><div class="sub">links between docs</div></div>
+        <div class="stat-card"><div class="label">Duplicates Found</div><div class="value" id="stat-duplicates">—</div><div class="sub">content-identical</div></div>
+      </div>
+
+      <div id="dash-conflict-alert" class="alert alert-red hidden">
+        ⚠ &nbsp;<strong>Conflicts require attention.</strong>&nbsp; No auto-resolution. All conflicts require explicit user action.
+        <button class="btn btn-danger btn-sm ml-auto" onclick="nav('canon-conflicts')">View Conflicts →</button>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          ⊞ Recent Documents
+          <span class="count" id="recent-count"></span>
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="nav('library')">Browse Library →</button>
+        </div>
+        <div class="section-body">
+          <div class="table-wrap">
+            <table id="recent-table">
+              <thead><tr><th>Path</th><th>Status</th><th>Type</th><th>State</th></tr></thead>
+              <tbody id="recent-body"><tr><td colspan="4" class="text-faint">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">◈ Corpus Class Distribution <span class="count" id="corpus-count"></span></div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap">
+            <table id="corpus-table">
+              <thead><tr><th>Class</th><th>Count</th><th>Share</th></tr></thead>
+              <tbody id="corpus-body"><tr><td colspan="3" class="text-faint" style="padding:12px">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">⚡ Quick Actions</div>
+        <div class="section-body flex gap-8" style="flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="nav('import-ingest')">⊕ Index Library</button>
+          <button class="btn btn-ghost" onclick="nav('search')">⌕ Search Documents</button>
+          <button class="btn btn-ghost" onclick="nav('canon-conflicts')">⚖ Review Conflicts</button>
+          <a class="btn btn-ghost" href="/api/events/export.ics" target="_blank">📅 Export ICS</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel 2: Library ══╗ -->
+    <section class="panel" id="panel-library" aria-label="Library">
+      <div class="panel-header">
+        <div class="panel-title">Library</div>
+        <div class="panel-subtitle" id="lib-subtitle">Browse and inspect all documents</div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Filters</div>
+        <div class="section-body">
+          <div class="form-row">
+            <span class="form-label">Status</span>
+            <select id="lib-status" onchange="loadLibrary()">
+              <option value="">All</option>
+              <option>draft</option><option>working</option>
+              <option>canonical</option><option>archived</option>
+            </select>
+            <span class="form-label">Type</span>
+            <select id="lib-type" onchange="loadLibrary()">
+              <option value="">All</option>
+              <option>note</option><option>canon</option><option>reference</option>
+              <option>log</option><option>event</option><option>person</option>
+              <option>ledger</option><option>project</option>
+            </select>
+            <span class="form-label">State</span>
+            <select id="lib-state" onchange="loadLibrary()">
+              <option value="">All</option>
+              <option>observe</option><option>vessel</option><option>constraint</option>
+              <option>integrate</option><option>release</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearLibFilters()">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          Documents
+          <span class="count" id="lib-count"></span>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button class="btn btn-ghost btn-sm" id="lib-prev" onclick="libPage(-1)">← Prev</button>
+            <span id="lib-page-info" class="text-faint font-sm" style="align-self:center"></span>
+            <button class="btn btn-ghost btn-sm" id="lib-next" onclick="libPage(1)">Next →</button>
+          </div>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Path</th><th>Status</th><th>Corpus</th><th>Type</th><th>State</th><th>Version</th><th></th></tr></thead>
+              <tbody id="lib-body"><tr><td colspan="6" class="text-faint" style="padding:20px;text-align:center">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel 3: Search ══╗ -->
+    <section class="panel" id="panel-search" aria-label="Search">
+      <div class="panel-header">
+        <div class="panel-title">Search</div>
+        <div class="panel-subtitle">Full-text search with explainable scoring</div>
+      </div>
+
+      <div class="section">
+        <div class="section-body">
+          <div class="form-row">
+            <input class="input" id="search-q" placeholder="Search query…" style="flex:2" onkeydown="if(event.key==='Enter')doSearch()">
+            <input class="input" id="search-plane" placeholder="Plane filter (optional)" style="flex:1">
+            <select id="search-limit">
+              <option value="20">20 results</option>
+              <option value="50">50 results</option>
+              <option value="100">100 results</option>
+            </select>
+            <button class="btn btn-primary" onclick="doSearch()">⌕ Search</button>
+          </div>
+
+          <!-- Daenary advanced filters (Phase 8) -->
+          <div class="accordion mt-8">
+            <div class="accordion-head" onclick="toggleAccordion(this)">
+              Daenary semantic filters <span class="chevron">▶</span>
+            </div>
+            <div class="accordion-body" id="search-daenary-panel">
+              <div class="daenary-filter-label">Epistemic filters — narrow by coordinate state</div>
+              <div class="form-row" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                <span class="form-label">Dimension</span>
+                <input class="input" id="sf-dimension" placeholder="e.g. relevance" style="flex:1;min-width:100px">
+                <span class="form-label">State</span>
+                <select id="sf-state" style="min-width:80px">
+                  <option value="">Any</option>
+                  <option value="1">+1 (affirm)</option>
+                  <option value="0">0 (unresolved)</option>
+                  <option value="-1">−1 (negative)</option>
+                </select>
+                <span class="form-label">Min quality</span>
+                <input class="input" id="sf-min-quality" type="number" step="0.1" min="0" max="1" placeholder="0.0–1.0" style="width:70px">
+                <span class="form-label">Min confidence</span>
+                <input class="input" id="sf-min-conf" type="number" step="0.1" min="0" max="1" placeholder="0.0–1.0" style="width:70px">
+              </div>
+              <div class="form-row" style="gap:16px">
+                <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+                  <input type="checkbox" id="sf-uncertain"> Uncertain only (state=0/contain)
+                </label>
+                <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+                  <input type="checkbox" id="sf-stale"> Stale only (expired valid_until)
+                </label>
+                <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+                  <input type="checkbox" id="sf-conflicts"> Conflicts only
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion mt-8">
+            <div class="accordion-head" onclick="toggleAccordion(this)">
+              Score formula reference <span class="chevron">▶</span>
+            </div>
+            <div class="accordion-body">
+              <div class="kv-grid">
+                <div class="kv-key">Formula</div>
+                <div class="kv-val text-blue">0.6 × text + 0.2 × canon + 0.2 × planar + conflict_penalty + daenary_adjustment</div>
+                <div class="kv-key">text_score</div>
+                <div class="kv-val">Normalized BM25 (FTS5) → [0,1]</div>
+                <div class="kv-key">canon_score</div>
+                <div class="kv-val">canon_score(doc) / 180 clamped to [0,1]</div>
+                <div class="kv-key">planar</div>
+                <div class="kv-val">Weighted direction sum over active plane facts → [0,1]</div>
+                <div class="kv-key">conflict_penalty</div>
+                <div class="kv-val text-red">−0.1 if doc has any open conflict</div>
+                <div class="kv-key">daenary_adjustment</div>
+                <div class="kv-val">Additive only, range [−0.05, +0.05]. High-confidence dims +0.05, stale dims −0.05.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="search-results-wrap">
+        <div class="section">
+          <div class="section-head">Results <span class="count" id="search-count"></span></div>
+          <div class="section-body" style="padding:8px 0 0">
+            <div id="search-results"><div class="empty"><div class="icon">⌕</div>Enter a query above</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel 4: Canon & Conflicts ══╗ -->
+    <section class="panel" id="panel-canon-conflicts" aria-label="Canon and Conflicts">
+      <div class="panel-header">
+        <div class="panel-title">Canon & Conflicts</div>
+        <div class="panel-subtitle">Resolution, collision detection, and governance</div>
+      </div>
+
+      <div class="alert alert-blue">
+        ◈ &nbsp;<strong>No auto-resolution.</strong> All conflicts require explicit user action. The [Acknowledge] button marks a conflict as seen — it does not resolve it.
+      </div>
+
+      <div class="split">
+        <!-- Canon resolution -->
+        <div>
+          <div class="section">
+            <div class="section-head">⚖ Canon Resolution</div>
+            <div class="section-body">
+              <div class="form-row" style="margin-bottom:8px">
+                <input class="input" id="canon-topic" placeholder="Topic…" onkeydown="if(event.key==='Enter')doCanon()">
+                <input class="input" id="canon-plane" placeholder="Plane scope (optional)">
+                <button class="btn btn-primary" onclick="doCanon()">Resolve</button>
+              </div>
+            </div>
+          </div>
+          <div id="canon-result"></div>
+        </div>
+
+        <!-- Conflicts -->
+        <div>
+          <div class="section">
+            <div class="section-head">
+              ⚠ Conflicts
+              <span class="count" id="conflicts-count"></span>
+              <div style="display:flex;gap:6px;margin-left:auto">
+                <select id="conflict-filter" onchange="renderConflicts()" style="font-size:11px;padding:2px 6px">
+                  <option value="all">All</option>
+                  <option value="open">Open</option>
+                  <option value="acknowledged">Acknowledged</option>
+                  <option value="definition_conflict">Def. conflicts</option>
+                  <option value="canon_collision">Canon collisions</option>
+                  <option value="planar_conflict">Planar conflicts</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" onclick="loadConflicts()">↻</button>
+              </div>
+            </div>
+            <div class="section-body" style="padding:8px">
+              <div id="conflicts-list"><div class="empty"><div class="icon">⚠</div>Loading…</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section mt-8">
+        <div class="section-head">
+          ⊞ Lineage Records
+          <span class="count" id="lineage-count"></span>
+          <select id="lineage-filter" onchange="loadLineage()" style="font-size:11px;padding:2px 6px;margin-left:8px">
+            <option value="">All types</option>
+            <option value="duplicate_content">Duplicates</option>
+            <option value="supersedes">Supersessions</option>
+            <option value="derived_from">Derived from</option>
+            <option value="snapshot_source">Snapshot source</option>
+          </select>
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="loadLineage()">↻ Refresh</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Doc</th><th>Relationship</th><th>Related Doc</th><th>Detail</th><th>Detected</th></tr></thead>
+              <tbody id="lineage-body"><tr><td colspan="5" class="text-faint" style="padding:16px;text-align:center">Click ↻ to load lineage records.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel 5: Import / Ingest ══╗ -->
+    <section class="panel" id="panel-import-ingest" aria-label="Import and Ingest">
+      <div class="panel-header">
+        <div class="panel-title">Import / Ingest</div>
+        <div class="panel-subtitle">Index filesystem library or ingest snapshot exports</div>
+      </div>
+
+      <!-- Filesystem index -->
+      <div class="section">
+        <div class="section-head">⊕ Index Filesystem Library</div>
+        <div class="section-body">
+          <div class="form-row" style="margin-bottom:12px">
+            <span class="form-label">Library root</span>
+            <input class="input" id="index-root" placeholder="./library" style="flex:1">
+            <button class="btn btn-primary" id="index-btn" onclick="doIndex()">Index Library</button>
+          </div>
+          <div id="index-result"></div>
+        </div>
+      </div>
+
+      <!-- Snapshot ingest -->
+      <div class="section">
+        <div class="section-head">⊞ Ingest Snapshot Export</div>
+        <div class="section-body">
+          <div class="form-row" style="margin-bottom:12px">
+            <span class="form-label">JSON file path</span>
+            <input class="input" id="snap-path" placeholder="/path/to/boh_export_run.json" style="flex:1">
+            <button class="btn btn-ghost" id="snap-btn" onclick="doIngestSnapshot()">Ingest Snapshot</button>
+          </div>
+          <div class="alert alert-blue font-sm">
+            ◈ Canon guard active — snapshot cannot overwrite canonical documents.
+            Docs that would overwrite canon are skipped and reported.
+          </div>
+          <div id="snap-result"></div>
+        </div>
+      </div>
+
+      <!-- Migration report -->
+      <div class="section">
+        <div class="section-head">◈ Corpus Migration Report</div>
+        <div class="section-body">
+          <p class="text-muted font-sm" style="margin-bottom:10px">
+            Generates <code>docs/migration_report.md</code> — corpus class distribution,
+            conflict summary, lineage stats, and invariant verification.
+          </p>
+          <div class="form-row" style="margin-bottom:10px">
+            <input class="input" id="report-path" value="docs/migration_report.md" style="flex:1">
+            <button class="btn btn-ghost" id="report-btn" onclick="doMigrationReport()">Generate Report</button>
+          </div>
+          <div id="report-result"></div>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="section">
+        <div class="section-head">↓ Exports</div>
+        <div class="section-body flex gap-12" style="flex-wrap:wrap;align-items:center">
+          <a class="btn btn-ghost" href="/api/events/export.ics" target="_blank">📅 Download ICS Calendar</a>
+          <span class="text-faint font-sm">All events with explicit start + timezone</span>
+        </div>
+      </div>
+    </section>
+
+  
+    <!-- ╔══ Panel 6: Atlas ══╗ -->
+    <section class="panel" id="panel-atlas" aria-label="Knowledge Atlas" style="padding:0;max-width:100%;height:calc(100vh - 48px)">
+      <div id="atlas-layout" style="display:grid;grid-template-columns:1fr 420px;height:100%;overflow:hidden">
+
+        <!-- Graph canvas -->
+        <div id="graph-pane" style="position:relative;background:var(--bg-void);overflow:hidden">
+          <div id="graph-toolbar" style="position:absolute;top:12px;left:12px;z-index:10;display:flex;gap:8px;align-items:center">
+            <div class="wordmark" style="font-size:12px">◉ Knowledge Atlas</div>
+            <button class="btn btn-ghost btn-sm" onclick="reloadGraph()">↻ Refresh</button>
+            <select id="graph-filter-class" onchange="applyGraphFilter()" style="font-size:11px;padding:2px 6px">
+              <option value="">All classes</option>
+              <option value="CORPUS_CLASS:CANON">Canon</option>
+              <option value="CORPUS_CLASS:DRAFT">Draft</option>
+              <option value="CORPUS_CLASS:DERIVED">Derived</option>
+              <option value="CORPUS_CLASS:ARCHIVE">Archive</option>
+              <option value="CORPUS_CLASS:EVIDENCE">Evidence</option>
+            </select>
+            <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+              <input type="checkbox" id="graph-show-related" onchange="applyGraphFilter()"> Topic edges
+            </label>
+          </div>
+          <div id="graph-legend" style="position:absolute;bottom:12px;left:12px;z-index:10;font-size:10px;color:var(--text-faint)">
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <span><span style="color:#10b981">●</span> Canon</span>
+              <span><span style="color:#6b7a96">●</span> Draft</span>
+              <span><span style="color:#f59e0b">●</span> Derived</span>
+              <span><span style="color:#3d4d63">●</span> Archive</span>
+              <span><span style="color:#8b5cf6">●</span> Evidence</span>
+              <span style="margin-left:8px;border-left:1px solid var(--border-dim);padding-left:8px"><span style="color:#ef4444">⊙</span> Conflict</span>
+              <span><span style="color:#f59e0b">⊙</span> Stale</span>
+              <span><span style="color:#60a5fa">•</span> Uncertain</span>
+            </div>
+            <div id="graph-stats" style="margin-top:4px"></div>
+          </div>
+          <canvas id="graph-canvas" style="display:block;width:100%;height:100%"></canvas>
+        </div>
+
+        <!-- Reader pane -->
+        <div id="reader-pane" style="border-left:1px solid var(--border-dim);background:var(--bg-base);overflow-y:auto;display:flex;flex-direction:column">
+          <div id="reader-header" style="padding:14px 16px;border-bottom:1px solid var(--border-dim);flex-shrink:0">
+            <div style="font-size:10px;color:var(--text-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">Document Reader</div>
+            <div id="reader-title" style="font-size:13px;font-weight:700;color:var(--text-bright)">Select a node in the graph</div>
+            <div id="reader-meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+            <div id="reader-toggle" style="margin-top:8px;display:none">
+              <div style="display:inline-flex;border:1px solid var(--border-soft);border-radius:4px;overflow:hidden">
+                <button class="btn btn-sm" id="btn-rendered" onclick="setReaderMode('rendered')"
+                  style="border:none;border-radius:0;background:var(--blue);color:#fff">Rendered</button>
+                <button class="btn btn-ghost btn-sm" id="btn-raw" onclick="setReaderMode('raw')"
+                  style="border:none;border-radius:0">Raw</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Related docs -->
+          <div id="reader-related" style="padding:10px 16px;border-bottom:1px solid var(--border-dim);flex-shrink:0;display:none">
+            <div style="font-size:10px;color:var(--text-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">Related Documents</div>
+            <div id="reader-related-list"></div>
+          </div>
+
+          <!-- Document content -->
+          <div id="reader-content" style="padding:20px;flex:1;font-size:13px;line-height:1.7">
+            <div class="empty" style="margin-top:60px">
+              <div class="icon" style="font-size:40px;opacity:.2">◉</div>
+              <div style="margin-top:12px">Click any node in the graph<br>to open the document here</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+</main>
+</div>
+
+<!-- ── Doc detail drawer ───────────────────────────────── -->
+<div id="doc-drawer" role="complementary" aria-label="Document detail">
+  <button id="doc-drawer-close" onclick="closeDrawer()" aria-label="Close">✕</button>
+  <div id="doc-drawer-content"></div>
+</div>
+
+<script src="/vendor/katex.min.js?v=8"></script>
+<script src="/vendor/marked.min.js?v=8"></script>
+<script src="/app.js?v=8"></script>
+</body>
+</html>
