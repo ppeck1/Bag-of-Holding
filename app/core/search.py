@@ -199,7 +199,8 @@ def search(
         result_row = {
             "doc_id": doc["doc_id"],
             "path": path,
-            "title": fts_rows[paths.index(path)]["title"] if path in paths else "",
+            "title": doc.get("title") or fts_rows[paths.index(path)]["title"] if path in paths else "",
+            "summary": doc.get("summary") or "",
             "status": doc["status"],
             "type": doc["type"],
             "operator_state": doc["operator_state"],

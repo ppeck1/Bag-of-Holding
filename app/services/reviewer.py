@@ -1,6 +1,12 @@
 """app/services/reviewer.py: LLM review artifact generation for Bag of Holding v2.
 
 Moved from llm_review.py (v0P). Logic unchanged.
+Phase 9 additions:
+  - load_review_artifact() — load existing artifact without regenerating
+  - review_artifact_exists() — check without loading
+  - artifact now includes doc_title, doc_id, doc_status
+  - suspected_conflicts enriched with titles + paths
+
 Review artifacts are non-authoritative. They cannot overwrite canon automatically.
 All patches require explicit user confirmation.
 
@@ -64,6 +70,32 @@ def _resolve_doc_path(doc_path: str, library_root: str) -> tuple[str, Path] | tu
     return None, None
 
 
+def _artifact_path(doc_path: str, library_root: str) -> Path:
+    """Return the .review.json path for a given doc_path."""
+    return Path(library_root) / doc_path.replace(".md", ".review.json")
+
+
+def review_artifact_exists(doc_path: str, library_root: str) -> bool:
+    """Return True if a review artifact file already exists on disk."""
+    p = _artifact_path(doc_path, library_root)
+    return p.exists()
+
+
+def load_review_artifact(doc_path: str, library_root: str) -> dict | None:
+    """Load and return an existing review artifact without regenerating.
+    Returns None if no artifact exists.
+    """
+    p = _artifact_path(doc_path, library_root)
+    if not p.exists():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        data["_loaded_from_disk"] = True
+        return data
+    except Exception:
+        return None
+
+
 def generate_review_artifact(doc_path: str, library_root: str) -> dict:
     """Generate a non-authoritative review artifact for a document.
 
@@ -81,6 +113,12 @@ def generate_review_artifact(doc_path: str, library_root: str) -> dict:
 
     text = full_path.read_text(encoding="utf-8", errors="replace")
     boh, body, _ = parse_frontmatter(text)
+
+    # Resolve doc metadata from DB for enrichment
+    doc_row = db.fetchone("SELECT doc_id, title, status FROM docs WHERE path = ?", (doc_path,))
+    doc_id    = doc_row["doc_id"]    if doc_row else None
+    doc_title = doc_row["title"]     if doc_row and doc_row.get("title") else (boh or {}).get("purpose", "")
+    doc_status = doc_row["status"]   if doc_row else (boh or {}).get("status", "")
 
     # Extract topics from headings (deterministic; no invention beyond text)
     heading_re = re.compile(r"^#{1,4}\s+(.+)", re.MULTILINE)
@@ -101,6 +139,7 @@ def generate_review_artifact(doc_path: str, library_root: str) -> dict:
     ][:20]
 
     # Suspected conflicts: same term, different block_hash already in DB
+    # Phase 9: resolve conflict target doc ids to titles + paths
     suspected_conflicts = []
     for d in defs:
         rows = db.fetchall(
@@ -108,9 +147,20 @@ def generate_review_artifact(doc_path: str, library_root: str) -> dict:
             (d["term"], d["block_hash"]),
         )
         if rows:
+            targets = []
+            for r in rows:
+                conflict_doc = db.fetchone(
+                    "SELECT doc_id, title, path FROM docs WHERE doc_id = ?",
+                    (r["doc_id"],),
+                )
+                targets.append({
+                    "doc_id":   r["doc_id"],
+                    "title":    conflict_doc["title"] if conflict_doc and conflict_doc.get("title") else r["doc_id"][:16],
+                    "path":     conflict_doc["path"]  if conflict_doc else "",
+                })
             suspected_conflicts.append({
                 "term": d["term"],
-                "conflict_with": [r["doc_id"] for r in rows],
+                "conflict_with": targets,
             })
 
     # Recommended metadata patch (non-authoritative suggestion only — LR7)
@@ -130,7 +180,10 @@ def generate_review_artifact(doc_path: str, library_root: str) -> dict:
     normalization_output_hash = hashlib.sha256(norm_input.encode()).hexdigest()
 
     artifact = {
-        "doc_path": doc_path,
+        "doc_path":   doc_path,
+        "doc_id":     doc_id,
+        "doc_title":  doc_title,
+        "doc_status": doc_status,
         "generated_at": int(time.time()),
 
         # LR1, LR2, LR3 — immutable fields
@@ -149,7 +202,7 @@ def generate_review_artifact(doc_path: str, library_root: str) -> dict:
     }
 
     # LR5: Write review artifact alongside source (existing behavior)
-    artifact_file = Path(library_root) / (doc_path.replace(".md", ".review.json"))
+    artifact_file = _artifact_path(doc_path, library_root)
     artifact_file.parent.mkdir(parents=True, exist_ok=True)
     artifact_file.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
 

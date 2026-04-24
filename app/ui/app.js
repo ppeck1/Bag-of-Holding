@@ -8,9 +8,9 @@
 
 'use strict';
 
-const BOH_VERSION = 'v2-phase8';
+const BOH_VERSION = 'v2-phase12';
 console.info(`%c📦 Bag of Holding ${BOH_VERSION}`, 'color:#10b981;font-weight:bold;font-size:14px');
-console.info('Phase 8 active: Daenary · DCNS · Drawer Viewer · Coordinate Search');
+console.info('Phase 12: Lifecycle undo/backward · Auto-index · Ingestion CTA · LLM Queue · Atlas controls · Mutation safety');
 
 // ── Global state ──────────────────────────────────────────────
 let _conflicts = [];
@@ -21,8 +21,36 @@ const LIB_PER_PAGE = 50;
 let _drawerDocId   = null;
 let _drawerRawText = '';
 let _drawerMode    = 'rendered'; // 'rendered' | 'raw'
+let _activeLibraryRoot = './library';
 
 // ── Phase 8: Shared reader helpers ────────────────────────────
+
+function setActiveLibraryRoot(root) {
+  const normalized = (root || './library').trim() || './library';
+  _activeLibraryRoot = normalized;
+  try { sessionStorage.setItem('boh_active_library_root', normalized); } catch (_) {}
+  const input = el('index-root');
+  if (input) input.value = normalized;
+  return normalized;
+}
+
+function getActiveLibraryRoot() {
+  const inputVal = el('index-root')?.value?.trim();
+  if (inputVal) return inputVal;
+  if (_activeLibraryRoot) return _activeLibraryRoot;
+  try {
+    return sessionStorage.getItem('boh_active_library_root') || './library';
+  } catch (_) {
+    return './library';
+  }
+}
+
+function withLibraryRoot(path) {
+  const root = getActiveLibraryRoot();
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}library_root=${encodeURIComponent(root)}`;
+}
+
 
 /**
  * Render coordinate badges from a summary string or coord array.
@@ -50,7 +78,7 @@ function renderCoordBadges(coords) {
  */
 async function loadDocPayload(docId) {
   const [contentRes, relatedRes] = await Promise.all([
-    fetch(`/api/docs/${encodeURIComponent(docId)}/content`),
+    fetch(withLibraryRoot(`/api/docs/${encodeURIComponent(docId)}/content`)),
     fetch(`/api/docs/${encodeURIComponent(docId)}/related?limit=6`),
   ]);
   const rawText = contentRes.ok ? await contentRes.text() : null;
@@ -131,6 +159,42 @@ function conflictBadge() {
   return `<span class="badge badge-conflict">conflict</span>`;
 }
 
+// ── Phase 9: Title + signal helpers ───────────────────────────
+
+/** Return the best available display title for a doc object. */
+function docTitle(doc) {
+  if (doc.title && doc.title.trim()) return doc.title.trim();
+  if (doc.path) return doc.path.split('/').pop().replace(/\.md$/, '');
+  return (doc.doc_id || '').slice(0, 20);
+}
+
+/** Compact signal badges for library / card views. */
+function signalBadges(doc, conflictDocIds) {
+  const parts = [];
+  if (conflictDocIds && conflictDocIds.has(doc.doc_id))
+    parts.push(`<span class="sig-badge sig-conflict" title="Has open conflict">⚡</span>`);
+  if (doc._stale)
+    parts.push(`<span class="sig-badge sig-stale" title="Stale coordinates">⏱</span>`);
+  if (doc._uncertain)
+    parts.push(`<span class="sig-badge sig-uncertain" title="Uncertain coordinates">?</span>`);
+  if (doc._highconf)
+    parts.push(`<span class="sig-badge sig-highconf" title="High confidence">✓</span>`);
+  return parts.join('');
+}
+
+/** Deterministic "why this matched" phrase from score breakdown. */
+function matchReason(r) {
+  const sb = r.score_breakdown || {};
+  if (r.has_conflict) return 'Conflict-bearing result';
+  if (sb.daenary_adjustment < -0.02) return 'Stale knowledge candidate';
+  const uncertain = sb.daenary_adjustment > 0 && sb.canon_score_normalized < 0.3;
+  if (uncertain) return 'Uncertain but high-quality document';
+  if (sb.text_score > 0.7 && sb.canon_score_normalized > 0.4) return 'Strong text match · canon-aligned';
+  if (sb.text_score > 0.7) return 'Strong text match';
+  if (sb.canon_score_normalized > 0.5) return 'Canon-aligned';
+  return '';
+}
+
 function scoreBar(val, label = '') {
   const pct = Math.round(Math.max(0, Math.min(1, val)) * 100);
   const cls = pct >= 60 ? 'good' : pct >= 30 ? '' : 'warn';
@@ -183,9 +247,12 @@ function nav(panelId) {
     loadConflicts();
     loadLineage();
   }
+  if (panelId === 'governance')        { checkOllama(); loadPolicies(); }
   if (panelId === 'atlas' && !_graph) {
     setTimeout(initAtlas, 50); // allow CSS .active display to take effect first
   }
+  if (panelId === 'status')    loadStatus();
+  if (panelId === 'llm-queue') loadLlmQueue();
 }
 
 // Handle keyboard nav on nav items
@@ -231,6 +298,30 @@ async function loadDashboard() {
 
   dbStatus.textContent = '⬤ connected';
   dbStatus.className = 'ok';
+
+  // Phase 12: library / auto-index status card
+  const libStatus = el('dash-library-status');
+  if (libStatus) {
+    api('/api/autoindex/status').then(ai => {
+      if (ai.error) { libStatus.textContent = 'Library status unavailable.'; return; }
+      const root = ai.library_root || './library';
+      const lastRun = ai.last_run_ts
+        ? `Last indexed: ${new Date(ai.last_run_ts * 1000).toLocaleString()}`
+        : 'Not yet indexed this session.';
+      const stats = ai.last_run_ts
+        ? ` · ${ai.last_indexed ?? 0} indexed, ${ai.last_skipped ?? 0} skipped`
+        : '';
+      libStatus.innerHTML = `<span class="text-muted">Library:</span> <code>${escHtml(root)}</code> &nbsp;·&nbsp; ${escHtml(lastRun)}${escHtml(stats)}`;
+    });
+    // LLM queue badge
+    api('/api/llm/queue/count').then(q => {
+      const pending = q.pending ?? 0;
+      const badge = el('nav-llm-badge');
+      if (badge) { badge.textContent = pending; badge.classList.toggle('hidden', pending === 0); }
+      const hint = el('dash-unreviewed-hint');
+      if (hint) hint.classList.toggle('hidden', pending === 0);
+    });
+  }
 
   // Corpus class distribution table
   const corpusDist = data.corpus_class_distribution || {};
@@ -308,9 +399,15 @@ async function loadLibrary() {
 
   el('lib-body').innerHTML = data.docs.map(d => {
     const hasConflict = conflictDocIds.has(d.doc_id);
+    const title = docTitle(d);
+    const summary = d.summary ? `<div class="lib-summary text-faint font-sm">${escHtml(d.summary.slice(0,100))}${d.summary.length>100?'…':''}</div>` : '';
     return `
     <tr class="clickable${hasConflict?' selected':''}" onclick="openDrawer('${escHtml(d.doc_id)}')">
-      <td class="path" title="${escHtml(d.path)}">${escHtml(shortPath(d.path, 52))}</td>
+      <td>
+        <div class="lib-title">${escHtml(title)}</div>
+        ${summary}
+        <div class="lib-path text-faint font-sm" style="font-size:10px">${escHtml(shortPath(d.path, 52))}</div>
+      </td>
       <td>${statusBadge(d.status)} ${hasConflict ? conflictBadge() : ''}</td>
       <td>${corpusBadge(d.corpus_class)}</td>
       <td>${typeBadge(d.type)}</td>
@@ -336,6 +433,7 @@ function clearLibFilters() {
 
 // ── Doc drawer ────────────────────────────────────────────────
 async function openDrawer(docId) {
+  initDrawerResize();
   const drawer = el('doc-drawer');
   el('doc-drawer-content').innerHTML = `<div style="padding:20px;color:var(--text-faint)"><span class="spinner"></span> Loading…</div>`;
   drawer.classList.add('open');
@@ -359,25 +457,34 @@ async function openDrawer(docId) {
   const intentOpts = ['capture','triage','define','extract','reconcile','refactor','canonize','archive']
     .map(i => `<option value="${i}">${i}</option>`).join('');
 
+  const displayTitle = docTitle(doc);
   el('doc-drawer-content').innerHTML = `
     <div style="margin-bottom:16px">
       <div class="text-faint font-sm" style="margin-bottom:4px">Document Detail</div>
-      <div class="text-bright font-bold" style="font-size:14px;margin-bottom:8px">${escHtml(shortPath(doc.path, 40))}</div>
+      <div class="text-bright font-bold" style="font-size:15px;margin-bottom:6px;line-height:1.3">${escHtml(displayTitle)}</div>
+      ${doc.summary ? `<div class="text-muted font-sm" style="margin-bottom:8px;line-height:1.5">${escHtml(doc.summary)}</div>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${statusBadge(doc.status)} ${typeBadge(doc.type)} ${stateBadge(doc.operator_state)}
+        ${statusBadge(doc.status)} ${typeBadge(doc.type)} ${stateBadge(doc.operator_state)} ${corpusBadge(doc.corpus_class)}
       </div>
     </div>
 
     <div class="kv-grid" style="margin-bottom:16px">
-      <div class="kv-key">doc_id</div><div class="kv-val font-sm">${escHtml(doc.doc_id)}</div>
-      <div class="kv-key">path</div><div class="kv-val font-sm">${escHtml(doc.path)}</div>
-      <div class="kv-key">version</div><div class="kv-val">${escHtml(doc.version||'—')}</div>
-      <div class="kv-key">updated</div><div class="kv-val font-sm">${ts(doc.updated_ts)}</div>
-      <div class="kv-key">source_type</div><div class="kv-val">${escHtml(doc.source_type||'—')}</div>
-      <div class="kv-key">operator_intent</div><div class="kv-val">${escHtml(doc.operator_intent||'—')}</div>
-      <div class="kv-key">topics_tokens</div><div class="kv-val font-sm">${escHtml(doc.topics_tokens||'—')}</div>
-      <div class="kv-key">plane_scope</div><div class="kv-val font-sm">${escHtml(doc.plane_scope_json||'[]')}</div>
-      <div class="kv-key">corpus_class</div><div class="kv-val">${corpusBadge(doc.corpus_class)}</div>
+      <div class="kv-key">Updated</div><div class="kv-val font-sm">${ts(doc.updated_ts)}</div>
+      <div class="kv-key">Version</div><div class="kv-val">${escHtml(doc.version||'—')}</div>
+      <div class="kv-key">Source</div><div class="kv-val">${escHtml(doc.source_type||'—')}</div>
+      <div class="kv-key">Intent</div><div class="kv-val">${escHtml(doc.operator_intent||'—')}</div>
+      <div class="kv-key">Topics</div><div class="kv-val font-sm">${escHtml(doc.topics_tokens||'—')}</div>
+      <div class="kv-key">Plane scope</div><div class="kv-val font-sm">${escHtml(doc.plane_scope_json||'[]')}</div>
+      <div class="kv-key" style="color:var(--text-faint)">Path</div>
+      <div class="kv-val font-sm" style="display:flex;gap:6px;align-items:center">
+        <span style="color:var(--text-faint)">${escHtml(doc.path)}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px" onclick="copyToClip('${escHtml(doc.path)}', this)">copy</button>
+      </div>
+      <div class="kv-key" style="color:var(--text-faint)">doc_id</div>
+      <div class="kv-val font-sm" style="display:flex;gap:6px;align-items:center">
+        <span style="color:var(--text-faint)">${escHtml(doc.doc_id)}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px" onclick="copyToClip('${escHtml(doc.doc_id)}', this)">copy</button>
+      </div>
     </div>
 
     <!-- ── Phase 8: Document Viewer ── -->
@@ -428,21 +535,40 @@ async function openDrawer(docId) {
             ${!allowed.length?'disabled':''}>Apply →</button>
         </div>
         <div id="transition-msg-${escHtml(docId)}" class="font-sm mt-8"></div>
+
+        <!-- Phase 12: backward / undo / history -->
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-dim);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-ghost btn-sm" onclick="showMoveBackwardModal('${escHtml(docId)}')">← Move backward</button>
+          <button class="btn btn-ghost btn-sm" onclick="submitUndoLifecycle('${escHtml(docId)}')">↺ Undo last</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleLifecycleHistory('${escHtml(docId)}')">⊞ History</button>
+        </div>
+        <div id="lifecycle-backward-form-${escHtml(docId)}" style="display:none;margin-top:8px">
+          <div class="form-row" style="gap:6px">
+            <input class="input" id="lc-reason-${escHtml(docId)}" placeholder="Reason for backward move (optional)" style="flex:1;font-size:11px">
+            <button class="btn btn-amber btn-sm" onclick="submitMoveBackward('${escHtml(docId)}')">Confirm ←</button>
+            <button class="btn btn-ghost btn-sm" onclick="el('lifecycle-backward-form-${escHtml(docId)}').style.display='none'">Cancel</button>
+          </div>
+        </div>
+        <div id="lifecycle-history-${escHtml(docId)}" style="display:none;margin-top:8px"></div>
+        <div id="lifecycle-action-msg-${escHtml(docId)}" class="font-sm" style="margin-top:4px"></div>
       </div>
     </div>
 
     <!-- LLM Review -->
     <div class="accordion" style="margin-bottom:12px">
       <div class="accordion-head" onclick="toggleAccordion(this)">
-        ◈ LLM Review Artifact <span class="text-faint font-sm">(non-authoritative)</span>
+        ◈ Review Artifact <span class="text-faint font-sm">(non-authoritative)</span>
         <span class="chevron">▶</span>
       </div>
       <div class="accordion-body">
         <div class="alert alert-amber font-sm" style="margin-bottom:8px">
-          Review artifacts are non-authoritative. Applying suggestions requires explicit user action.
+          Non-authoritative. Applying any suggestion requires explicit user action.
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="loadReview('${escHtml(doc.path)}')">Generate Review →</button>
-        <div id="review-out-${escHtml(docId)}" style="margin-top:8px"></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn btn-ghost btn-sm" onclick="loadReview('${escHtml(doc.path)}', '${escHtml(docId)}', false)">Load Review</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadReview('${escHtml(doc.path)}', '${escHtml(docId)}', true)">↻ Regenerate</button>
+        </div>
+        <div id="review-panel-${escHtml(docId)}"></div>
       </div>
     </div>
 
@@ -478,7 +604,8 @@ async function openDrawer(docId) {
 
   // Phase 8: Load document body + related docs into drawer viewer
   _drawerDocId = docId;
-  _drawerMode  = 'rendered';
+  // Preserve rendered/raw mode across documents for the current session
+  _drawerMode  = (() => { try { return sessionStorage.getItem('boh_drawer_mode') || _drawerMode || 'rendered'; } catch(_) { return _drawerMode || 'rendered'; } })();
   loadDocPayload(docId).then(({ rawText, related }) => {
     _drawerRawText = rawText || '';
     renderDocBodyInto('drawer-reader-content', rawText, _drawerMode);
@@ -490,9 +617,61 @@ function closeDrawer() {
   el('doc-drawer').classList.remove('open');
 }
 
-// Phase 8: Drawer rendered/raw toggle
+// ── Drawer resize ──────────────────────────────────────────────
+function initDrawerResize() {
+  const drawer = el('doc-drawer');
+  const grip   = el('doc-drawer-resizer');
+  if (!drawer || !grip || grip.dataset.bound) return;
+  grip.dataset.bound = '1';
+
+  // Restore saved width
+  try {
+    const saved = localStorage.getItem('boh_drawer_width');
+    if (saved) drawer.style.width = saved;
+  } catch (_) {}
+
+  let dragging = false;
+  grip.addEventListener('mousedown', (ev) => {
+    dragging = true;
+    ev.preventDefault();
+    document.body.classList.add('resizing-drawer');
+  });
+  window.addEventListener('mousemove', (ev) => {
+    if (!dragging) return;
+    const w = Math.max(360, Math.min(window.innerWidth * .96, window.innerWidth - ev.clientX));
+    drawer.style.width = `${Math.round(w)}px`;
+    drawer.classList.remove('full');
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.classList.remove('resizing-drawer');
+    try { localStorage.setItem('boh_drawer_width', drawer.style.width); } catch (_) {}
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (ev) => {
+    if (!drawer.classList.contains('open')) return;
+    if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA') return;
+    if (ev.key === 'Escape') closeDrawer();
+    if (ev.key === ']') setDrawerWidthMode('wide');
+    if (ev.key === '[') setDrawerWidthMode('narrow');
+  });
+}
+
+function setDrawerWidthMode(mode) {
+  const drawer = el('doc-drawer');
+  if (!drawer) return;
+  drawer.classList.remove('full');
+  const widths = { narrow: '420px', wide: '760px', full: 'min(1100px, 96vw)' };
+  const w = widths[mode] || '520px';
+  if (mode === 'full') drawer.classList.add('full');
+  drawer.style.width = w;
+  try { localStorage.setItem('boh_drawer_width', w); } catch (_) {}
+}
 function setDrawerMode(mode) {
   _drawerMode = mode;
+  try { sessionStorage.setItem('boh_drawer_mode', mode); } catch(_) {}
   const btnR = el('drawer-btn-rendered');
   const btnRaw = el('drawer-btn-raw');
   if (btnR) btnR.classList.toggle('active', mode === 'rendered');
@@ -527,33 +706,135 @@ async function transitionDoc(docId, toState) {
   submitTransition(docId);
 }
 
-async function loadReview(docPath) {
-  const docId = docPath; // used as key only
-  const outEl = document.getElementById(`review-out-${docId.replace(/\W/g,'_')}`);
-  const allReviewOuts = document.querySelectorAll('[id^="review-out-"]');
-  // find by content proximity
-  const btn = event.target;
-  const container = btn.closest('.accordion-body');
-  const reviewDiv = container.querySelector('[id^="review-out-"]');
-  if (!reviewDiv) return;
+async function loadReview(docPath, docId, forceRegenerate = false) {
+  const panelId = `review-panel-${docId}`;
+  const panel = el(panelId);
+  if (!panel) return;
 
-  reviewDiv.innerHTML = `<span class="spinner"></span> Generating…`;
-  const r = await api(`/api/review/${encodeURIComponent(docPath)}`);
-  if (r.error) { reviewDiv.innerHTML = `<span class="text-red">${escHtml(r.error)}</span>`; return; }
+  panel.innerHTML = `<div style="padding:8px;color:var(--text-faint)"><span class="spinner"></span> ${forceRegenerate ? 'Regenerating…' : 'Loading…'}</div>`;
 
-  reviewDiv.innerHTML = `
-    <div class="kv-grid font-sm">
-      <div class="kv-key">reviewer</div><div class="kv-val">${escHtml(r.reviewer)}</div>
-      <div class="kv-key">non_authoritative</div><div class="kv-val text-amber">${r.non_authoritative}</div>
-      <div class="kv-key">topics found</div><div class="kv-val">${escHtml((r.extracted_topics||[]).join(', ')||'none')}</div>
-      <div class="kv-key">definitions</div><div class="kv-val">${(r.extracted_definitions||[]).length}</div>
-      <div class="kv-key">suspected conflicts</div><div class="kv-val ${r.suspected_conflicts?.length?'text-red':''}">${(r.suspected_conflicts||[]).length}</div>
+  const url = forceRegenerate
+    ? withLibraryRoot(`/api/review/${encodeURIComponent(docPath)}/regenerate`)
+    : withLibraryRoot(`/api/review/${encodeURIComponent(docPath)}`);
+  const method = forceRegenerate ? 'POST' : 'GET';
+
+  const r = await api(url, { method });
+  if (r.error) {
+    panel.innerHTML = `<div class="text-red font-sm">${escHtml(r.error)}</div>`;
+    return;
+  }
+
+  const statusLabel = {
+    existing:    `<span class="sig-badge sig-highconf">existing</span>`,
+    generated:   `<span class="sig-badge sig-uncertain">freshly generated</span>`,
+    regenerated: `<span class="sig-badge sig-stale">regenerated</span>`,
+  }[r._status] || '';
+
+  const genTime = r.generated_at ? ts(r.generated_at) : '—';
+
+  // Suspected conflicts — now have title+path
+  const conflictRows = (r.suspected_conflicts || []).map(sc => {
+    const targets = (sc.conflict_with || []).map(t => {
+      const label = typeof t === 'object' ? (t.title || t.doc_id) : t;
+      const path  = typeof t === 'object' ? (t.path || '') : '';
+      return `<span class="text-red" title="${escHtml(path)}">${escHtml(label)}</span>`;
+    }).join(', ');
+    return `<div class="font-sm" style="margin-bottom:4px"><span class="text-bright">${escHtml(sc.term)}</span> → ${targets}</div>`;
+  }).join('');
+
+  // Placement suggestion
+  const ps = r.placement_suggestion || {};
+  const placementReasoning = (ps.reasoning || []).map(l => `<div class="font-sm text-faint">• ${escHtml(l)}</div>`).join('');
+
+  // Recommended patch
+  const patchBlock = r.recommended_metadata_patch && Object.keys(r.recommended_metadata_patch).length
+    ? `<div class="mt-8">
+        <div class="text-amber font-sm font-bold" style="margin-bottom:4px">Suggested patch (requires explicit confirmation):</div>
+        <pre style="font-size:11px">${escHtml(JSON.stringify(r.recommended_metadata_patch, null, 2))}</pre>
+       </div>`
+    : '';
+
+  // Raw JSON accordion
+  const rawId = `review-raw-${docId}`;
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      ${statusLabel}
+      <span class="text-faint font-sm">${escHtml(r.reviewer || '')} · ${genTime}</span>
     </div>
-    ${r.recommended_metadata_patch && Object.keys(r.recommended_metadata_patch).length ? `
-    <div class="mt-8">
-      <div class="text-amber font-sm">Suggested patch (requires explicit confirmation):</div>
-      <pre>${escHtml(JSON.stringify(r.recommended_metadata_patch, null, 2))}</pre>
-    </div>` : ''}`;
+
+    <div class="kv-grid font-sm" style="margin-bottom:10px">
+      <div class="kv-key">Document</div>
+      <div class="kv-val">${escHtml(r.doc_title || r.doc_path || '—')}</div>
+      <div class="kv-key">Non-authoritative</div>
+      <div class="kv-val text-amber font-bold">always true</div>
+      <div class="kv-key">Requires confirmation</div>
+      <div class="kv-val text-amber font-bold">always true</div>
+      <div class="kv-key">Norm. hash</div>
+      <div class="kv-val font-sm" style="word-break:break-all">${escHtml((r.normalization_output_hash||'').slice(0,24))}…</div>
+    </div>
+
+    <div class="accordion" style="margin-bottom:6px">
+      <div class="accordion-head" onclick="toggleAccordion(this)">
+        Topics (${(r.extracted_topics||[]).length}) <span class="chevron">▶</span>
+      </div>
+      <div class="accordion-body font-sm">
+        ${(r.extracted_topics||[]).length ? escHtml((r.extracted_topics||[]).join(' · ')) : '<span class="text-faint">none found</span>'}
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-bottom:6px">
+      <div class="accordion-head" onclick="toggleAccordion(this)">
+        Definitions (${(r.extracted_definitions||[]).length}) <span class="chevron">▶</span>
+      </div>
+      <div class="accordion-body font-sm">
+        ${(r.extracted_definitions||[]).length
+          ? (r.extracted_definitions||[]).map(d => `<div><span class="text-bright">${escHtml(d.term)}</span></div>`).join('')
+          : '<span class="text-faint">none found</span>'}
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-bottom:6px">
+      <div class="accordion-head" onclick="toggleAccordion(this)">
+        Suspected Conflicts (${(r.suspected_conflicts||[]).length})
+        ${(r.suspected_conflicts||[]).length ? '<span class="badge badge-conflict" style="margin-left:6px">!</span>' : ''}
+        <span class="chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        ${conflictRows || '<span class="text-faint font-sm">none</span>'}
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-bottom:6px">
+      <div class="accordion-head" onclick="toggleAccordion(this)">
+        Placement Suggestion <span class="chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        <div class="text-bright font-sm font-bold" style="margin-bottom:4px">${escHtml(ps.recommended_folder||'—')}</div>
+        ${placementReasoning}
+      </div>
+    </div>
+
+    ${patchBlock}
+
+    <div class="accordion mt-8">
+      <div class="accordion-head" onclick="toggleAccordion(this)">
+        Raw JSON <span class="text-faint font-sm">(debug)</span> <span class="chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        <pre id="${rawId}" style="font-size:10px;max-height:240px;overflow:auto">${escHtml(JSON.stringify(r, null, 2))}</pre>
+      </div>
+    </div>
+  `;
+}
+
+function copyToClip(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ copied';
+    btn.classList.add('text-green');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('text-green'); }, 1500);
+  }).catch(() => {});
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -588,6 +869,8 @@ async function doSearch() {
   if (stale)    url += `&stale=true`;
   if (conflicts) url += `&conflicts_only=true`;
 
+  saveDaenaryFilters();
+
   const data = await api(url);
 
   if (data.error) {
@@ -607,17 +890,24 @@ async function doSearch() {
     const sb = r.score_breakdown || {};
     const scoreClass = r.final_score >= 0.6 ? 'good' : r.final_score >= 0.3 ? '' : 'warn';
     const id = `breakdown-${escHtml(r.doc_id).replace(/\W/g,'_')}`;
+    const title = r.title || r.path.split('/').pop().replace(/\.md$/, '');
+    const reason = matchReason(r);
     const daenaryRow = r.daenary_summary
-      ? `<div class="daenary-summary" style="margin-bottom:6px">◈ ${escHtml(r.daenary_summary)}</div>`
+      ? `<div class="daenary-summary">◈ ${escHtml(r.daenary_summary)}</div>`
+      : '';
+    const summaryRow = r.summary
+      ? `<div class="text-muted font-sm" style="margin-bottom:4px;line-height:1.4">${escHtml(r.summary.slice(0,160))}${r.summary.length>160?'…':''}</div>`
       : '';
     return `
     <div class="result-card">
       <div class="result-card-head">
-        <div class="result-title">${escHtml(r.title || r.path.split('/').pop())}</div>
+        <div class="result-title">${escHtml(title)}</div>
         ${statusBadge(r.status)} ${typeBadge(r.type)}
         ${r.has_conflict ? conflictBadge() : ''}
       </div>
+      ${summaryRow}
       <div class="result-path">${escHtml(r.path)}</div>
+      ${reason ? `<div class="match-reason font-sm text-faint" style="margin-bottom:4px">↳ ${escHtml(reason)}</div>` : ''}
       ${daenaryRow}
       <div class="score-bar-wrap" style="margin-bottom:8px">
         <div class="score-bar" style="flex:1">
@@ -649,6 +939,51 @@ async function doSearch() {
 function toggleEl(id) {
   const e = el(id);
   if (e) e.classList.toggle('hidden');
+}
+
+// ── Phase 9: Interaction polish ───────────────────────────────
+
+/** Persist Daenary search filter values to localStorage. */
+function saveDaenaryFilters() {
+  try {
+    const vals = {
+      dim:       el('sf-dimension')?.value || '',
+      state:     el('sf-state')?.value     || '',
+      minQ:      el('sf-min-quality')?.value || '',
+      minC:      el('sf-min-conf')?.value   || '',
+      uncertain: el('sf-uncertain')?.checked || false,
+      stale:     el('sf-stale')?.checked    || false,
+      conflicts: el('sf-conflicts')?.checked || false,
+    };
+    localStorage.setItem('boh_daenary_filters', JSON.stringify(vals));
+  } catch(_) {}
+}
+
+/** Restore persisted Daenary filter values on load. */
+function restoreDaenaryFilters() {
+  try {
+    const raw = localStorage.getItem('boh_daenary_filters');
+    if (!raw) return;
+    const vals = JSON.parse(raw);
+    if (el('sf-dimension'))   el('sf-dimension').value   = vals.dim   || '';
+    if (el('sf-state'))       el('sf-state').value       = vals.state || '';
+    if (el('sf-min-quality')) el('sf-min-quality').value = vals.minQ  || '';
+    if (el('sf-min-conf'))    el('sf-min-conf').value    = vals.minC  || '';
+    if (el('sf-uncertain'))   el('sf-uncertain').checked = vals.uncertain || false;
+    if (el('sf-stale'))       el('sf-stale').checked     = vals.stale     || false;
+    if (el('sf-conflicts'))   el('sf-conflicts').checked = vals.conflicts  || false;
+  } catch(_) {}
+}
+
+/** Clear all Daenary filter inputs and remove from localStorage. */
+function clearDaenaryFilters() {
+  ['sf-dimension','sf-state','sf-min-quality','sf-min-conf'].forEach(id => {
+    if (el(id)) el(id).value = '';
+  });
+  ['sf-uncertain','sf-stale','sf-conflicts'].forEach(id => {
+    if (el(id)) el(id).checked = false;
+  });
+  try { localStorage.removeItem('boh_daenary_filters'); } catch(_) {}
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -790,7 +1125,7 @@ async function acknowledgeConflict(rowid, btn) {
 // Panel 5: Import / Ingest
 // ══════════════════════════════════════════════════════════════
 async function doIndex() {
-  const root = el('index-root').value.trim() || './library';
+  const root = setActiveLibraryRoot(el('index-root').value.trim() || './library');
   const btn = el('index-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Indexing…';
@@ -1045,12 +1380,10 @@ async function initAtlas() {
   const canvas = el('graph-canvas');
   if (!canvas) return;
 
-  // Size canvas to its container
   const pane = el('graph-pane');
   canvas.width  = pane.offsetWidth  || 800;
   canvas.height = pane.offsetHeight || 600;
 
-  // Load graph data
   el('graph-stats').textContent = 'Loading…';
   _graphData = await api('/api/graph?max_nodes=200');
   if (_graphData.error) { el('graph-stats').textContent = 'Error loading graph.'; return; }
@@ -1059,39 +1392,196 @@ async function initAtlas() {
     `${_graphData.nodes.length} nodes · ${_graphData.edges.length} edges`;
 
   _graph = new ForceGraph(canvas, _graphData.nodes, _graphData.edges);
-  _graph.onNodeClick = (node) => openDocInReader(node.id);
+
+  // Phase 11: shift-click expands neighborhood; plain click opens reader
+  _graph.onNodeClick = async (node, ev) => {
+    openDocInReader(node.id);
+    _graph.selectNode(node);
+    if (ev?.shiftKey) await expandAtlasNeighborhood(node.id, 1);
+  };
+
   _graph.start();
+  restoreAtlasReaderWidth();
 
-  // Mouse events
+  // ── Phase 12: Coordinate helper ───────────────────────────────
+  // Converts a MouseEvent into canvas-pixel coordinates, accounting
+  // for any CSS scaling difference between display size and canvas resolution.
+  function toCanvasXY(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width  / rect.width),
+      y: (e.clientY - rect.top)  * (canvas.height / rect.height),
+    };
+  }
+
+  // ── Phase 12: Drag / pan state ────────────────────────────────
+  let _panActive = false, _dragNode = null;
+  let _dragStartX = 0, _dragStartY = 0, _panStartTx = 0, _panStartTy = 0;
+  // Track whether the mouse actually moved during a mousedown→mouseup
+  // to distinguish click from drag (suppress click after drag).
+  let _didDrag = false;
+
+  // mousedown: start pan (empty canvas) or node drag
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const { x, y } = toCanvasXY(e);
+    const g = _graph.screenToGraph(x, y);
+    const node = _graph.hitTest(g.x, g.y);
+    _didDrag = false;
+    if (node) {
+      _dragNode = node;
+    } else {
+      _panActive = true;
+      _dragStartX = x; _dragStartY = y;
+      _panStartTx = _graph._view.tx;
+      _panStartTy = _graph._view.ty;
+    }
+    e.preventDefault();
+  });
+
+  // mousemove: pan canvas or drag node; otherwise update hover
   canvas.addEventListener('mousemove', (e) => {
-    const r = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / r.width;
-    const scaleY = canvas.height / r.height;
-    const node = _graph.hitTest(
-      (e.clientX - r.left) * scaleX,
-      (e.clientY - r.top)  * scaleY
-    );
-    canvas.classList.toggle('hovering', !!node);
+    const { x, y } = toCanvasXY(e);
+    _graph._mouseX = x;
+    _graph._mouseY = y;
+
+    if (_dragNode) {
+      const g = _graph.screenToGraph(x, y);
+      _dragNode.x = g.x; _dragNode.y = g.y;
+      _dragNode.vx = 0;  _dragNode.vy = 0;
+      _didDrag = true;
+      _graph._renderDirty = true;
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+    if (_panActive) {
+      _graph._view.tx = _panStartTx + (x - _dragStartX);
+      _graph._view.ty = _panStartTy + (y - _dragStartY);
+      _didDrag = true;
+      _graph._renderDirty = true;
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+
+    // Hover detection
+    const g = _graph.screenToGraph(x, y);
+    const node = _graph.hitTest(g.x, g.y);
+    const edge  = node ? null : _graph.hitTestEdge(g.x, g.y);
+    const changed = node !== _graph.hoveredNode || edge !== _graph.hoveredEdge;
     _graph.hoveredNode = node || null;
+    _graph.hoveredEdge = edge || null;
+    if (changed) _graph._renderDirty = true;
+    canvas.style.cursor = node ? 'pointer' : edge ? 'help' : 'default';
   });
 
+  // mouseup: end drag/pan; re-energise physics after node drag
+  window.addEventListener('mouseup', () => {
+    if (_dragNode) { _graph.alpha = Math.max(_graph.alpha, 0.3); }
+    _panActive = false;
+    _dragNode  = null;
+    canvas.style.cursor = 'default';
+  });
+
+  // click: open reader + select (suppressed if drag just occurred)
   canvas.addEventListener('click', (e) => {
-    const r = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / r.width;
-    const scaleY = canvas.height / r.height;
-    const node = _graph.hitTest(
-      (e.clientX - r.left) * scaleX,
-      (e.clientY - r.top)  * scaleY
-    );
-    if (node) _graph.selectNode(node);
+    if (_didDrag) { _didDrag = false; return; }
+    const { x, y } = toCanvasXY(e);
+    const g = _graph.screenToGraph(x, y);
+    const node = _graph.hitTest(g.x, g.y);
+    if (node && _graph.onNodeClick) _graph.onNodeClick(node, e);
   });
 
-  // Resize handler
+  // dblclick: expand neighborhood (Phase 11 behaviour preserved)
+  canvas.addEventListener('dblclick', async (e) => {
+    if (!_graph) return;
+    const { x, y } = toCanvasXY(e);
+    const g = _graph.screenToGraph(x, y);
+    const node = _graph.hitTest(g.x, g.y);
+    if (node) await expandAtlasNeighborhood(node.id, 1);
+  });
+
+  // wheel: zoom centered on cursor
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (!_graph) return;
+    const { x, y } = toCanvasXY(e);
+    const factor = e.deltaY < 0 ? 1.12 : (1 / 1.12);
+    _graph.zoomAt(x, y, factor);
+    _graph._renderDirty = true;
+  }, { passive: false });
+
+  // mouseleave: clear hover state
+  canvas.addEventListener('mouseleave', () => {
+    if (!_graph) return;
+    _graph.hoveredNode = null;
+    _graph.hoveredEdge = null;
+  });
+
+  // resize: update canvas resolution, refit
   window.addEventListener('resize', () => {
     if (!_graph) return;
     canvas.width  = pane.offsetWidth;
     canvas.height = pane.offsetHeight;
   });
+}
+
+// ── Atlas reader width ────────────────────────────────────────
+function setAtlasReaderWidth(mode) {
+  const layout = el('atlas-layout');
+  if (!layout) return;
+  if (mode === 'hide')   layout.style.gridTemplateColumns = '1fr 0px';
+  else if (mode === 'wide') layout.style.gridTemplateColumns = '1fr minmax(560px, 42vw)';
+  else                   layout.style.gridTemplateColumns = '1fr 420px';
+  try { localStorage.setItem('boh_atlas_reader_width_mode', mode); } catch (_) {}
+}
+
+function restoreAtlasReaderWidth() {
+  try {
+    const mode = localStorage.getItem('boh_atlas_reader_width_mode') || 'normal';
+    setAtlasReaderWidth(mode);
+  } catch (_) {}
+}
+
+// ── Neighborhood expansion ────────────────────────────────────
+async function expandAtlasNeighborhood(docId, depth = 1) {
+  if (!_graph) return;
+  const res = await api(`/api/graph/neighborhood?doc_id=${encodeURIComponent(docId)}&depth=${depth}&limit=50`);
+  if (res.error) return;
+
+  const existingIds   = new Set(_graph.nodes.map(n => n.id));
+  const existingEdges = new Set(_graph.edges.map(e => `${e.source}->${e.target}:${e.type||''}`));
+
+  for (const n of res.nodes || []) {
+    if (!existingIds.has(n.id)) {
+      const anchor = _graph.nodeById?.get(docId) || { x: _graph.canvas.width / 2, y: _graph.canvas.height / 2 };
+      _graph.nodes.push({ ...n, x: anchor.x + (Math.random() - .5) * 80, y: anchor.y + (Math.random() - .5) * 80, vx: 0, vy: 0 });
+      existingIds.add(n.id);
+    }
+  }
+
+  for (const e of res.edges || []) {
+    const key = `${e.source}->${e.target}:${e.type||''}`;
+    const rev = `${e.target}->${e.source}:${e.type||''}`;
+    if (!existingEdges.has(key) && !existingEdges.has(rev)) {
+      _graph.edges.push(e);
+      existingEdges.add(key);
+    }
+  }
+
+  _graph.rebuildAdjacency?.();
+  _graph.expandedNodes?.add(docId);
+  _graph.alpha = Math.max(_graph.alpha, .55);
+  el('graph-stats').textContent = `${_graph.nodes.length} nodes · ${_graph.edges.length} edges`;
+}
+
+async function expandSelectedAtlasNode() {
+  if (!_graph?.selectedNode) return;
+  await expandAtlasNeighborhood(_graph.selectedNode.id, 1);
+}
+
+function collapseAtlasToInitial() {
+  teardownAtlas();
+  initAtlas();
 }
 
 async function reloadGraph() {
@@ -1116,9 +1606,14 @@ function applyGraphFilter() {
   _graph.stop();
   const canvas = el('graph-canvas');
   _graph = new ForceGraph(canvas, filteredNodes, filteredEdges);
-  _graph.onNodeClick = (node) => openDocInReader(node.id);
+  _graph.onNodeClick = async (node, ev) => {
+    openDocInReader(node.id);
+    _graph.selectNode(node);
+    if (ev?.shiftKey) await expandAtlasNeighborhood(node.id, 1);
+  };
   _graph.start();
   el('graph-stats').textContent = `${filteredNodes.length} nodes · ${filteredEdges.length} edges`;
+  if (_graph) _graph._renderDirty = true;
 }
 
 // ── Document Reader ───────────────────────────────────────────
@@ -1255,11 +1750,41 @@ class ForceGraph {
     this.edges   = edges;
     this.ripples = [];
     this.hoveredNode  = null;
+    this.hoveredEdge  = null;
     this.selectedNode = null;
     this.onNodeClick  = null;
-    this._raf = null;
+    this._raf     = null;
     this._stopped = false;
-    this.alpha = 1.0;
+    this.alpha    = 1.0;
+    this._tooltip     = { node: null };
+    this._mouseX      = 0;   // canvas/screen coords
+    this._mouseY      = 0;
+    this.expandedNodes = new Set();
+    this.focusNode     = null;
+
+    // ── Phase 12: view transform (zoom + pan) ────────────────────
+    // All node positions are in "graph space". The view transform
+    // maps graph space → screen space: screen = graph * scale + translate.
+    this._view = { scale: 1.0, tx: 0, ty: 0 };
+    // Drag bookkeeping (managed by initAtlas event handlers)
+    this._drag = { active: false, node: null,
+                   startX: 0, startY: 0, startTx: 0, startTy: 0 };
+
+    // ── Phase 12.3: Performance options ──────────────────────────
+    // Balanced defaults: no ripples, no glow, 30fps cap, straight bg edges.
+    this.options = {
+      animatedRipples:  false,   // ripple cascade on select
+      edgeGlow:         false,   // shadowBlur / canon glow
+      curvedEdgesAll:   false,   // curve ALL edges (expensive); false = curve only highlighted
+      maxRipples:       8,       // hard cap on active ripples
+      fpsTarget:        30,      // 30 = balanced, 60 = high, 0 = unlimited
+      staticMode:       false,   // draw-on-demand only
+      _perfMode:        'balanced',
+    };
+    this._lastFrameTs  = 0;      // rAF timestamp of last drawn frame
+    this._renderDirty  = true;   // static mode: only draw when dirty
+    this._lastRenderMs = 0;      // measured draw() duration
+    this._perfWarned   = false;  // auto-reduce already triggered
 
     // Initialize node positions — spread across canvas
     this.nodes = nodes.map((n, i) => {
@@ -1273,6 +1798,9 @@ class ForceGraph {
       };
     });
 
+    // Build nodeById lookup AFTER this.nodes exists (Phase 11 fix preserved)
+    this.nodeById = new Map(this.nodes.map(n => [n.id, n]));
+
     // Build adjacency map for faster edge lookup
     this._adj = new Map();
     for (const node of this.nodes) this._adj.set(node.id, []);
@@ -1284,11 +1812,24 @@ class ForceGraph {
 
   start() {
     this._stopped = false;
-    const loop = () => {
+    const loop = (ts) => {
       if (this._stopped) return;
+      this._raf = requestAnimationFrame(loop);
+
+      // Static mode: only draw when something changed
+      const isSettled = this.alpha <= 0.005 && !this.ripples.length;
+      if (this.options.staticMode && isSettled && !this._renderDirty) return;
+
+      // Frame-rate cap (0 = unlimited)
+      if (this.options.fpsTarget > 0) {
+        const minMs = 1000 / this.options.fpsTarget;
+        if (ts - this._lastFrameTs < minMs) return;
+      }
+      this._lastFrameTs = ts;
+
       if (this.alpha > 0.005) this.tick();
       this.draw();
-      this._raf = requestAnimationFrame(loop);
+      this._renderDirty = false;
     };
     this._raf = requestAnimationFrame(loop);
   }
@@ -1357,96 +1898,152 @@ class ForceGraph {
   }
 
   draw() {
+    const t0 = performance.now();
     const ctx = this.ctx;
     const W = this.canvas.width, H = this.canvas.height;
+    const opts = this.options;
     ctx.clearRect(0, 0, W, H);
 
-    // Background grid (subtle)
+    // ── Background grid — screen space ───────────────────────────
     ctx.strokeStyle = 'rgba(30,39,54,0.4)';
     ctx.lineWidth = 0.5;
     for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
     for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
-    // Draw edges
+    // ── Apply view transform ─────────────────────────────────────
+    const { scale, tx, ty } = this._view;
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.scale(scale, scale);
+
+    // ── Edge drawing (performance-critical) ──────────────────────
+    // Strategy: background edges → single batched straight-line pass per colour.
+    //           highlighted edges (hovered / selected-adjacent) → individual curves.
+    // This collapses N ctx.stroke() calls into ≤4, saving ~10-15ms/frame at 240 edges.
+
+    const selId = this.selectedNode?.id;
+    const bgBucket = { lineage: [], conflict: [], topic: [], other: [] };
+    const hlEdges  = [];
+
     for (const edge of this.edges) {
-      const s = this.nodes.find(n => n.id === edge.source);
-      const t = this.nodes.find(n => n.id === edge.target);
-      if (!s || !t) continue;
-      const isLineage = edge.type === 'lineage';
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(t.x, t.y);
-      ctx.strokeStyle = isLineage ? 'rgba(59,130,246,0.35)' : 'rgba(107,122,150,0.15)';
-      ctx.lineWidth   = isLineage ? 1.5 : 0.8;
-      ctx.setLineDash(isLineage ? [] : [3, 4]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      const isHov = edge === this.hoveredEdge;
+      const isSel = selId && (edge.source === selId || edge.target === selId);
+      if (isHov || isSel || opts.curvedEdgesAll) {
+        hlEdges.push(edge);
+      } else {
+        const t = edge.type;
+        const cat =
+          (t === 'lineage' || t === 'derives' || t === 'supersedes') ? 'lineage' :
+          (t === 'conflicts' || t === 'duplicate_content')            ? 'conflict' :
+          (t === 'related'  || t === 'semantic' || t === 'canon_relates_to') ? 'topic' :
+          'other';
+        bgBucket[cat].push(edge);
+      }
     }
 
-    // Ripple animations
-    this.ripples = this.ripples.filter(r => r.alpha > 0.01);
-    for (const r of this.ripples) {
+    // Batch draw: one beginPath + many moveTo/lineTo + one stroke per colour
+    const batchLines = (edges, color, lw, dashed) => {
+      if (!edges.length) return;
       ctx.beginPath();
-      ctx.arc(r.x, r.y, r.radius, 0, Math.PI*2);
-      ctx.strokeStyle = `rgba(96,165,250,${r.alpha})`;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = lw;
+      if (dashed) ctx.setLineDash([2, 5]);
+      for (const e of edges) {
+        const s = this.nodeById?.get(e.source);
+        const t = this.nodeById?.get(e.target);
+        if (s && t) { ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); }
+      }
       ctx.stroke();
-      r.radius += 2.5; r.alpha *= 0.94;
+      if (dashed) ctx.setLineDash([]);
+    };
+    batchLines(bgBucket.lineage,  'rgba(96,165,250,0.13)',  0.8, false);
+    batchLines(bgBucket.conflict, 'rgba(239,68,68,0.16)',   0.9, false);
+    batchLines(bgBucket.topic,    'rgba(180,190,210,0.10)', 0.7, true);
+    batchLines(bgBucket.other,    'rgba(120,135,160,0.10)', 0.7, false);
+
+    // Highlighted edges — full curved treatment (only a few per frame)
+    for (const edge of hlEdges) {
+      const s = this.nodeById?.get(edge.source) || this.nodes.find(n => n.id === edge.source);
+      const t = this.nodeById?.get(edge.target) || this.nodes.find(n => n.id === edge.target);
+      if (s && t) this.drawEdge(edge, s, t);
     }
 
-    // Draw nodes
-    const nodeMap = new Map(this.nodes.map(n => [n.id, n]));
+    // ── Ripples (gated) ──────────────────────────────────────────
+    if (opts.animatedRipples && this.ripples.length) {
+      // Prune aggressively, enforce hard cap
+      this.ripples = this.ripples
+        .filter(r => r.alpha > 0.04)
+        .slice(0, opts.maxRipples);
+      for (const r of this.ripples) {
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(96,165,250,${r.alpha.toFixed(2)})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        r.radius += 2.5; r.alpha *= 0.92;
+      }
+    } else {
+      this.ripples = [];
+    }
+
+    // ── Nodes ────────────────────────────────────────────────────
     for (const node of this.nodes) {
-      const r = this._nodeRadius(node);
+      const r     = this._nodeRadius(node);
       const color = this._nodeColor(node);
       const isSelected = node === this.selectedNode;
       const isHovered  = node === this.hoveredNode;
-      const isAdjacent = this.selectedNode && this._adj.get(this.selectedNode.id)?.includes(node.id);
+      const isAdjacent = selId && this._adj.get(selId)?.includes(node.id);
 
-      // Glow for selected / canon
-      if (isSelected || (node.corpusClass === 'CORPUS_CLASS:CANON' && this.alpha < 0.3)) {
-        ctx.shadowColor = color;
-        ctx.shadowBlur  = isSelected ? 14 : 6;
+      // Glow ring for selected node (replaces expensive shadowBlur)
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r + 9, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(96,165,250,0.20)';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+      } else if (opts.edgeGlow && node.corpusClass === 'CORPUS_CLASS:CANON' && this.alpha < 0.3) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r + 5, 0, Math.PI*2);
+        ctx.strokeStyle = `${color}22`;
+        ctx.lineWidth = 4;
+        ctx.stroke();
       }
 
+      // Node fill
       ctx.beginPath();
       ctx.arc(node.x, node.y, r + (isHovered ? 2 : 0), 0, Math.PI*2);
       ctx.fillStyle = isSelected ? '#60a5fa'
                     : isAdjacent ? this._lighten(color)
                     : color;
       ctx.fill();
-      ctx.shadowBlur = 0;
 
-      // Phase 8: DCNS diagnostic halos
-      // Conflict halo — red outer ring
+      // Conflict halo
       if (node.conflictCount > 0) {
         ctx.beginPath();
         ctx.arc(node.x, node.y, r + 4, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(239,68,68,0.55)`;
+        ctx.strokeStyle = 'rgba(239,68,68,0.55)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([3, 2]);
         ctx.stroke();
         ctx.setLineDash([]);
       }
-      // Stale coordinate halo — amber dashed
+      // Stale halo
       if (node.expiredCoordinates > 0 && node.conflictCount === 0) {
         ctx.beginPath();
         ctx.arc(node.x, node.y, r + 4, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(245,158,11,0.45)`;
+        ctx.strokeStyle = 'rgba(245,158,11,0.45)';
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 3]);
         ctx.stroke();
         ctx.setLineDash([]);
       }
-      // Uncertain coordinate halo — blue pulse dot
+      // Uncertain dot
       if (node.uncertainCoordinates > 0) {
-        const dotR = 2.5;
         ctx.beginPath();
-        ctx.arc(node.x + r, node.y - r, dotR, 0, Math.PI * 2);
+        ctx.arc(node.x + r, node.y - r, 2.5, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(96,165,250,0.8)';
         ctx.fill();
       }
-
       // Selection ring
       if (isSelected) {
         ctx.beginPath();
@@ -1455,14 +2052,83 @@ class ForceGraph {
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
-
-      // Labels: always for selected, for hovered, for small graphs
-      if (isSelected || isHovered || (this.nodes.length <= 25 && this.alpha < 0.2)) {
+      // Labels
+      const showLabel = isSelected || isHovered ||
+                        (this.nodes.length <= 25 && this.alpha < 0.2) ||
+                        (scale >= 1.5 && this.alpha < 0.15);
+      if (showLabel) {
         ctx.fillStyle = isSelected ? '#e6edf3' : '#b8c4d4';
         ctx.font = `${isSelected ? 11 : 10}px monospace`;
-        const label = node.label.length > 22 ? node.label.slice(0, 20) + '…' : node.label;
-        ctx.fillText(label, node.x + r + 4, node.y + 3.5);
+        const raw = (node.title && node.title.trim()) ? node.title : node.label;
+        const lbl = raw.length > 26 ? raw.slice(0, 24) + '\u2026' : raw;
+        ctx.fillText(lbl, node.x + r + 4, node.y + 3.5);
       }
+    }
+
+    ctx.restore();
+    // ── End view transform ───────────────────────────────────────
+
+    // ── Tooltips in screen space ─────────────────────────────────
+    if (this.hoveredNode) {
+      const node  = this.hoveredNode;
+      const title = (node.title && node.title.trim()) ? node.title : node.label;
+      const lines = [
+        title.length > 32 ? title.slice(0, 30) + '\u2026' : title,
+        node.status ? `${node.status}  \u00b7  ${node.type || ''}` : '',
+        node.conflictCount > 0   ? `\u26a1 ${node.conflictCount} conflict(s)` : '',
+        node.expiredCoordinates > 0 ? `\u23f1 ${node.expiredCoordinates} stale` : '',
+        node.uncertainCoordinates > 0 ? `? ${node.uncertainCoordinates} uncertain` : '',
+      ].filter(Boolean);
+
+      const sx  = node.x * scale + tx;
+      const sy  = node.y * scale + ty;
+      const sr  = this._nodeRadius(node) * scale;
+      const pad = 8, lh = 15;
+      const bw  = 200, bh = pad * 2 + lines.length * lh;
+      let ttx = sx + sr + 8;
+      let tty = sy - bh / 2;
+      if (ttx + bw > W) ttx = sx - bw - sr - 8;
+      if (tty < 4) tty = 4;
+      if (tty + bh > H) tty = H - bh - 4;
+
+      ctx.fillStyle = 'rgba(18,27,38,0.93)';
+      ctx.strokeStyle = 'rgba(96,165,250,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(ttx, tty, bw, bh, 5) : ctx.rect(ttx, tty, bw, bh);
+      ctx.fill(); ctx.stroke();
+      lines.forEach((line, i) => {
+        ctx.fillStyle = i === 0 ? '#e6edf3' : (line[0] === '\u26a1' ? '#ef4444' : '#7a8ea5');
+        ctx.font = i === 0 ? '11px monospace' : '10px monospace';
+        ctx.fillText(line, ttx + pad, tty + pad + i * lh + 11);
+      });
+    }
+
+    if (this.hoveredEdge && !this.hoveredNode) {
+      this.drawEdgeTooltip(this.hoveredEdge, this._mouseX || 0, this._mouseY || 0);
+    }
+
+    // Zoom indicator
+    if (Math.abs(scale - 1.0) > 0.05) {
+      ctx.fillStyle = 'rgba(122,142,170,0.55)';
+      ctx.font = '10px monospace';
+      ctx.fillText(`${scale.toFixed(2)}\u00d7`, W - 48, H - 14);
+    }
+
+    // ── Performance monitor ──────────────────────────────────────
+    this._lastRenderMs = performance.now() - t0;
+    if (this._lastRenderMs > 28 && !this._perfWarned) {
+      this._perfWarned = true;
+      opts.animatedRipples = false;
+      opts.edgeGlow = false;
+      // Notify UI
+      const warn = document.getElementById('atlas-perf-warning');
+      if (warn) { warn.style.display = 'block'; warn.style.opacity = '1'; }
+      // Sync checkboxes if present
+      const cb = document.getElementById('atlas-opt-ripples');
+      if (cb) cb.checked = false;
+      const cb2 = document.getElementById('atlas-opt-glow');
+      if (cb2) cb2.checked = false;
     }
   }
 
@@ -1490,21 +2156,28 @@ class ForceGraph {
 
   selectNode(node) {
     this.selectedNode = node;
-    // Primary ripple
-    this.ripples.push({ x: node.x, y: node.y, radius: 12, alpha: 0.9 });
-    // Ripples on connected nodes with delay (drop-and-ripple)
-    const connected = this._adj.get(node.id) || [];
-    connected.slice(0, 8).forEach((cid, i) => {
-      const cnode = this.nodes.find(n => n.id === cid);
-      if (!cnode) return;
-      setTimeout(() => {
-        if (this._stopped) return;
-        const dist = Math.sqrt((node.x-cnode.x)**2 + (node.y-cnode.y)**2);
-        const delay_alpha = Math.max(0.2, 0.6 - dist/800);
-        this.ripples.push({ x: cnode.x, y: cnode.y, radius: 6, alpha: delay_alpha });
-      }, 150 + i * 60);
-    });
-    if (this.onNodeClick) this.onNodeClick(node);
+    this._renderDirty = true;
+    if (this.options.animatedRipples) {
+      // Primary ripple on selected node
+      if (this.ripples.length < this.options.maxRipples) {
+        this.ripples.push({ x: node.x, y: node.y, radius: 12, alpha: 0.9 });
+      }
+      // Cascade to connected nodes (capped, no setTimeout storm on large graphs)
+      const connected = this._adj.get(node.id) || [];
+      const slots = this.options.maxRipples - this.ripples.length;
+      connected.slice(0, Math.min(4, slots)).forEach((cid, i) => {
+        const cnode = this.nodes.find(n => n.id === cid);
+        if (!cnode) return;
+        setTimeout(() => {
+          if (this._stopped || !this.options.animatedRipples) return;
+          if (this.ripples.length >= this.options.maxRipples) return;
+          const dist = Math.sqrt((node.x-cnode.x)**2 + (node.y-cnode.y)**2);
+          this.ripples.push({ x: cnode.x, y: cnode.y, radius: 6,
+                              alpha: Math.max(0.15, 0.5 - dist/800) });
+        }, 150 + i * 80);
+      });
+    }
+    // Do not call onNodeClick here — click handler already does it.
   }
 
   hitTest(x, y) {
@@ -1515,6 +2188,873 @@ class ForceGraph {
     }
     return null;
   }
+
+  hitTestEdge(x, y) {
+    let best = null, bestDist = Infinity;
+    for (const edge of this.edges) {
+      const s = this.nodeById?.get(edge.source) || this.nodes.find(n => n.id === edge.source);
+      const t = this.nodeById?.get(edge.target) || this.nodes.find(n => n.id === edge.target);
+      if (!s || !t) continue;
+      const d = pointToSegmentDistance(x, y, s.x, s.y, t.x, t.y);
+      const threshold = Math.max(5, 3 + (edge.weight || 1));
+      if (d < threshold && d < bestDist) { best = edge; bestDist = d; }
+    }
+    return best;
+  }
+
+  drawEdge(edge, s, t) {
+    const ctx = this.ctx;
+    const isHovered      = edge === this.hoveredEdge;
+    const isSelectedPath = this.selectedNode &&
+      (edge.source === this.selectedNode.id || edge.target === this.selectedNode.id);
+    const isLineage  = edge.type === 'lineage' || edge.type === 'derives' || edge.type === 'supersedes';
+    const isConflict = edge.type === 'conflicts' || edge.type === 'duplicate_content';
+    const isTopic    = edge.type === 'related' || edge.type === 'semantic' || edge.type === 'canon_relates_to';
+
+    const mx = (s.x + t.x) / 2, my = (s.y + t.y) / 2;
+    const dx = t.x - s.x, dy = t.y - s.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const curve = Math.min(48, Math.max(10, len * 0.08));
+    const cx = mx - (dy / len) * curve;
+    const cy = my + (dx / len) * curve;
+
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.quadraticCurveTo(cx, cy, t.x, t.y);
+
+    const alpha = isHovered ? .82 : isSelectedPath ? .55 : .18;
+    if (isLineage)       ctx.strokeStyle = `rgba(96,165,250,${alpha})`;
+    else if (isConflict) ctx.strokeStyle = `rgba(239,68,68,${alpha})`;
+    else if (isTopic)    ctx.strokeStyle = `rgba(180,190,210,${alpha})`;
+    else                 ctx.strokeStyle = `rgba(120,135,160,${alpha})`;
+
+    ctx.lineWidth = isHovered ? 2.6 : isSelectedPath ? 1.8
+                 : Math.max(.7, Math.min(2.2, .6 + (edge.weight || 1) * .25));
+    ctx.setLineDash(isTopic ? [2, 5] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Crossover bead at curve midpoint when edge has reasons/crossovers
+    if ((edge.reasons?.length) || (edge.crossovers?.length)) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, isHovered ? 3.5 : 2, 0, Math.PI * 2);
+      ctx.fillStyle = isHovered ? 'rgba(230,237,243,.9)' : 'rgba(122,142,170,.55)';
+      ctx.fill();
+    }
+  }
+
+  drawEdgeTooltip(edge, x, y) {
+    const ctx     = this.ctx;
+    const reasons = edge.reasons || [];
+    const shared  = edge.shared_topics || [];
+    const lines = [
+      edge.label || edge.type || 'link',
+      ...reasons.slice(0, 6),
+      shared.length ? `shared: ${shared.slice(0, 6).join(', ')}` : '',
+    ].filter(Boolean);
+
+    const padding = 8, lineH = 15;
+    const boxW = 260, boxH = padding * 2 + lines.length * lineH;
+    const W = this.canvas.width, H = this.canvas.height;
+    let tx = Math.min(x + 14, W - boxW - 8);
+    let ty = Math.min(y + 14, H - boxH - 8);
+    if (ty < 4) ty = 4;
+
+    ctx.fillStyle   = 'rgba(18,27,38,.96)';
+    ctx.strokeStyle = 'rgba(180,190,210,.28)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(tx, ty, boxW, boxH, 6) : ctx.rect(tx, ty, boxW, boxH);
+    ctx.fill(); ctx.stroke();
+
+    lines.forEach((line, i) => {
+      ctx.fillStyle = i === 0 ? '#e6edf3' : '#7a8ea5';
+      ctx.font      = i === 0 ? '11px monospace' : '10px monospace';
+      ctx.fillText(line.length > 44 ? line.slice(0, 42) + '…' : line,
+                   tx + padding, ty + padding + i * lineH + 11);
+    });
+  }
+
+  rebuildAdjacency() {
+    this._adj = new Map();
+    for (const node of this.nodes) this._adj.set(node.id, []);
+    for (const edge of this.edges) {
+      if (this._adj.has(edge.source)) this._adj.get(edge.source).push(edge.target);
+      if (this._adj.has(edge.target)) this._adj.get(edge.target).push(edge.source);
+    }
+    this.nodeById = new Map(this.nodes.map(n => [n.id, n]));
+  }
+
+  // ── Phase 12: view transform helpers ─────────────────────────
+
+  /** Convert screen/canvas coords → graph-space coords. */
+  screenToGraph(sx, sy) {
+    return {
+      x: (sx - this._view.tx) / this._view.scale,
+      y: (sy - this._view.ty) / this._view.scale,
+    };
+  }
+
+  /** Convert graph-space coords → screen/canvas coords. */
+  graphToScreen(gx, gy) {
+    return {
+      x: gx * this._view.scale + this._view.tx,
+      y: gy * this._view.scale + this._view.ty,
+    };
+  }
+
+  /** Reset zoom and pan to default (1×, centered). */
+  resetView() {
+    this._view = { scale: 1.0, tx: 0, ty: 0 };
+  }
+
+  /** Fit all nodes into the canvas with padding. Updates view transform only — does not move nodes. */
+  fitView() {
+    if (!this.nodes.length) return;
+    const W = this.canvas.width, H = this.canvas.height;
+    const pad = 60;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of this.nodes) {
+      if (n.x < minX) minX = n.x; if (n.y < minY) minY = n.y;
+      if (n.x > maxX) maxX = n.x; if (n.y > maxY) maxY = n.y;
+    }
+    const cw = maxX - minX || 1, ch = maxY - minY || 1;
+    const scale = Math.min((W - pad * 2) / cw, (H - pad * 2) / ch, 3.0);
+    this._view.scale = scale;
+    this._view.tx = W / 2 - ((minX + maxX) / 2) * scale;
+    this._view.ty = H / 2 - ((minY + maxY) / 2) * scale;
+  }
+
+  /** Zoom in or out centered on a screen-space point (cx, cy). */
+  zoomAt(cx, cy, factor) {
+    const oldScale = this._view.scale;
+    const newScale = Math.max(0.08, Math.min(10.0, oldScale * factor));
+    const ratio = newScale / oldScale;
+    this._view.tx = cx - (cx - this._view.tx) * ratio;
+    this._view.ty = cy - (cy - this._view.ty) * ratio;
+    this._view.scale = newScale;
+  }
+
+  /** Pan view so the selected node is centered on canvas. */
+  focusSelected() {
+    if (!this.selectedNode) return;
+    const W = this.canvas.width, H = this.canvas.height;
+    this._view.tx = W / 2 - this.selectedNode.x * this._view.scale;
+    this._view.ty = H / 2 - this.selectedNode.y * this._view.scale;
+  }
+}
+
+function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  if (dx === 0 && dy === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
 // Atlas init is wired directly in nav() above.
+
+// ── App init ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  restoreDaenaryFilters();
+  try {
+    const savedRoot = sessionStorage.getItem('boh_active_library_root');
+    if (savedRoot) setActiveLibraryRoot(savedRoot);
+    else {
+      const health = await api('/api/health');
+      setActiveLibraryRoot(health.library || './library');
+    }
+  } catch (_) {
+    setActiveLibraryRoot('./library');
+  }
+  // Route to hash on load
+  const hash = window.location.hash.replace('#', '');
+  if (hash) nav(hash);
+  else loadDashboard();
+
+  // Phase 12: update LLM queue nav badge after a short delay
+  setTimeout(async () => {
+    try {
+      const q = await api('/api/llm/queue/count');
+      const pending = q.pending ?? 0;
+      const badge = el('nav-llm-badge');
+      if (badge) { badge.textContent = pending; badge.classList.toggle('hidden', pending === 0); }
+    } catch (_) {}
+  }, 1200);
+});
+
+// ══════════════════════════════════════════════════════════════
+// Panel 7: Governance
+// ══════════════════════════════════════════════════════════════
+
+// ── Ollama ────────────────────────────────────────────────────
+async function checkOllama() {
+  const badge = el('ollama-status-badge');
+  const list  = el('ollama-models-list');
+  if (badge) badge.textContent = 'Checking…';
+  const data = await api('/api/ollama/health');
+  if (data.available) {
+    if (badge) { badge.textContent = '● available'; badge.className = 'text-green font-sm'; }
+    if (list) list.innerHTML = data.models.length
+      ? data.models.map(m => `<span class="badge badge-type" style="margin:2px">${escHtml(m)}</span>`).join('')
+      : '<span class="text-faint font-sm">No models found — run: ollama pull llama3.2</span>';
+  } else {
+    if (badge) { badge.textContent = '● unavailable'; badge.className = 'text-red font-sm'; }
+    if (list) list.innerHTML = `<span class="text-faint font-sm">Ollama not reachable at ${escHtml(data.url||'')} — is it running?</span>`;
+  }
+}
+
+async function runOllamaTask() {
+  const task    = el('ollama-task')?.value;
+  const content = el('ollama-content')?.value.trim();
+  const model   = el('ollama-model-input')?.value.trim() || undefined;
+  const docId   = el('ollama-doc-id')?.value.trim() || undefined;
+  const out     = el('ollama-result');
+
+  if (!task) { if (out) out.innerHTML = '<span class="text-amber font-sm">Select a task type first.</span>'; return; }
+  if (!content) { if (out) out.innerHTML = '<span class="text-amber font-sm">Enter content to send.</span>'; return; }
+
+  if (out) out.innerHTML = '<span class="spinner"></span> Invoking model…';
+
+  const r = await api('/api/ollama/invoke', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ task_type: task, content, model, doc_id: docId }),
+  });
+
+  if (r.error && !r.invocation_id) {
+    if (out) out.innerHTML = `<div class="text-red font-sm">${escHtml(r.error)}</div>`;
+    return;
+  }
+
+  const statusBadge = r.status === 'success'
+    ? '<span class="sig-badge sig-highconf">success</span>'
+    : '<span class="sig-badge sig-conflict">error</span>';
+  const nonAuthBadge = '<span class="sig-badge sig-uncertain" title="All model outputs are non-authoritative">non-authoritative</span>';
+
+  const responseBlock = r.response_json
+    ? `<pre style="font-size:11px;max-height:300px;overflow:auto">${escHtml(JSON.stringify(r.response_json, null, 2))}</pre>`
+    : r.response_text
+      ? `<pre style="font-size:11px;max-height:300px;overflow:auto">${escHtml(r.response_text.slice(0,2000))}</pre>`
+      : '<span class="text-faint font-sm">No response</span>';
+
+  if (out) out.innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+      ${statusBadge} ${nonAuthBadge}
+      <span class="text-faint font-sm">${escHtml(r.invocation_id||'')} · ${escHtml(r.model||'')}</span>
+    </div>
+    ${r.error ? `<div class="text-red font-sm" style="margin-bottom:6px">${escHtml(r.error)}</div>` : ''}
+    ${responseBlock}
+  `;
+}
+
+// ── Policies ──────────────────────────────────────────────────
+async function loadPolicies() {
+  const body = el('policies-body');
+  if (!body) return;
+  body.innerHTML = `<tr><td colspan="7" class="text-faint"><span class="spinner"></span></td></tr>`;
+  const data = await api('/api/governance/policies');
+  const policies = data.policies || [];
+  if (!policies.length) {
+    body.innerHTML = `<tr><td colspan="7" class="text-faint" style="padding:12px;text-align:center">No policies defined — system defaults apply.</td></tr>`;
+    return;
+  }
+  const check = v => v ? '<span class="text-green">✓</span>' : '<span class="text-faint">–</span>';
+  body.innerHTML = policies.map(p => `
+    <tr>
+      <td class="font-sm">${escHtml(p.workspace)}</td>
+      <td class="font-sm">${escHtml(p.entity_type)} <span class="text-faint">${escHtml(p.entity_id)}</span></td>
+      <td style="text-align:center">${check(p.can_read)}</td>
+      <td style="text-align:center">${check(p.can_write)}</td>
+      <td style="text-align:center">${check(p.can_execute)}</td>
+      <td style="text-align:center">${check(p.can_propose)}</td>
+      <td style="text-align:center">${check(p.can_promote)}</td>
+    </tr>`).join('');
+}
+
+async function savePolicy() {
+  const workspace   = el('pol-workspace')?.value.trim();
+  const entityType  = el('pol-entity-type')?.value;
+  const entityId    = el('pol-entity-id')?.value.trim() || '*';
+  const msg         = el('policy-msg');
+
+  if (!workspace) { if (msg) msg.innerHTML = '<span class="text-amber">Workspace is required.</span>'; return; }
+
+  const body = {
+    workspace, entity_type: entityType, entity_id: entityId,
+    can_read:    el('pol-read')?.checked    ? 1 : 0,
+    can_write:   el('pol-write')?.checked   ? 1 : 0,
+    can_execute: el('pol-execute')?.checked ? 1 : 0,
+    can_propose: el('pol-propose')?.checked ? 1 : 0,
+    can_promote: el('pol-promote')?.checked ? 1 : 0,
+  };
+
+  const r = await api('/api/governance/policy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+
+  if (r.detail) {
+    if (msg) msg.innerHTML = `<span class="text-red">${escHtml(r.detail)}</span>`;
+  } else {
+    if (msg) msg.innerHTML = '<span class="text-green">✓ Policy saved.</span>';
+    loadPolicies();
+  }
+}
+
+// ── Audit log ─────────────────────────────────────────────────
+async function loadAuditLog() {
+  const body = el('audit-body');
+  if (!body) return;
+  body.innerHTML = `<tr><td colspan="5" class="text-faint"><span class="spinner"></span></td></tr>`;
+  const data = await api('/api/audit?limit=50');
+  const events = data.events || [];
+  if (!events.length) {
+    body.innerHTML = `<tr><td colspan="5" class="text-faint" style="padding:12px;text-align:center">No audit events yet.</td></tr>`;
+    return;
+  }
+  const eventCls = { run: 'badge-type', save: 'badge-canonical', llm_call: 'badge-state',
+                     edit: 'badge-draft', promote: 'badge-canonical', conflict: 'badge-conflict' };
+  body.innerHTML = events.map(e => `
+    <tr>
+      <td class="text-faint font-sm">${ts(e.event_ts)}</td>
+      <td><span class="badge ${eventCls[e.event_type]||'badge-draft'}">${escHtml(e.event_type)}</span></td>
+      <td class="font-sm">${escHtml(e.actor_type)} <span class="text-faint">${escHtml(e.actor_id||'')}</span></td>
+      <td class="font-sm text-faint">${escHtml((e.doc_id||'').slice(0,20))}</td>
+      <td class="font-sm text-faint">${escHtml((e.detail||'').slice(0,60))}</td>
+    </tr>`).join('');
+}
+
+// ── Execution runs ────────────────────────────────────────────
+async function loadExecRuns() {
+  const body  = el('exec-body');
+  const docId = el('exec-doc-filter')?.value.trim();
+  if (!body) return;
+  body.innerHTML = `<tr><td colspan="6" class="text-faint"><span class="spinner"></span></td></tr>`;
+
+  const url = docId
+    ? `/api/exec/runs/${encodeURIComponent(docId)}`
+    : '/api/audit?event_type=run&limit=30';
+  const data = await api(url);
+  const runs = data.runs || data.events || [];
+
+  if (!runs.length) {
+    body.innerHTML = `<tr><td colspan="6" class="text-faint" style="padding:12px;text-align:center">No execution runs found.</td></tr>`;
+    return;
+  }
+  const statusCls = { success: 'badge-canonical', error: 'badge-conflict', running: 'badge-draft', pending: 'badge-state' };
+  body.innerHTML = runs.map(r => `
+    <tr>
+      <td class="font-sm" style="font-family:var(--font-mono)">${escHtml((r.run_id||r.detail||'').slice(0,18))}</td>
+      <td class="text-faint font-sm">${escHtml((r.doc_id||'').slice(0,18))}</td>
+      <td class="text-faint font-sm">${escHtml(r.block_id||'')}</td>
+      <td class="font-sm">${escHtml(r.language||'')}</td>
+      <td><span class="badge ${statusCls[r.status]||'badge-draft'}">${escHtml(r.status||r.event_type||'')}</span></td>
+      <td class="text-faint font-sm">${ts(r.started_ts||r.event_ts)}</td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// Phase 11 — Input Surface (New / Import panel)
+// ══════════════════════════════════════════════════════════════
+
+async function createMarkdownDoc() {
+  const title   = el('new-doc-title')?.value.trim() || 'Untitled note';
+  const body    = el('new-doc-body')?.value || '';
+  const topicsRaw = el('new-doc-topics')?.value || '';
+  const topics  = topicsRaw.split(',').map(s => s.trim()).filter(Boolean);
+  const status  = el('new-doc-status');
+
+  if (!body.trim()) {
+    if (status) status.textContent = 'Body is empty. Nothing saved.';
+    return;
+  }
+  if (status) status.innerHTML = '<span class="spinner"></span> Saving…';
+
+  const res = await api('/api/input/markdown', {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify({ title, body, topics, target_folder: 'notes' }),
+  });
+
+  if (res.error || res.ok === false) {
+    if (status) status.innerHTML = `<span class="text-red">${escHtml(res.detail || res.error || 'Save failed')}</span>`;
+    return;
+  }
+
+  if (status) status.innerHTML =
+    `✓ Saved <button class="btn btn-ghost btn-sm" onclick="openDrawer('${escHtml(res.doc_id)}')">Open →</button>`;
+  await refreshAfterIntake();
+}
+
+function previewNewDoc() {
+  const body = el('new-doc-body')?.value || '';
+  const card  = el('new-doc-preview-card');
+  const prev  = el('new-doc-preview');
+  if (!card || !prev) return;
+  card.style.display = 'block';
+  prev.innerHTML = renderMarkdown(body);
+  renderMathIn?.(prev);
+}
+
+async function uploadDocuments() {
+  const input  = el('upload-files');
+  const folder = el('upload-target-folder')?.value.trim() || 'imports';
+  const status = el('upload-status');
+  if (!input?.files?.length) {
+    if (status) status.textContent = 'No files selected.';
+    return;
+  }
+  if (status) status.innerHTML = '<span class="spinner"></span> Uploading…';
+
+  const fd = new FormData();
+  for (const f of input.files) fd.append('files', f);
+  fd.append('target_folder', folder);
+
+  const res = await api('/api/input/upload', { method: 'POST', body: fd });
+
+  if (res.error || res.ok === false) {
+    if (status) status.innerHTML = `<span class="text-red">${escHtml(res.detail || res.error || 'Upload failed')}</span>`;
+    return;
+  }
+
+  const saved    = res.saved    || [];
+  const rejected = res.rejected || [];
+  if (status) {
+    const rejNote = rejected.length ? ` · ${rejected.length} rejected` : '';
+    status.innerHTML = `✓ ${saved.length} uploaded${rejNote}` +
+      (rejected.length ? `<div class="text-red font-sm">${rejected.map(r => escHtml(r.filename + ': ' + r.reason)).join(', ')}</div>` : '');
+  }
+  await refreshAfterIntake();
+}
+
+async function indexFolderFromInputPanel() {
+  const path   = el('index-source-path')?.value.trim();
+  const status = el('index-folder-status');
+  if (!path) { if (status) status.textContent = 'Enter a folder path.'; return; }
+  if (status) status.innerHTML = '<span class="spinner"></span> Indexing…';
+
+  const res = await api('/api/index', {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify({ root: path }),
+  });
+  if (res.error || res.ok === false) {
+    if (status) status.innerHTML = `<span class="text-red">${escHtml(res.detail || res.error || 'Index failed')}</span>`;
+    return;
+  }
+  if (status) status.textContent = `✓ Indexed ${res.indexed || 0} docs.`;
+  await refreshAfterIntake();
+}
+
+async function refreshAfterIntake() {
+  try { if (typeof loadDashboard === 'function') await loadDashboard(); } catch (_) {}
+  try { if (typeof loadLibrary   === 'function') await loadLibrary();   } catch (_) {}
+  try { if (_graph) { teardownAtlas(); initAtlas(); }                   } catch (_) {}
+  try { await loadRecentInput();                                         } catch (_) {}
+}
+
+async function loadRecentInput() {
+  const list = el('recent-input-list');
+  if (!list) return;
+  const data = await api('/api/input/recent?limit=15');
+  const items = (data.items || []).filter(i => i.doc_id || i.detail);
+  if (!items.length) {
+    list.innerHTML = '<span class="text-faint font-sm">No recent intake events.</span>';
+    return;
+  }
+  list.innerHTML = items.map(item => {
+    let detail = '';
+    try { detail = JSON.parse(item.detail || '{}').path || ''; } catch (_) {}
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--border-dim);font-size:11px">
+      <span class="text-bright">${escHtml(detail || item.doc_id || '—')}</span>
+      <span class="text-faint" style="margin-left:8px">${ts(item.event_ts)}</span>
+      ${item.doc_id ? `<button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="openDrawer('${escHtml(item.doc_id)}')">Open</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// Phase 12 — Lifecycle undo / backward movement
+// ══════════════════════════════════════════════════════════════
+
+function showMoveBackwardModal(docId) {
+  const form = el(`lifecycle-backward-form-${docId}`);
+  if (!form) return;
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitMoveBackward(docId) {
+  const reason = el(`lc-reason-${docId}`)?.value.trim() || null;
+  const msg    = el(`lifecycle-action-msg-${docId}`);
+  if (msg) msg.innerHTML = '<span class="spinner"></span>';
+
+  const r = await api(`/api/lifecycle/${encodeURIComponent(docId)}/backward`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ reason, actor: 'user' }),
+  });
+
+  if (r.error || !r.success) {
+    if (msg) msg.innerHTML = `<span class="text-red">${escHtml(r.detail || r.error || 'Move failed')}</span>`;
+    return;
+  }
+  if (msg) msg.innerHTML = `<span class="text-green">✓ Moved: ${escHtml(r.previous_state)} → ${escHtml(r.new_state)}</span>`;
+  const form = el(`lifecycle-backward-form-${docId}`);
+  if (form) form.style.display = 'none';
+
+  // Refresh drawer to show new state
+  setTimeout(() => openDrawer(docId), 600);
+}
+
+async function submitUndoLifecycle(docId) {
+  const msg = el(`lifecycle-action-msg-${docId}`);
+  if (msg) msg.innerHTML = '<span class="spinner"></span>';
+
+  const r = await api(`/api/lifecycle/${encodeURIComponent(docId)}/undo`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ actor: 'user' }),
+  });
+
+  if (r.error || !r.success) {
+    if (msg) msg.innerHTML = `<span class="text-red">${escHtml(r.detail || r.error || 'Undo failed')}</span>`;
+    return;
+  }
+  if (msg) msg.innerHTML = `<span class="text-green">✓ Undone → ${escHtml(r.new_state)}</span>`;
+  setTimeout(() => openDrawer(docId), 600);
+}
+
+async function toggleLifecycleHistory(docId) {
+  const container = el(`lifecycle-history-${docId}`);
+  if (!container) return;
+  if (container.style.display !== 'none' && container.dataset.loaded) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  container.dataset.loaded = '1';
+  container.innerHTML = '<span class="spinner"></span>';
+
+  const r = await api(`/api/lifecycle/${encodeURIComponent(docId)}/history?limit=30`);
+  const events = r.events || [];
+
+  if (!events.length) {
+    container.innerHTML = '<span class="text-faint font-sm">No lifecycle history recorded yet.</span>';
+    return;
+  }
+
+  const dirIcon = d =>
+    d === 'backward' ? '←' : d === 'undo' ? '↺' : '→';
+  const dirCls  = d =>
+    d === 'backward' ? 'text-amber' : d === 'undo' ? 'text-blue-300' : 'text-green';
+
+  container.innerHTML = `
+    <div style="font-size:10px;color:var(--text-faint);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">Lifecycle History</div>
+    ${events.map(ev => `
+      <div style="padding:5px 0;border-bottom:1px solid var(--border-dim);font-size:11px">
+        <span class="${dirCls(ev.direction)}">${dirIcon(ev.direction)}</span>
+        <span class="text-bright" style="margin-left:4px">${escHtml(ev.from_state)}</span>
+        <span class="text-faint"> → </span>
+        <span class="text-bright">${escHtml(ev.to_state)}</span>
+        <span class="text-faint" style="margin-left:8px">${ts(ev.event_ts)}</span>
+        <span class="badge badge-draft" style="margin-left:6px;font-size:9px">${escHtml(ev.direction)}</span>
+        ${ev.reason ? `<div class="text-faint" style="margin-top:2px;padding-left:12px">${escHtml(ev.reason)}</div>` : ''}
+      </div>
+    `).join('')}
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Phase 12 — System Status panel
+// ══════════════════════════════════════════════════════════════
+
+async function loadStatus() {
+  const r = await api('/api/status');
+  if (r.error) return;
+
+  // Stat cards
+  const serverEl = el('st-server');
+  if (serverEl) { serverEl.textContent = r.server === 'ok' ? '✓ ok' : r.server; serverEl.style.color = r.server === 'ok' ? 'var(--green-bright)' : 'var(--red)'; }
+  if (el('st-docs'))   el('st-docs').textContent   = r.indexed_docs ?? '—';
+  if (el('st-edges'))  el('st-edges').textContent  = r.graph_edges ?? '—';
+  if (el('st-queue'))  el('st-queue').textContent  = `${r.review_queue?.pending ?? 0} pending`;
+  if (el('st-errors')) el('st-errors').textContent = r.index_errors ?? '—';
+
+  // Ollama card
+  const ollamaEl = el('st-ollama');
+  if (ollamaEl) {
+    const ol = r.ollama || {};
+    if (!ol.enabled) { ollamaEl.textContent = 'disabled'; ollamaEl.style.color = 'var(--text-faint)'; }
+    else if (ol.available) { ollamaEl.textContent = '✓ available'; ollamaEl.style.color = 'var(--green-bright)'; }
+    else { ollamaEl.textContent = '✗ unavailable'; ollamaEl.style.color = 'var(--red)'; }
+  }
+
+  // Library KV
+  const libKv = el('st-library-kv');
+  if (libKv) {
+    const ai = r.autoindex || {};
+    const lastRun = r.last_indexed_at ? new Date(r.last_indexed_at * 1000).toLocaleString() : 'Never';
+    libKv.innerHTML = `
+      <div class="kv-key">Library root</div><div class="kv-val font-sm"><code>${escHtml(r.library_root || '—')}</code></div>
+      <div class="kv-key">Library found</div><div class="kv-val">${r.library_found ? '<span class="text-green">✓ yes</span>' : '<span class="text-red">✗ missing</span>'}</div>
+      <div class="kv-key">Last indexed</div><div class="kv-val font-sm">${escHtml(lastRun)}</div>
+      <div class="kv-key">Auto-index</div><div class="kv-val font-sm">${ai.enabled ? '<span class="text-green">enabled</span>' : 'disabled (set BOH_AUTO_INDEX=true)'}</div>
+      <div class="kv-key">Last run stats</div><div class="kv-val font-sm">${ai.last_indexed ?? 0} indexed · ${ai.last_skipped ?? 0} skipped · ${ai.last_failed ?? 0} failed · ${ai.elapsed_ms ?? 0}ms</div>
+    `;
+  }
+
+  // Ollama KV
+  const olKv = el('st-ollama-kv');
+  if (olKv) {
+    const ol = r.ollama || {};
+    olKv.innerHTML = `
+      <div class="kv-key">Enabled</div><div class="kv-val">${ol.enabled ? 'yes' : 'no'}</div>
+      <div class="kv-key">Available</div><div class="kv-val">${ol.available ? '<span class="text-green">✓ yes</span>' : '✗ no'}</div>
+      <div class="kv-key">Model</div><div class="kv-val">${escHtml(ol.model || '—')}</div>
+      <div class="kv-key">URL</div><div class="kv-val font-sm"><code>${escHtml(ol.url || '—')}</code></div>
+    `;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Phase 12 — Auto-index trigger (dashboard + status panel)
+// ══════════════════════════════════════════════════════════════
+
+async function triggerAutoIndex(changedOnly = true) {
+  const resultEl = el('st-index-result') || el('dash-library-status');
+  if (resultEl) resultEl.innerHTML = '<span class="spinner"></span> Indexing…';
+
+  const r = await api('/api/autoindex/run', {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify({ changed_only: changedOnly }),
+  });
+
+  if (r.error) {
+    if (resultEl) resultEl.innerHTML = `<span class="text-red">${escHtml(r.error)}</span>`;
+    return;
+  }
+
+  const summary = `✓ Scanned ${r.scanned} · Indexed ${r.indexed} · Skipped ${r.skipped} · Failed ${r.failed} · ${r.elapsed_ms}ms`;
+  if (resultEl) resultEl.innerHTML = `<span class="text-green">${escHtml(summary)}</span>`;
+
+  // Refresh dashboard stats and library
+  try { await loadDashboard(); } catch (_) {}
+  try { if (typeof loadLibrary === 'function') await loadLibrary(); } catch (_) {}
+}
+
+// ══════════════════════════════════════════════════════════════
+// Phase 12 — LLM Review Queue panel
+// ══════════════════════════════════════════════════════════════
+
+async function loadLlmQueue() {
+  const statusFilter = el('llmq-status-filter')?.value || 'pending';
+  const body  = el('llmq-body');
+  const count = el('llmq-count');
+  if (!body) return;
+  body.innerHTML = '<span class="spinner"></span>';
+
+  const r = await api(`/api/llm/queue?status=${encodeURIComponent(statusFilter)}&limit=50`);
+  const items = r.items || [];
+
+  if (count) count.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+
+  if (!items.length) {
+    body.innerHTML = `<div class="empty" style="padding:24px">
+      <div class="icon">◈</div>
+      <div>No ${escHtml(statusFilter)} proposals in the LLM queue.</div>
+      ${statusFilter === 'pending' ? '<div class="text-faint font-sm" style="margin-top:6px">Invoke Ollama from the Governance panel to generate metadata proposals.</div>' : ''}
+    </div>`;
+    return;
+  }
+
+  body.innerHTML = items.map(item => renderLlmQueueItem(item)).join('');
+
+  // Update nav badge
+  if (statusFilter === 'pending') {
+    const badge = el('nav-llm-badge');
+    if (badge) { badge.textContent = items.length; badge.classList.toggle('hidden', items.length === 0); }
+  }
+}
+
+function renderLlmQueueItem(item) {
+  const p = item.proposed || {};
+  const conf = typeof item.confidence === 'number' ? `${Math.round(item.confidence * 100)}%` : '—';
+  const isPending = item.status === 'pending';
+
+  const topicsList = (p.proposed_topics || []).slice(0, 8).map(t => `<span class="badge badge-type">${escHtml(t)}</span>`).join(' ');
+
+  const conflictRows = (p.conflicts || []).map(c => `
+    <div class="font-sm" style="color:var(--red);margin-top:2px">
+      ⚡ ${escHtml(c.reason || '')} <span class="badge badge-conflict">${escHtml(c.severity || '')}</span>
+    </div>`).join('');
+
+  const rubrixBlock = p.rubrix ? `
+    <div class="font-sm" style="margin-top:4px">
+      <span class="text-faint">Rubrix:</span>
+      state=<code>${escHtml(p.rubrix.operator_state || '—')}</code>
+      intent=<code>${escHtml(p.rubrix.operator_intent || '—')}</code>
+    </div>` : '';
+
+  return `
+    <div style="padding:14px;border-bottom:1px solid var(--border-dim)">
+      <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px">
+        <div style="flex:1;min-width:0">
+          <div class="text-bright font-bold font-sm" style="margin-bottom:2px">
+            ${escHtml(p.proposed_title || item.file_path || item.doc_id || 'Unknown')}
+          </div>
+          <div class="text-faint font-sm">${escHtml(p.summary || '(no summary)')}</div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
+          <span class="badge badge-state">${escHtml(p.proposed_type || '—')}</span>
+          <span class="badge badge-draft" title="LLM confidence">${conf}</span>
+          <span class="badge ${item.status === 'approved' ? 'badge-canonical' : item.status === 'rejected' ? 'badge-conflict' : 'badge-state'}">${escHtml(item.status)}</span>
+        </div>
+      </div>
+
+      ${topicsList ? `<div style="margin-bottom:6px">${topicsList}</div>` : ''}
+      ${rubrixBlock}
+      ${conflictRows}
+
+      <div class="kv-grid" style="font-size:10px;margin-top:6px;margin-bottom:8px">
+        <div class="kv-key">File</div><div class="kv-val" style="color:var(--text-faint)">${escHtml(item.file_path || '—')}</div>
+        <div class="kv-key">Model</div><div class="kv-val">${escHtml(item.model || '—')}</div>
+        <div class="kv-key">Queued</div><div class="kv-val">${ts(item.queued_ts)}</div>
+      </div>
+
+      <div class="alert alert-amber font-sm" style="margin-bottom:8px;padding:5px 10px">
+        ⚠ Approving applies: title, summary, topics, type (if not canon). Canonical status is <strong>never applied</strong> automatically.
+      </div>
+
+      ${isPending ? `
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="approveLlmItem('${escHtml(item.queue_id)}')">✓ Approve (safe fields)</button>
+          <button class="btn btn-danger btn-sm"  onclick="rejectLlmItem('${escHtml(item.queue_id)}')">✗ Reject</button>
+          ${item.doc_id ? `<button class="btn btn-ghost btn-sm" onclick="openDrawer('${escHtml(item.doc_id)}')">Open doc →</button>` : ''}
+        </div>
+        <div id="llmq-msg-${escHtml(item.queue_id)}" class="font-sm" style="margin-top:4px"></div>
+      ` : `<div class="text-faint font-sm">Reviewed ${ts(item.reviewed_ts)} by ${escHtml(item.actor || '—')}</div>`}
+    </div>`;
+}
+
+async function approveLlmItem(queueId) {
+  const msg = el(`llmq-msg-${queueId}`);
+  if (msg) msg.innerHTML = '<span class="spinner"></span>';
+  const r = await api(`/api/llm/queue/${encodeURIComponent(queueId)}/approve`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ actor: 'user' }),
+  });
+  if (r.success) {
+    if (msg) msg.innerHTML = `<span class="text-green">✓ Approved. Applied: ${escHtml(JSON.stringify(r.applied || {}))}</span>`;
+    setTimeout(loadLlmQueue, 1000);
+  } else {
+    if (msg) msg.innerHTML = `<span class="text-red">${escHtml(r.detail || r.error || 'Approve failed')}</span>`;
+  }
+}
+
+async function rejectLlmItem(queueId) {
+  const msg = el(`llmq-msg-${queueId}`);
+  if (msg) msg.innerHTML = '<span class="spinner"></span>';
+  const r = await api(`/api/llm/queue/${encodeURIComponent(queueId)}/reject`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ actor: 'user' }),
+  });
+  if (r.success) {
+    if (msg) msg.innerHTML = '<span class="text-green">✓ Rejected — no changes applied.</span>';
+    setTimeout(loadLlmQueue, 1000);
+  } else {
+    if (msg) msg.innerHTML = `<span class="text-red">${escHtml(r.detail || r.error || 'Reject failed')}</span>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Phase 12 — Atlas: fit-to-screen, reset, neighborhood mode
+// ══════════════════════════════════════════════════════════════
+
+function fitAtlasToScreen() {
+  if (!_graph) return;
+  _graph.fitView();
+  _graph._renderDirty = true;
+}
+
+function resetAtlasGraph() {
+  teardownAtlas();
+  initAtlas();
+}
+
+function resetAtlasView() {
+  if (!_graph) return;
+  _graph.resetView();
+  _graph._renderDirty = true;
+}
+
+function focusSelectedAtlasNode() {
+  if (!_graph) return;
+  _graph.focusSelected();
+  _graph._renderDirty = true;
+}
+
+function zoomAtlas(factor) {
+  if (!_graph) return;
+  const W = _graph.canvas.width, H = _graph.canvas.height;
+  _graph.zoomAt(W / 2, H / 2, factor);
+  _graph._renderDirty = true;
+}
+
+function toggleAtlasNeighborhoodMode() {
+  if (!_graph?.selectedNode) return;
+  expandSelectedAtlasNode();
+}
+
+// ── Phase 12.3: Performance mode control ─────────────────────────────────────
+
+function setAtlasPerfMode(mode) {
+  if (!_graph) return;
+  const opts = _graph.options;
+  opts._perfMode = mode;
+
+  switch (mode) {
+    case 'high':
+      opts.fpsTarget        = 60;
+      opts.animatedRipples  = el('atlas-opt-ripples')?.checked ?? true;
+      opts.edgeGlow         = el('atlas-opt-glow')?.checked ?? true;
+      opts.maxRipples       = 24;
+      opts.staticMode       = false;
+      break;
+    case 'static':
+      opts.fpsTarget        = 16;   // low-rate poll loop; draw only when dirty
+      opts.animatedRipples  = false;
+      opts.edgeGlow         = false;
+      opts.maxRipples       = 0;
+      opts.staticMode       = true;
+      if (el('atlas-opt-ripples')) el('atlas-opt-ripples').checked = false;
+      if (el('atlas-opt-glow'))    el('atlas-opt-glow').checked    = false;
+      break;
+    default: // balanced
+      opts.fpsTarget        = 30;
+      opts.animatedRipples  = false;
+      opts.edgeGlow         = false;
+      opts.maxRipples       = 8;
+      opts.staticMode       = false;
+      if (el('atlas-opt-ripples')) el('atlas-opt-ripples').checked = false;
+      if (el('atlas-opt-glow'))    el('atlas-opt-glow').checked    = false;
+  }
+  // Clear auto-reduce warning on mode change
+  _graph._perfWarned = false;
+  const warn = el('atlas-perf-warning');
+  if (warn) warn.style.display = 'none';
+  _graph._renderDirty = true;
+}
+
+function setAtlasOption(key, value) {
+  if (!_graph) return;
+  _graph.options[key] = value;
+  if (key === 'animatedRipples' && !value) _graph.ripples = [];
+  _graph._renderDirty = true;
+}
+
+// (Phase 12 DOMContentLoaded additions merged into the main handler above)
+

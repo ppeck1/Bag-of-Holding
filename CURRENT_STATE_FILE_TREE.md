@@ -1,221 +1,184 @@
 # CURRENT_STATE_FILE_TREE.md
-# Bag of Holding v2 — Current State After Phase 8
-# Tests: 261 passed, 2 skipped, 0 failed
+# Bag of Holding v2 — Current State After Phase 10 (Hardened)
+# Tests: 444 passed, 2 skipped, 0 failed
 
 ## File Tree
 
 ```
-boh_v2/
-├── README.md                              ← Full Phase 8 documentation
-├── RUN_INSTRUCTIONS.md                    ← Run guide with correct test counts (261 passed)
-├── CURRENT_STATE_FILE_TREE.md             ← This file
+boh_p10/
+├── README.md
+├── RUN_INSTRUCTIONS.md               ← Phase 10, 444 passed
+├── CURRENT_STATE_FILE_TREE.md
 ├── app/
 │   ├── api/
-│   │   ├── main.py                        ← App factory: all routers + StaticFiles + /api/health (phase:8)
-│   │   ├── models.py                      ← Pydantic models
+│   │   ├── main.py                   ← All routers registered; health phase:10
+│   │   ├── models.py
 │   │   └── routes/
-│   │       ├── canon.py                   ← GET /api/canon
-│   │       ├── conflicts.py               ← GET /api/conflicts  PATCH /api/conflicts/{id}/acknowledge
-│   │       ├── dashboard.py               ← GET /api/dashboard
-│   │       ├── events.py                  ← GET /api/events  GET /api/events/export.ics
-│   │       ├── index.py                   ← POST /api/index  (triggers DCNS sync on completion)
-│   │       ├── ingest.py                  ← POST /api/ingest/snapshot
-│   │       ├── library.py                 ← GET /api/docs  GET /api/docs/{id}
-│   │       ├── lineage.py                 ← GET/POST /api/lineage  GET /api/lineage/{doc_id}
-│   │       │                                  GET /api/duplicates  GET/POST /api/corpus/*
-│   │       ├── nodes.py                   ← GET /api/planes  GET/POST /api/nodes/{path}
-│   │       ├── reader.py                  ← GET /api/docs/{id}/content           [Phase 7]
-│   │       │                                  GET /api/docs/{id}/related          [Phase 7]
-│   │       │                                  GET /api/graph                      [Phase 7+8]
-│   │       │                                  GET /api/docs/{id}/coordinates      [Phase 8]
-│   │       │                                  POST /api/dcns/sync                 [Phase 8]
-│   │       ├── review.py                  ← GET /api/review/{path}
-│   │       ├── search.py                  ← GET /api/search (+ Phase 8 Daenary filter params)
-│   │       └── workflow.py                ← GET /api/workflow  PATCH /api/workflow/{id}
+│   │       ├── authoring.py          ← editor CRUD; save enforces write+canon+hash [Phase 10]
+│   │       ├── canon.py
+│   │       ├── conflicts.py          ← enriched with doc titles+paths [Phase 9]
+│   │       ├── dashboard.py
+│   │       ├── events.py
+│   │       ├── execution_routes.py   ← run/runs/artifact; entity_type enforced [Phase 10]
+│   │       ├── governance_routes.py  ← policies/check/edges/audit [Phase 10]
+│   │       ├── index.py
+│   │       ├── ingest.py
+│   │       ├── library.py
+│   │       ├── lineage.py
+│   │       ├── nodes.py
+│   │       ├── ollama_routes.py      ← health/models/tasks/invoke/invocations [Phase 10]
+│   │       ├── reader.py             ← content/related/coordinates/graph/dcns-sync [Phase 7-8]
+│   │       ├── review.py             ← GET (load/generate) + POST regenerate [Phase 9]
+│   │       ├── search.py             ← + Daenary filter params [Phase 8]
+│   │       └── workflow.py
 │   ├── core/
-│   │   ├── canon.py                       ← Canon scoring + resolution [BOH_CANON_v3.7]
-│   │   ├── conflicts.py                   ← 3-pass conflict detection [BOH_PATCH_v2.19]
-│   │   ├── corpus.py                      ← 5-class deterministic corpus classifier
-│   │   ├── daenary.py                     ← Daenary semantic state: validate/normalize/persist/query [Phase 8]
-│   │   ├── dcns.py                        ← Selective DCNS edge graph: build/sync/load diagnostics [Phase 8]
-│   │   ├── lineage.py                     ← Lineage links + duplicate/supersession detection
-│   │   ├── planar.py                      ← Planar fact storage + alignment scoring
-│   │   ├── related.py                     ← Related doc scoring + graph data builder [Phase 7+8]
-│   │   ├── rubrix.py                      ← Rubrix ontology + validate_header [RUBRIX_LIFECYCLE_v1]
-│   │   ├── search.py                      ← FTS + composite scoring + Daenary filter layer [Phase 8]
-│   │   └── snapshot.py                    ← Snapshot ingest + canon guard + corpus class
+│   │   ├── audit.py                  ← append-only audit log [Phase 10]
+│   │   ├── authoring.py              ← draft CRUD; save via fs_boundary [Phase 10+hardened]
+│   │   ├── canon.py
+│   │   ├── conflicts.py
+│   │   ├── corpus.py
+│   │   ├── daenary.py                ← semantic state: validate/normalize/persist [Phase 8]
+│   │   ├── dcns.py                   ← doc_edges: lineage+conflicts+canon edges [Phase 8]
+│   │   ├── execution.py              ← Python/shell runner; denylist+scope+policy [Phase 10+hardened]
+│   │   ├── fs_boundary.py            ← SINGLE WRITE GATE: traversal+canon+policy [Phase 10+hardened]
+│   │   ├── governance.py             ← policies+system_edges; convergent authority [Phase 10+hardened]
+│   │   ├── lineage.py
+│   │   ├── ollama.py                 ← task-scoped Ollama adapter; scope enforced [Phase 10+hardened]
+│   │   ├── planar.py
+│   │   ├── related.py                ← related scoring + graph data builder [Phase 7-8]
+│   │   ├── rubrix.py
+│   │   ├── search.py                 ← + Daenary filter layer [Phase 8]
+│   │   └── snapshot.py
 │   ├── db/
-│   │   ├── connection.py                  ← DB init + WAL + migration-safe ALTER TABLE [schema v2.2.0]
-│   │   └── schema.sql                     ← 8 tables + doc_coordinates + doc_edges [Phase 8]
+│   │   ├── connection.py             ← schema v2.4.0; 7 Phase 10 tables migrated
+│   │   └── schema.sql                ← 17 tables total
 │   ├── services/
-│   │   ├── events.py                      ← Event list + ICS export
-│   │   ├── indexer.py                     ← Filesystem crawler + Daenary coordinate persistence [Phase 8]
-│   │   ├── migration_report.py            ← Corpus migration report generator
-│   │   ├── parser.py                      ← parse_frontmatter() + parse_frontmatter_full() [Phase 8]
-│   │   └── reviewer.py                    ← LLM review artifact generation (non-authoritative)
+│   │   ├── events.py
+│   │   ├── indexer.py                ← + title/summary/daenary/DCNS [Phase 9-10]
+│   │   ├── migration_report.py
+│   │   ├── parser.py                 ← parse_frontmatter_full() [Phase 8]
+│   │   └── reviewer.py               ← load/exists/generate; enriched artifact [Phase 9]
 │   └── ui/
-│       ├── app.js                         ← SPA: 6 panels + ForceGraph + shared reader helpers
-│       │                                      + drawer viewer + Daenary search + DCNS halos [Phase 8]
-│       ├── index.html                     ← SPA shell: Atlas panel + Daenary search controls
-│       │                                      + DCNS legend + Phase 8 title [Phase 8]
-│       ├── style.css                      ← Full design system + drawer viewer + coord badges
-│       │                                      + Daenary summary styles [Phase 8]
+│       ├── app.js                    ← v2-phase10; + Governance panel [Phase 10]
+│       ├── index.html                ← 7 panels; ?v=10 [Phase 10]
+│       ├── style.css                 ← Phase 10 governance panel styles
 │       └── vendor/
-│           ├── katex.min.js               ← Local KaTeX (math rendering)
+│           ├── katex.min.js
 │           ├── katex.min.css
-│           ├── marked.min.js              ← Local marked.js (markdown rendering)
-│           └── fonts/                     ← KaTeX font files
+│           ├── marked.min.js
+│           └── fonts/
 ├── docs/
-│   ├── corpus_migration_doctrine.md
-│   ├── current_behavior_inventory.md
-│   ├── current_route_inventory.md
-│   ├── math_authority.md
-│   ├── rewrite_execution_plan.md
-│   └── source_to_target_migration_map.md
 ├── library/
-│   ├── planar-math.md
-│   ├── planar-math.review.json
-│   └── rubrix-lifecycle.md
 ├── tests/
-│   ├── test_integration.py                ← 42 tests — core v0P behaviors
-│   ├── test_new_routes.py                 ← 30 passed, 2 skipped — Phase 2 routes
-│   ├── test_phase4.py                     ← 28 tests — corpus class, lineage, duplicates
-│   ├── test_phase5.py                     ← 23 tests — launcher, health, all GET routes
-│   ├── test_phase6.py                     ← 26 tests — ICS, corpus UI, migration report
-│   ├── test_phase7.py                     ← 38 passed, 1 skipped — Atlas, reader, graph
-│   ├── test_phase8.py                     ← 70 tests — Daenary, DCNS, search, drawer
-│   ├── test_canon_selection.py            ← 1 test (stub)
-│   ├── test_conflict_detection.py         ← 1 test (stub)
-│   └── test_rubrix_lifecycle.py           ← 1 test (stub)
-├── boh.spec
-├── launcher.py                            ← Phase 8 preflight check (daenary.py + dcns.py verified)
+│   ├── test_integration.py           ← 42 tests
+│   ├── test_new_routes.py            ← 30 passed, 2 skipped
+│   ├── test_phase4.py                ← 28 tests
+│   ├── test_phase5.py                ← 23 tests
+│   ├── test_phase6.py                ← 26 tests
+│   ├── test_phase7.py                ← 38 passed, 1 skipped
+│   ├── test_phase8.py                ← 70 tests
+│   ├── test_phase9.py                ← 60 tests
+│   ├── test_phase10.py               ← 123 tests (governance+hardening)
+│   ├── test_canon_selection.py       ← 1 test
+│   ├── test_conflict_detection.py    ← 1 test
+│   └── test_rubrix_lifecycle.py      ← 1 test
+├── launcher.py                       ← Phase 10 preflight check (14 files verified)
 ├── launcher.bat
 └── launcher.sh
 ```
 
 ---
 
-## Phase 8 Changes
+## Phase 10 Changes
 
-### New: `app/core/daenary.py`
-Daenary semantic state layer. Completely additive — does not touch Rubrix.
-- `validate_dimension()` — lint codes: `LINT_INVALID_DAENARY_STATE/QUALITY/CONFIDENCE/MODE/TIMESTAMP`
-- `extract_coordinates()` — normalize and filter a `daenary:` block into storable dicts
-- `upsert_coordinates()` — DELETE + INSERT for a doc_id (called by indexer)
-- `get_coordinates()` — query `doc_coordinates` for a doc
-- `format_coordinate_summary()` — human-readable string for search result cards
-- `is_stale()` — check if `valid_until_ts` is in the past
+### New core modules
+- **`audit.py`** — `log_event()` / `get_events()`. Append-only. Wired into authoring, execution, LLM calls, policy changes.
+- **`authoring.py`** — draft CRUD, title/summary editing, save-to-disk. Now routes all writes through `fs_boundary.safe_write_text()`.
+- **`execution.py`** — Python + shell runner. Shell denylist, Python denylist, `_resolve_workspace()` (no path traversal), `_check_execute_permission()`, `can_execute` enforced. Workspace is `cwd` for all subprocesses.
+- **`ollama.py`** — Task-scoped Ollama adapter. `_build_scoped_context()` constructs prompt from `scope.docs` / `scope.dirs` only. No raw filesystem access. `scope_enforced` field in response. All outputs: `non_authoritative: true`.
+- **`governance.py`** — `workspace_policies` CRUD + `system_edges` DCNS. **Convergent authority model**: `upsert_policy()` syncs to `system_edges`; `get_effective_policy()` falls back through policy → edge → default. `check_permission()` returns `_source` field showing authority origin. Canon promotion hardcoded denied for models.
+- **`fs_boundary.py`** — Single choke point for all filesystem writes. `assert_write_safe()` enforces: path traversal check, `canon/` directory block, DB-status canonical block, write-permission check. `safe_write_text()` wraps the full gate + audit log.
 
-### New: `app/core/dcns.py`
-Selective DCNS relationship edge graph. Not a vessel simulation.
-- `sync_edges()` — derive `doc_edges` from lineage + conflicts + optional `canon_relates_to` pairs; compute load scores; idempotent via INSERT OR REPLACE
-- `get_node_diagnostics()` — per-node: `load_score`, `conflict_count`, `expired_coordinate_count`, `uncertain_coordinate_count`
-- `get_all_doc_edges()` — return edge rows filtered to a set of node IDs
+### New API routes
+- `GET /api/editor/new` — blank document template
+- `GET /api/editor/{doc_id}` — load doc into editor (returns `source_hash`)
+- `PATCH /api/editor/{doc_id}` — update draft fields
+- `POST /api/editor/{doc_id}/save` — save to disk (entity_type + source_hash params)
+- `DELETE /api/editor/{doc_id}/draft` — discard draft
+- `POST /api/editor/{doc_id}/summary/regenerate` — deterministic summary regeneration
+- `POST /api/exec/run` — run Python or shell block (safety + permission enforced)
+- `GET /api/exec/runs/{doc_id}` — list runs for doc
+- `GET /api/exec/run/{run_id}` — full run + artifacts
+- `GET /api/exec/artifact/{artifact_id}` — artifact content
+- `GET /api/ollama/health` — Ollama availability
+- `GET /api/ollama/models` — model list
+- `GET /api/ollama/tasks` — valid task types
+- `POST /api/ollama/invoke` — task-scoped invocation
+- `GET /api/ollama/invocations` — invocation history
+- `GET /api/ollama/invocation/{id}` — single invocation record
+- `GET /api/governance/policies` — list workspace policies
+- `GET /api/governance/policy/{workspace}` — effective policy for entity
+- `POST /api/governance/policy` — create/update policy (auto-syncs to system_edges)
+- `GET /api/governance/check` — permission check with `source` field
+- `GET /api/governance/edges` — query system DCNS edges
+- `POST /api/governance/edges` — add system DCNS edge
+- `GET /api/audit` — query audit log
 
-### `app/services/parser.py`
-- `parse_frontmatter_full()` added — returns `(boh, raw_header, body, lint_errors)`
-- `parse_frontmatter()` unchanged — all existing callers unaffected
+### New schema tables (Phase 10, schema v2.4.0)
+- `doc_drafts` — in-memory document drafts before save
+- `exec_runs` — every code block execution record
+- `exec_artifacts` — outputs attached to runs
+- `llm_invocations` — every Ollama call record
+- `workspace_policies` — read/write/execute/propose/promote per entity
+- `audit_log` — append-only governance audit trail
+- `system_edges` — DCNS extended beyond documents (authority/flow edges)
 
-### `app/services/indexer.py`
-- Uses `parse_frontmatter_full()` to capture optional `daenary:` block
-- Calls `upsert_coordinates()` inside the DB transaction after doc insert
-- Calls `dcns.sync_edges()` at end of `crawl_library()`
-- Reports `daenary_coordinates` and `dcns_edges_synced` in crawl summary
-
-### `app/db/schema.sql`
-- `doc_coordinates` table + 4 indexes
-- `doc_edges` table + 3 indexes
-
-### `app/db/connection.py`
-- Phase 8 explicit table creation in `init_db()` (migration-safe for existing DBs)
-- Schema version stamped `v2.2.0`
-
-### `app/core/search.py`
-- New optional params: `dimension`, `state`, `min_quality`, `min_confidence`, `stale`, `uncertain_only`, `conflicts_only`
-- Daenary pre-filter: queries `doc_coordinates` and reduces candidate set
-- `_daenary_adjustment()` — additive-only, clamped `[−0.05, +0.05]`
-- `daenary_summary` attached to result rows when coordinates exist
-- `daenary_adjustment` added to `score_breakdown`
-
-### `app/api/routes/search.py`
-- Exposes all 7 new Daenary filter params via FastAPI Query params
-- Response includes `daenary_filters` dict showing active filters
-
-### `app/core/related.py` — `get_graph_data()`
-- Nodes enriched with DCNS diagnostics (`loadScore`, `conflictCount`, `expiredCoordinates`, `uncertainCoordinates`)
-- Edges sourced from `doc_edges` first, then lineage fallback, then inferred topic-similarity
-
-### `app/api/routes/reader.py`
-- `GET /api/docs/{id}/coordinates` — new endpoint
-- `POST /api/dcns/sync` — new endpoint
-- `get_doc_content()` updated to use `parse_frontmatter_full()`
-- `/api/graph` doc updated to reflect Phase 8 node/edge payloads
-
-### `app/ui/app.js`
-- Version constant: `BOH_VERSION = 'v2-phase8'`
-- Console fingerprint updated
-- **Shared reader helpers** (new): `loadDocPayload()`, `renderDocBodyInto()`, `renderRelatedInto()`, `renderCoordBadges()`
-- **Drawer viewer** (new): `openDrawer()` now fetches content + related docs and injects them into the drawer; `setDrawerMode()` toggles rendered/raw
-- **Daenary search** (new): `doSearch()` collects all 7 filter inputs; `daenary_summary` rendered as `◈ dim=state(q/c)` line on result cards; `daenary_adjustment` shown in breakdown
-- **DCNS node halos** (new): ForceGraph `draw()` adds red ring for conflicts, amber dashed for stale, blue dot for uncertain
-
-### `app/ui/index.html`
-- Page title: `Bag of Holding v2 — Phase 8`
-- Topbar wordmark: `Phase 8` label
-- Daenary filter accordion added to Search panel (`sf-dimension`, `sf-state`, `sf-min-quality`, `sf-min-conf`, `sf-uncertain`, `sf-stale`, `sf-conflicts`)
-- Score formula reference updated to include `daenary_adjustment`
-- Atlas legend updated: conflict, stale, uncertain halo indicators
-- All static asset URLs bumped to `?v=8`
-
-### `app/ui/style.css`
-- Drawer width: `min(680px, 92vw)` (widened from narrow metadata drawer)
-- `#drawer-reader-toggle`, `#drawer-reader-content`, `#drawer-reader-related` styles
-- `.coord-badge` variants: `.state-pos` (green), `.state-zero` (amber), `.state-neg` (red), `.stale` (dimmed + strikethrough)
-- `.daenary-summary` monospace compact display
-- `#search-daenary-panel` collapsible filter area
-
-### `launcher.py`
-- Preflight check updated: `daenary.py` and `dcns.py` added to required file list
-- Phase references updated to Phase 8
-
-### `tests/test_phase8.py` — 70 new tests
-- `TestParseFrontmatterFull` (6) — full parser
-- `TestValidateDimension` (8) — all lint codes
-- `TestExtractCoordinates` (6) — normalization + malformed skipping
-- `TestFormatCoordinateSummary` (3) — summary string format
-- `TestIsStale` (3) — temporal validity
-- `TestIndexerDaenary` (6) — integration: indexing + coordinate persistence + re-index
-- `TestSearchDaenaryFilters` (9) — all filter params + response structure
-- `TestGraphDCNS` (5) — graph node diagnostics + table existence
-- `TestCoordinatesEndpoint` (2) — 200 / 404
-- `TestDCNSSync` (2) — sync endpoint
-- `TestPhase8UIFiles` (12) — HTML / JS / CSS smoke tests
-- `TestPhase8Regression` (7) — all prior routes unbroken
+### Hardening changes (from review)
+1. **Canon protection centralized** — `authoring.assert_not_canon()` + `fs_boundary.is_protected_path()` + `is_canonical_doc()`. Three independent checks; any one blocks the write.
+2. **Source hash conflict detection** — `load_editor` returns `source_hash`; `save_draft_to_disk` compares current file hash before writing. Divergence → HTTP 409.
+3. **Execution sandboxed** — shell denylist (regex), Python denylist (regex), `_resolve_workspace()` (no root escape), `can_execute` policy check before any subprocess.
+4. **LLM scope enforced** — `_build_scoped_context()` builds prompt from DB metadata for explicitly listed doc IDs / directory listings only. No filesystem access.
+5. **DCNS/policy convergence** — `upsert_policy()` syncs to `system_edges`; `get_effective_policy()` falls through policy→edge→default; `check_permission()` exposes `_source`.
+6. **DB as control plane** — `fs_boundary.py` is the single gate for all disk writes; all governance checks happen there before bytes hit the filesystem.
 
 ---
 
-## Complete Route Table (Phase 8)
+## Invariants (never violated)
+
+| Invariant | Enforcement location |
+|-----------|---------------------|
+| Models cannot promote to canon | `governance.upsert_policy()` + `check_permission()` hardcode |
+| Canonical docs cannot be overwritten | `fs_boundary.assert_write_safe()` + `authoring.assert_not_canon()` |
+| `canon/` paths always write-protected | `fs_boundary.is_protected_path()` |
+| Models cannot write by default | `governance.DEFAULTS["model"]["can_write"] = 0` |
+| Models cannot execute by default | `governance.DEFAULTS["model"]["can_execute"] = 0` |
+| All LLM outputs non-authoritative | `ollama.invoke()` always sets `non_authoritative: True` |
+| All review artifacts non-authoritative | `reviewer.generate_review_artifact()` always sets flag |
+| Execution timeout | `execution.EXEC_TIMEOUT_S = 30` |
+| No raw filesystem access in LLM scope | `ollama._build_scoped_context()` uses DB only |
+| No path traversal in execution | `execution._resolve_workspace()` + `fs_boundary` |
+| Audit log is append-only | No DELETE on audit_log table; no route exposes deletion |
+
+---
+
+## Complete Route Table
 
 | Method | Path | Phase |
 |--------|------|-------|
-| GET | / | 3 |
-| GET | /style.css | 3 |
-| GET | /app.js | 3 |
-| GET | /vendor/* | 7 |
 | GET | /api/health | 5 |
-| GET | /api/dashboard | 2+4 |
+| GET | /api/dashboard | 2 |
 | POST | /api/index | 1 |
-| GET | /api/search | 1+**8** |
+| GET | /api/search | 1+8 |
 | GET | /api/canon | 1 |
-| GET | /api/conflicts | 1 |
+| GET | /api/conflicts | 1+9 |
 | PATCH | /api/conflicts/{id}/acknowledge | 2 |
 | GET | /api/docs | 2 |
 | GET | /api/docs/{id} | 1 |
 | GET | /api/docs/{id}/content | 7 |
 | GET | /api/docs/{id}/related | 7 |
-| GET | /api/docs/{id}/coordinates | **8** |
-| GET | /api/graph | 7+**8** |
-| POST | /api/dcns/sync | **8** |
+| GET | /api/docs/{id}/coordinates | 8 |
+| GET | /api/graph | 7+8 |
+| POST | /api/dcns/sync | 8 |
 | GET | /api/workflow | 1 |
 | PATCH | /api/workflow/{id} | 2 |
 | GET | /api/nodes/{path} | 1 |
@@ -223,7 +186,8 @@ Selective DCNS relationship edge graph. Not a vessel simulation.
 | GET | /api/planes | 2 |
 | GET | /api/events | 1 |
 | GET | /api/events/export.ics | 1 |
-| GET | /api/review/{path} | 1 |
+| GET | /api/review/{path} | 1+9 |
+| POST | /api/review/{path}/regenerate | 9 |
 | POST | /api/ingest/snapshot | 2 |
 | GET | /api/lineage | 4 |
 | GET | /api/lineage/{doc_id} | 4 |
@@ -233,21 +197,26 @@ Selective DCNS relationship edge graph. Not a vessel simulation.
 | POST | /api/corpus/reclassify | 4 |
 | GET | /api/corpus/migration-report | 4 |
 | POST | /api/corpus/migration-report | 4 |
-
----
-
-## Test Count (Phase 8)
-
-| File | Tests | Result |
-|------|-------|--------|
-| test_integration.py | 42 | 42 passed |
-| test_new_routes.py | 32 | 30 passed, 2 skipped |
-| test_phase4.py | 28 | 28 passed |
-| test_phase5.py | 23 | 23 passed |
-| test_phase6.py | 26 | 26 passed |
-| test_phase7.py | 39 | 38 passed, 1 skipped |
-| test_phase8.py | 70 | 70 passed |
-| test_canon_selection.py | 1 | 1 passed |
-| test_conflict_detection.py | 1 | 1 passed |
-| test_rubrix_lifecycle.py | 1 | 1 passed |
-| **Total** | **263** | **261 passed, 2 skipped, 0 failed** |
+| GET | /api/editor/new | **10** |
+| GET | /api/editor/{doc_id} | **10** |
+| PATCH | /api/editor/{doc_id} | **10** |
+| POST | /api/editor/{doc_id}/save | **10** |
+| DELETE | /api/editor/{doc_id}/draft | **10** |
+| POST | /api/editor/{doc_id}/summary/regenerate | **10** |
+| POST | /api/exec/run | **10** |
+| GET | /api/exec/runs/{doc_id} | **10** |
+| GET | /api/exec/run/{run_id} | **10** |
+| GET | /api/exec/artifact/{artifact_id} | **10** |
+| GET | /api/ollama/health | **10** |
+| GET | /api/ollama/models | **10** |
+| GET | /api/ollama/tasks | **10** |
+| POST | /api/ollama/invoke | **10** |
+| GET | /api/ollama/invocations | **10** |
+| GET | /api/ollama/invocation/{id} | **10** |
+| GET | /api/governance/policies | **10** |
+| GET | /api/governance/policy/{workspace} | **10** |
+| POST | /api/governance/policy | **10** |
+| GET | /api/governance/check | **10** |
+| GET | /api/governance/edges | **10** |
+| POST | /api/governance/edges | **10** |
+| GET | /api/audit | **10** |

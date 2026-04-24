@@ -33,7 +33,7 @@ def init_db():
 
     # Run base schema (idempotent via CREATE IF NOT EXISTS)
     # Strip the corpus_class index since the column may not exist yet
-    schema = open(SCHEMA_PATH).read()
+    schema = SCHEMA_PATH.read_text(encoding="utf-8")
     # Remove the corpus_class index line — applied after ALTER TABLE below
     schema_safe = "\n".join(
         line for line in schema.splitlines()
@@ -44,6 +44,9 @@ def init_db():
     # v2 migration-safe column additions
     _add_column_if_missing(conn, "conflicts", "acknowledged", "INTEGER DEFAULT 0")
     _add_column_if_missing(conn, "docs", "corpus_class", "TEXT DEFAULT 'CORPUS_CLASS:DRAFT'")
+    # Phase 9: title + summary columns
+    _add_column_if_missing(conn, "docs", "title",   "TEXT DEFAULT ''")
+    _add_column_if_missing(conn, "docs", "summary", "TEXT DEFAULT ''")
 
     # Now safe to create the corpus_class index
     conn.execute(
@@ -96,7 +99,7 @@ def init_db():
             applied_ts INTEGER NOT NULL
         )
     """)
-    for ver in ("v2.0.0", "v2.1.0", "v2.2.0"):
+    for ver in ("v2.0.0", "v2.1.0", "v2.2.0", "v2.3.0", "v2.4.0"):
         existing = conn.execute(
             "SELECT version FROM schema_version WHERE version = ?", (ver,)
         ).fetchone()

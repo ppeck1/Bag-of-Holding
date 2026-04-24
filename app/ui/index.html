@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bag of Holding v2 — Phase 8</title>
-  <link rel="stylesheet" href="/style.css?v=8">
-  <link rel="stylesheet" href="/vendor/katex.min.css?v=8">
+  <title>Bag of Holding v2 — Phase 12</title>
+  <link rel="stylesheet" href="/style.css?v=12">
+  <link rel="stylesheet" href="/vendor/katex.min.css?v=12">
 </head>
 <body>
 <div id="app">
 
   <!-- ── Top bar ──────────────────────────────────────────── -->
   <div id="topbar">
-    <div class="wordmark">📦 Bag of Holding <span>v2</span> <span style="font-size:9px;color:var(--text-faint);letter-spacing:.08em;margin-left:4px">Phase 8</span></div>
+    <div class="wordmark">📦 Bag of Holding <span>v2</span> <span style="font-size:9px;color:var(--text-faint);letter-spacing:.08em;margin-left:4px">Phase 12</span></div>
     <div id="conflict-badge" onclick="nav('canon-conflicts')">
       ⚠ <span id="conflict-badge-count">0</span> open conflict(s)
     </div>
@@ -29,6 +29,9 @@
     <div class="nav-item active" data-panel="dashboard" onclick="nav('dashboard')" role="menuitem" tabindex="0" aria-label="Dashboard">
       <span class="icon">◈</span> Dashboard
     </div>
+    <div class="nav-item" data-panel="input" onclick="nav('input')" role="menuitem" tabindex="0" aria-label="New or Import">
+      <span class="icon">＋</span> New / Import
+    </div>
     <div class="nav-item" data-panel="library" onclick="nav('library')" role="menuitem" tabindex="0" aria-label="Library">
       <span class="icon">⊞</span> Library
     </div>
@@ -44,6 +47,16 @@
     </div>
     <div class="nav-item" data-panel="atlas" onclick="nav('atlas')" role="menuitem" tabindex="0" aria-label="Knowledge Atlas">
       <span class="icon">◉</span> Atlas
+    </div>
+    <div class="nav-item" data-panel="governance" onclick="nav('governance')" role="menuitem" tabindex="0" aria-label="Governance">
+      <span class="icon">⊛</span> Governance
+    </div>
+    <div class="nav-item" data-panel="llm-queue" onclick="nav('llm-queue')" role="menuitem" tabindex="0" aria-label="LLM Review Queue">
+      <span class="icon">◈</span> LLM Queue
+      <span class="badge hidden" id="nav-llm-badge" style="background:var(--amber)">0</span>
+    </div>
+    <div class="nav-item" data-panel="status" onclick="nav('status')" role="menuitem" tabindex="0" aria-label="System Status">
+      <span class="icon">⊙</span> Status
     </div>
 
     <div id="nav-footer">
@@ -108,6 +121,22 @@
       </div>
 
       <div class="section">
+        <div class="section-head">⊕ Add Knowledge</div>
+        <div class="section-body">
+          <div id="dash-library-status" class="font-sm" style="margin-bottom:10px;color:var(--text-faint)">Loading library status…</div>
+          <div class="flex gap-8" style="flex-wrap:wrap;margin-bottom:10px">
+            <button class="btn btn-primary" onclick="nav('input')">＋ Add note or file</button>
+            <button class="btn btn-ghost" onclick="nav('import-ingest')">⊕ Index folder</button>
+            <button class="btn btn-ghost" onclick="triggerAutoIndex(false)">↻ Re-index library</button>
+            <button class="btn btn-ghost" onclick="triggerAutoIndex(true)">△ Index changed only</button>
+          </div>
+          <div id="dash-unreviewed-hint" class="hidden alert alert-amber font-sm">
+            Documents in <strong>Needs Review</strong> — open the Library and filter by state.
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
         <div class="section-head">⚡ Quick Actions</div>
         <div class="section-body flex gap-8" style="flex-wrap:wrap">
           <button class="btn btn-primary" onclick="nav('import-ingest')">⊕ Index Library</button>
@@ -166,7 +195,7 @@
         <div class="section-body" style="padding:0">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Path</th><th>Status</th><th>Corpus</th><th>Type</th><th>State</th><th>Version</th><th></th></tr></thead>
+              <thead><tr><th>Title / Path</th><th>Status</th><th>Corpus</th><th>Type</th><th>State</th><th>Version</th><th></th></tr></thead>
               <tbody id="lib-body"><tr><td colspan="6" class="text-faint" style="padding:20px;text-align:center">Loading…</td></tr></tbody>
             </table>
           </div>
@@ -226,6 +255,7 @@
                 <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
                   <input type="checkbox" id="sf-conflicts"> Conflicts only
                 </label>
+                <button class="btn btn-ghost btn-sm" onclick="clearDaenaryFilters()" style="margin-left:auto">Clear filters</button>
               </div>
             </div>
           </div>
@@ -409,9 +439,23 @@
 
         <!-- Graph canvas -->
         <div id="graph-pane" style="position:relative;background:var(--bg-void);overflow:hidden">
-          <div id="graph-toolbar" style="position:absolute;top:12px;left:12px;z-index:10;display:flex;gap:8px;align-items:center">
-            <div class="wordmark" style="font-size:12px">◉ Knowledge Atlas</div>
+          <div id="graph-toolbar" style="position:absolute;top:12px;left:12px;z-index:10;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <div class="wordmark" style="font-size:11px;margin-right:4px">◉ 2D Atlas</div>
+
+            <!-- Zoom -->
+            <button class="btn btn-ghost btn-sm" onclick="zoomAtlas(1.2)" title="Zoom in">＋</button>
+            <button class="btn btn-ghost btn-sm" onclick="zoomAtlas(1/1.2)" title="Zoom out">－</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetAtlasView()" title="Reset zoom and pan to default">⟳ Reset</button>
+            <button class="btn btn-ghost btn-sm" onclick="fitAtlasToScreen()" title="Fit all nodes to screen">⊡ Fit</button>
+            <button class="btn btn-ghost btn-sm" onclick="focusSelectedAtlasNode()" title="Center view on selected node">◎ Focus</button>
+
+            <!-- Graph controls -->
+            <span style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
+            <button class="btn btn-ghost btn-sm" onclick="expandSelectedAtlasNode()" title="Expand neighborhood of selected node (or shift-click node)">⊕ Expand</button>
             <button class="btn btn-ghost btn-sm" onclick="reloadGraph()">↻ Refresh</button>
+
+            <!-- Filters -->
+            <span style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
             <select id="graph-filter-class" onchange="applyGraphFilter()" style="font-size:11px;padding:2px 6px">
               <option value="">All classes</option>
               <option value="CORPUS_CLASS:CANON">Canon</option>
@@ -421,8 +465,35 @@
               <option value="CORPUS_CLASS:EVIDENCE">Evidence</option>
             </select>
             <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
-              <input type="checkbox" id="graph-show-related" onchange="applyGraphFilter()"> Topic edges
+              <input type="checkbox" id="graph-show-related" onchange="applyGraphFilter()" checked> Topic edges
             </label>
+            <label class="font-sm" style="display:flex;align-items:center;gap:4px;color:var(--text-faint)">
+              <input type="checkbox" id="graph-show-strand-labels" onchange="applyGraphFilter()"> Labels
+            </label>
+
+            <!-- Performance controls -->
+            <span style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
+            <select id="atlas-perf-mode" onchange="setAtlasPerfMode(this.value)" style="font-size:11px;padding:2px 5px" title="Performance preset">
+              <option value="balanced" selected>Balanced</option>
+              <option value="high">High Quality</option>
+              <option value="static">Static</option>
+            </select>
+            <label style="font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:3px" title="Animated ripple effect on node select">
+              <input type="checkbox" id="atlas-opt-ripples" onchange="setAtlasOption('animatedRipples', this.checked)"> Ripples
+            </label>
+            <label style="font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:3px" title="Glow rings on canon nodes">
+              <input type="checkbox" id="atlas-opt-glow" onchange="setAtlasOption('edgeGlow', this.checked)"> Glow
+            </label>
+          </div>
+
+          <!-- Performance warning (shown by auto-reduce) -->
+          <div id="atlas-perf-warning" style="display:none;position:absolute;top:50px;right:12px;z-index:10;font-size:10px;color:var(--amber);background:rgba(18,27,38,0.85);padding:3px 8px;border-radius:3px;border:1px solid var(--amber)">
+            ⚠ Effects reduced for performance
+          </div>
+
+          <!-- Interaction hint (fades after first interaction) -->
+          <div id="atlas-hint" style="position:absolute;top:50px;left:12px;z-index:9;font-size:10px;color:var(--text-faint);pointer-events:none">
+            Scroll to zoom · Drag canvas to pan · Drag node to reposition · Shift+click to expand
           </div>
           <div id="graph-legend" style="position:absolute;bottom:12px;left:12px;z-index:10;font-size:10px;color:var(--text-faint)">
             <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -442,8 +513,13 @@
 
         <!-- Reader pane -->
         <div id="reader-pane" style="border-left:1px solid var(--border-dim);background:var(--bg-base);overflow-y:auto;display:flex;flex-direction:column">
-          <div id="reader-header" style="padding:14px 16px;border-bottom:1px solid var(--border-dim);flex-shrink:0">
-            <div style="font-size:10px;color:var(--text-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">Document Reader</div>
+          <div id="reader-header" style="padding:8px 16px;border-bottom:1px solid var(--border-dim);flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <div style="font-size:10px;color:var(--text-faint);letter-spacing:.1em;text-transform:uppercase;flex:1">Document Reader</div>
+              <button class="btn btn-ghost btn-sm" onclick="setAtlasReaderWidth('hide')" title="Hide reader">Hide</button>
+              <button class="btn btn-ghost btn-sm" onclick="setAtlasReaderWidth('normal')" title="Normal width">Normal</button>
+              <button class="btn btn-ghost btn-sm" onclick="setAtlasReaderWidth('wide')" title="Wide reader">Wide</button>
+            </div>
             <div id="reader-title" style="font-size:13px;font-weight:700;color:var(--text-bright)">Select a node in the graph</div>
             <div id="reader-meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
             <div id="reader-toggle" style="margin-top:8px;display:none">
@@ -472,17 +548,289 @@
         </div>
       </div>
     </section>
+    <!-- ╔══ Panel: New / Import ══╗ -->
+    <section class="panel" id="panel-input" aria-label="New or Import">
+      <div class="panel-header">
+        <div class="panel-title">New / Import</div>
+        <div class="panel-subtitle">Create notes, paste text, upload files, or index an existing folder.</div>
+      </div>
+
+      <div class="input-grid">
+        <section class="card input-card">
+          <div class="section-head">Create Markdown note</div>
+          <div class="section-body">
+            <label>Title</label>
+            <input class="input" id="new-doc-title" type="text" placeholder="Untitled note" style="width:100%">
+            <label>Topics <span class="text-faint">(comma-separated)</span></label>
+            <input class="input" id="new-doc-topics" type="text" placeholder="topic-a, topic-b" style="width:100%">
+            <label>Body <span class="text-faint">(Markdown, $math$, $$block math$$)</span></label>
+            <textarea class="input" id="new-doc-body" rows="14" placeholder="Write or paste Markdown here…" style="width:100%;font-family:var(--font-mono);font-size:12px;resize:vertical"></textarea>
+            <div class="row-actions">
+              <button class="btn btn-primary" onclick="createMarkdownDoc()">Save note</button>
+              <button class="btn btn-ghost" onclick="previewNewDoc()">Preview</button>
+            </div>
+            <div id="new-doc-status" class="status-line"></div>
+          </div>
+        </section>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <section class="card input-card">
+            <div class="section-head">Upload files</div>
+            <div class="section-body">
+              <div class="text-faint font-sm" style="margin-bottom:8px">Upload .md, .txt, .json, .csv, .html, .yaml into the managed library.</div>
+              <input id="upload-files" type="file" multiple accept=".md,.txt,.markdown,.rst,.csv,.json,.html,.htm,.yaml,.yml" style="margin-bottom:8px;width:100%">
+              <label>Target folder <span class="text-faint">(inside library)</span></label>
+              <input class="input" id="upload-target-folder" type="text" placeholder="imports" style="width:100%">
+              <button class="btn btn-ghost" onclick="uploadDocuments()" style="margin-top:10px">Upload and index</button>
+              <div id="upload-status" class="status-line"></div>
+            </div>
+          </section>
+
+          <section class="card input-card">
+            <div class="section-head">Index existing folder</div>
+            <div class="section-body">
+              <div class="text-faint font-sm" style="margin-bottom:8px">Index a local folder path without copying files.</div>
+              <input class="input" id="index-source-path" type="text" placeholder="/path/to/folder" style="width:100%">
+              <button class="btn btn-ghost" onclick="indexFolderFromInputPanel()" style="margin-top:10px">Index folder</button>
+              <div id="index-folder-status" class="status-line"></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="section-head">Recent intake</div>
+            <div class="section-body">
+              <div id="recent-input-list" class="text-faint font-sm">
+                <button class="btn btn-ghost btn-sm" onclick="loadRecentInput()">↻ Load recent</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="card" id="new-doc-preview-card" style="display:none;margin-top:16px">
+        <div class="section-head">Preview</div>
+        <div class="section-body">
+          <div id="new-doc-preview" class="md-body"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel: Governance ══╗ -->
+    <section class="panel" id="panel-governance" aria-label="Governance">
+      <div class="panel-header">
+        <div class="panel-title">Governance</div>
+        <div class="panel-subtitle">Workspace policies · Audit log · Ollama · Execution</div>
+      </div>
+
+      <!-- Ollama status -->
+      <div class="section">
+        <div class="section-head">
+          ◈ Local Model (Ollama)
+          <span id="ollama-status-badge" class="text-faint font-sm" style="margin-left:8px">—</span>
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="checkOllama()">↻ Check</button>
+        </div>
+        <div class="section-body">
+          <div id="ollama-models-list" class="text-faint font-sm">Click ↻ to check availability</div>
+          <div class="mt-8">
+            <div class="form-label" style="margin-bottom:6px">Run a task-scoped invocation</div>
+            <div class="form-row" style="flex-wrap:wrap;gap:8px">
+              <select id="ollama-task" style="flex:1;min-width:160px">
+                <option value="">Select task…</option>
+                <option value="summarize_doc">summarize_doc</option>
+                <option value="review_doc">review_doc</option>
+                <option value="extract_definitions">extract_definitions</option>
+                <option value="propose_metadata_patch">propose_metadata_patch</option>
+                <option value="generate_code">generate_code</option>
+                <option value="explain_conflict">explain_conflict</option>
+                <option value="query_corpus">query_corpus</option>
+              </select>
+              <input class="input" id="ollama-model-input" placeholder="Model (default from config)" style="flex:1;min-width:140px">
+              <input class="input" id="ollama-doc-id" placeholder="Doc ID (optional)" style="flex:1;min-width:140px">
+            </div>
+            <textarea class="input" id="ollama-content" rows="4" placeholder="Content / prompt to send…" style="width:100%;margin-top:8px;font-family:var(--font-mono);font-size:12px;resize:vertical"></textarea>
+            <div class="flex gap-8 mt-8">
+              <button class="btn btn-primary" onclick="runOllamaTask()">⊛ Invoke</button>
+              <span class="text-faint font-sm" style="align-self:center">Non-authoritative · requires confirmation</span>
+            </div>
+            <div id="ollama-result" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workspace policies -->
+      <div class="section">
+        <div class="section-head">
+          ⊞ Workspace Policies
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="loadPolicies()">↻ Refresh</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Workspace</th><th>Entity</th><th>Read</th><th>Write</th><th>Execute</th><th>Propose</th><th>Promote</th></tr></thead>
+              <tbody id="policies-body"><tr><td colspan="7" class="text-faint" style="padding:16px;text-align:center">Click ↻ to load policies</td></tr></tbody>
+            </table>
+          </div>
+          <!-- Add policy form -->
+          <div style="padding:12px;border-top:1px solid var(--border-dim)">
+            <div class="text-faint font-sm" style="margin-bottom:8px">Add / update policy</div>
+            <div class="form-row" style="flex-wrap:wrap;gap:8px">
+              <input class="input" id="pol-workspace" placeholder="Workspace / dir" style="flex:2">
+              <select id="pol-entity-type" style="flex:1">
+                <option value="human">human</option>
+                <option value="model">model</option>
+                <option value="system">system</option>
+              </select>
+              <input class="input" id="pol-entity-id" placeholder="Entity ID (* = all)" style="flex:1" value="*">
+            </div>
+            <div class="form-row mt-8" style="gap:16px;flex-wrap:wrap">
+              <label class="font-sm" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="pol-read" checked> Read</label>
+              <label class="font-sm" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="pol-write"> Write</label>
+              <label class="font-sm" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="pol-execute"> Execute</label>
+              <label class="font-sm" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="pol-propose" checked> Propose</label>
+              <label class="font-sm" style="display:flex;gap:4px;align-items:center" title="Canon protection: models cannot be granted promotion rights"><input type="checkbox" id="pol-promote" id="pol-promote"> Promote ⚠</label>
+              <button class="btn btn-ghost btn-sm" onclick="savePolicy()">Save Policy</button>
+            </div>
+            <div id="policy-msg" class="font-sm mt-8"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit log -->
+      <div class="section">
+        <div class="section-head">
+          ◈ Audit Log
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="loadAuditLog()">↻ Load</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Document</th><th>Detail</th></tr></thead>
+              <tbody id="audit-body"><tr><td colspan="5" class="text-faint" style="padding:16px;text-align:center">Click ↻ to load audit events</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution runs -->
+      <div class="section">
+        <div class="section-head">
+          ⊕ Recent Execution Runs
+          <input class="input" id="exec-doc-filter" placeholder="Filter by doc_id…" style="width:200px;margin-left:8px">
+          <button class="btn btn-ghost btn-sm" onclick="loadExecRuns()">↻ Load</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Run ID</th><th>Doc</th><th>Block</th><th>Lang</th><th>Status</th><th>Started</th></tr></thead>
+              <tbody id="exec-body"><tr><td colspan="6" class="text-faint" style="padding:16px;text-align:center">Click ↻ to load runs</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ╔══ Panel: LLM Review Queue ══╗ -->
+    <section class="panel" id="panel-llm-queue" aria-label="LLM Review Queue">
+      <div class="panel-header">
+        <div class="panel-title">LLM Review Queue</div>
+        <div class="panel-subtitle">Proposals from Ollama awaiting user review — nothing applies automatically</div>
+      </div>
+
+      <div class="alert alert-amber font-sm" style="margin-bottom:12px">
+        ⚠ All items below are <strong>non-authoritative LLM proposals</strong>. Nothing is applied to your corpus until you explicitly approve it. Canonical status can never be granted from this queue.
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          Pending Proposals
+          <span class="count" id="llmq-count"></span>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <select id="llmq-status-filter" onchange="loadLlmQueue()" style="font-size:11px;padding:2px 6px">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadLlmQueue()">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div id="llmq-body" style="padding:12px">
+            <span class="text-faint font-sm">Loading…</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel: System Status ══╗ -->
+    <section class="panel" id="panel-status" aria-label="System Status">
+      <div class="panel-header">
+        <div class="panel-title">System Status</div>
+        <div class="panel-subtitle">Server health, library, Ollama, and index diagnostics</div>
+      </div>
+
+      <div class="stat-grid" id="status-stat-grid">
+        <div class="stat-card"><div class="label">Server</div><div class="value" id="st-server">—</div></div>
+        <div class="stat-card"><div class="label">Indexed Docs</div><div class="value" id="st-docs">—</div></div>
+        <div class="stat-card"><div class="label">Graph Edges</div><div class="value" id="st-edges">—</div></div>
+        <div class="stat-card"><div class="label">Ollama</div><div class="value" id="st-ollama">—</div></div>
+        <div class="stat-card"><div class="label">LLM Queue</div><div class="value" id="st-queue">—</div></div>
+        <div class="stat-card"><div class="label">Index Errors</div><div class="value" id="st-errors">—</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Library &amp; Auto-Index</div>
+        <div class="section-body">
+          <div class="kv-grid" id="st-library-kv" style="margin-bottom:12px"></div>
+          <div class="flex gap-8" style="flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="triggerAutoIndex(true)">△ Index changed only</button>
+            <button class="btn btn-ghost btn-sm" onclick="triggerAutoIndex(false)">↻ Full re-index</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadStatus()">↻ Refresh status</button>
+          </div>
+          <div id="st-index-result" class="font-sm" style="margin-top:10px;color:var(--text-faint)"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Ollama / LLM</div>
+        <div class="section-body">
+          <div class="kv-grid" id="st-ollama-kv"></div>
+          <div class="font-sm" style="margin-top:8px;color:var(--text-faint)">
+            Set <code>BOH_OLLAMA_ENABLED=true</code> and <code>BOH_OLLAMA_URL</code> to enable LLM features.
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Mutation Safety Rules</div>
+        <div class="section-body font-sm" style="color:var(--text-muted);line-height:1.7">
+          <div>✓ Imported files are <strong>draft/reference</strong> by default — never auto-canonical.</div>
+          <div>✓ LLM suggestions <strong>never become canonical</strong> without explicit user approval.</div>
+          <div>✓ Canonical status requires a user workflow action (release state).</div>
+          <div>✓ Every lifecycle change is recorded in the lifecycle history log.</div>
+          <div>✓ Backward movement and undo are available in the document drawer.</div>
+          <div>✓ All mutations are appended to the audit log — never silently erased.</div>
+        </div>
+      </div>
+    </section>
+
 </main>
 </div>
 
 <!-- ── Doc detail drawer ───────────────────────────────── -->
 <div id="doc-drawer" role="complementary" aria-label="Document detail">
-  <button id="doc-drawer-close" onclick="closeDrawer()" aria-label="Close">✕</button>
+  <div id="doc-drawer-resizer" title="Drag to resize"></div>
+  <div id="doc-drawer-toolbar">
+    <button class="btn btn-ghost btn-sm" onclick="setDrawerWidthMode('narrow')" title="Narrow">N</button>
+    <button class="btn btn-ghost btn-sm" onclick="setDrawerWidthMode('wide')" title="Wide">W</button>
+    <button class="btn btn-ghost btn-sm" onclick="setDrawerWidthMode('full')" title="Full width">Full</button>
+    <button id="doc-drawer-close" class="btn btn-ghost btn-sm" onclick="closeDrawer()" aria-label="Close" style="margin-left:auto">✕</button>
+  </div>
   <div id="doc-drawer-content"></div>
 </div>
 
-<script src="/vendor/katex.min.js?v=8"></script>
-<script src="/vendor/marked.min.js?v=8"></script>
-<script src="/app.js?v=8"></script>
+<script src="/vendor/katex.min.js?v=11"></script>
+<script src="/vendor/marked.min.js?v=11"></script>
+<script src="/app.js?v=11"></script>
 </body>
 </html>

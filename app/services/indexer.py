@@ -54,6 +54,42 @@ def hash_text(text: str) -> str:
 
 
 def extract_title(boh: dict, body: str) -> str:
+    """Return the best available title for a document.
+    Priority: boh.purpose → first markdown heading → empty string."""
+    if "purpose" in boh:
+        return boh["purpose"][:120]
+    for line in body.splitlines():
+        if line.startswith("#"):
+            return line.lstrip("#").strip()[:120]
+    return ""
+
+
+def extract_summary(body: str, max_len: int = 220) -> str:
+    """Derive a plain-text preview snippet from the document body.
+
+    Takes the first non-heading, non-empty paragraph and strips markdown syntax.
+    Result is trimmed to max_len characters. Deterministic — no LLM involved.
+    """
+    import re as _re
+    # Split on blank lines to get paragraphs
+    for block in body.split("\n\n"):
+        block = block.strip()
+        if not block:
+            continue
+        # Skip headings and horizontal rules
+        if block.startswith("#") or block.startswith("---") or block.startswith("==="):
+            continue
+        # Skip code blocks
+        if block.startswith("```") or block.startswith("    "):
+            continue
+        # Strip common markdown: bold, italic, links, backticks
+        clean = _re.sub(r"!\[.*?\]\(.*?\)", "", block)       # images
+        clean = _re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", clean)  # links
+        clean = _re.sub(r"[*_`#>]", "", clean)               # emphasis, headings, blockquote
+        clean = _re.sub(r"\s+", " ", clean).strip()
+        if len(clean) >= 20:
+            return clean[:max_len]
+    return ""
     if "purpose" in boh:
         return boh["purpose"][:120]
     for line in body.splitlines():
@@ -118,12 +154,13 @@ def index_file(path: Path, library_root: Path) -> dict:
 
     updated_ts  = parse_iso_to_epoch(boh.get("updated")) or int(time.time())
     source_type = infer_source_type(path)
-    title       = extract_title(boh, body)
     topics      = boh.get("topics") or []
     text_hash   = hash_text(text)
 
     # A1.2: Derive topics_tokens deterministically — never trust cached value
     topics_tokens = derive_topics_tokens(topics)
+    title         = extract_title(boh, body)
+    summary       = extract_summary(body)
 
     # Build doc dict for classification
     doc_dict = {
@@ -148,8 +185,9 @@ def index_file(path: Path, library_root: Path) -> dict:
               (doc_id, path, type, status, version, updated_ts,
                operator_state, operator_intent,
                plane_scope_json, field_scope_json, node_scope_json,
-               text_hash, source_type, topics_tokens, corpus_class)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               text_hash, source_type, topics_tokens, corpus_class,
+               title, summary)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 doc_id, rel_path,
@@ -158,6 +196,7 @@ def index_file(path: Path, library_root: Path) -> dict:
                 rubrix.get("operator_state"), rubrix.get("operator_intent"),
                 json.dumps(plane_scope), json.dumps(field_scope), json.dumps(node_scope),
                 text_hash, source_type, topics_tokens, corpus_class,
+                title, summary,
             ),
         )
 
@@ -219,6 +258,7 @@ def index_file(path: Path, library_root: Path) -> dict:
         "lint_errors": lint_errors,
         "indexed": True,
         "title": title,
+        "summary": summary,
         "topics_tokens": topics_tokens,
         "corpus_class": corpus_class,
     }

@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS docs (
     node_scope_json TEXT,
     text_hash TEXT,
     source_type TEXT,
-    topics_tokens TEXT DEFAULT ''
+    topics_tokens TEXT DEFAULT '',
+    title TEXT DEFAULT '',   -- Phase 9: first-class title (purpose or first heading)
+    summary TEXT DEFAULT ''  -- Phase 9: first paragraph preview (≤220 chars)
     -- v2 additions (added via ALTER TABLE): corpus_class TEXT DEFAULT 'CORPUS_CLASS:DRAFT'
 );
 
@@ -126,3 +128,128 @@ CREATE TABLE IF NOT EXISTS doc_edges (
 CREATE INDEX IF NOT EXISTS idx_doc_edges_source ON doc_edges(source_doc_id);
 CREATE INDEX IF NOT EXISTS idx_doc_edges_target ON doc_edges(target_doc_id);
 CREATE INDEX IF NOT EXISTS idx_doc_edges_type   ON doc_edges(edge_type);
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- Phase 10 (Governance) — Authoring, Execution, Ollama, Policy, Audit
+-- ══════════════════════════════════════════════════════════════════════════════
+
+-- Document edits — transient drafts before saving to disk
+CREATE TABLE IF NOT EXISTS doc_drafts (
+    doc_id       TEXT    NOT NULL,
+    body_text    TEXT    NOT NULL DEFAULT '',
+    frontmatter_json TEXT NOT NULL DEFAULT '{}',
+    title        TEXT    NOT NULL DEFAULT '',
+    summary      TEXT    NOT NULL DEFAULT '',
+    dirty        INTEGER NOT NULL DEFAULT 1,   -- 1=unsaved changes exist
+    saved_ts     INTEGER,
+    created_ts   INTEGER NOT NULL,
+    UNIQUE(doc_id)
+);
+CREATE INDEX IF NOT EXISTS idx_doc_drafts_doc_id ON doc_drafts(doc_id);
+
+-- Execution records — every code/shell block run
+CREATE TABLE IF NOT EXISTS exec_runs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id       TEXT    NOT NULL UNIQUE,
+    doc_id       TEXT    NOT NULL,
+    block_id     TEXT    NOT NULL,
+    executor     TEXT    NOT NULL,   -- 'human' | 'model:<name>' | 'system'
+    language     TEXT    NOT NULL,   -- 'python' | 'shell'
+    code_hash    TEXT    NOT NULL,
+    exit_code    INTEGER,
+    stdout       TEXT,
+    stderr       TEXT,
+    started_ts   INTEGER NOT NULL,
+    finished_ts  INTEGER,
+    status       TEXT    NOT NULL DEFAULT 'pending'  -- pending|running|success|error
+);
+CREATE INDEX IF NOT EXISTS idx_exec_runs_doc_id  ON exec_runs(doc_id);
+CREATE INDEX IF NOT EXISTS idx_exec_runs_run_id  ON exec_runs(run_id);
+CREATE INDEX IF NOT EXISTS idx_exec_runs_status  ON exec_runs(status);
+
+-- Execution artifacts — outputs attached to runs
+CREATE TABLE IF NOT EXISTS exec_artifacts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id      TEXT NOT NULL,
+    artifact_id TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL,   -- 'stdout' | 'file' | 'image' | 'json'
+    content     TEXT,            -- inline text/JSON; NULL for binary
+    path        TEXT,            -- on-disk path for large/binary
+    size_bytes  INTEGER,
+    created_ts  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_exec_artifacts_run_id ON exec_artifacts(run_id);
+
+-- LLM task invocations — every model call tracked
+CREATE TABLE IF NOT EXISTS llm_invocations (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    invocation_id  TEXT NOT NULL UNIQUE,
+    task_type      TEXT NOT NULL,   -- summarize_doc | review_doc | generate_code | etc.
+    model          TEXT NOT NULL,
+    provider       TEXT NOT NULL DEFAULT 'ollama',
+    doc_id         TEXT,            -- source doc if applicable
+    scope_json     TEXT,            -- visible dirs/docs as JSON
+    prompt_hash    TEXT NOT NULL,
+    response_text  TEXT,
+    response_json  TEXT,
+    status         TEXT NOT NULL DEFAULT 'pending',
+    started_ts     INTEGER NOT NULL,
+    finished_ts    INTEGER,
+    error          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_llm_invocations_doc_id    ON llm_invocations(doc_id);
+CREATE INDEX IF NOT EXISTS idx_llm_invocations_task_type ON llm_invocations(task_type);
+CREATE INDEX IF NOT EXISTS idx_llm_invocations_status    ON llm_invocations(status);
+
+-- Workspace policies — read/write/execute/propose/promote per entity
+CREATE TABLE IF NOT EXISTS workspace_policies (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace    TEXT NOT NULL,     -- directory path or logical name
+    entity_type  TEXT NOT NULL,     -- 'human' | 'model' | 'system'
+    entity_id    TEXT NOT NULL,     -- '*' for all, or specific id
+    can_read     INTEGER NOT NULL DEFAULT 1,
+    can_write    INTEGER NOT NULL DEFAULT 0,
+    can_execute  INTEGER NOT NULL DEFAULT 0,
+    can_propose  INTEGER NOT NULL DEFAULT 0,
+    can_promote  INTEGER NOT NULL DEFAULT 0,  -- promote to canon (human-only by default)
+    note         TEXT,
+    created_ts   INTEGER NOT NULL,
+    UNIQUE(workspace, entity_type, entity_id)
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_policies_workspace ON workspace_policies(workspace);
+CREATE INDEX IF NOT EXISTS idx_workspace_policies_entity    ON workspace_policies(entity_type, entity_id);
+
+-- Audit log — every significant action
+CREATE TABLE IF NOT EXISTS audit_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_ts     INTEGER NOT NULL,
+    event_type   TEXT    NOT NULL,   -- index | edit | save | run | llm_call | promote | conflict
+    actor_type   TEXT    NOT NULL,   -- 'human' | 'model' | 'system'
+    actor_id     TEXT,
+    doc_id       TEXT,
+    run_id       TEXT,
+    invocation_id TEXT,
+    workspace    TEXT,
+    detail       TEXT                 -- free JSON
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_event_ts   ON audit_log(event_ts);
+CREATE INDEX IF NOT EXISTS idx_audit_log_doc_id     ON audit_log(doc_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_event_type ON audit_log(event_type);
+
+-- System edges — DCNS extended for authority/flow beyond documents
+CREATE TABLE IF NOT EXISTS system_edges (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type     TEXT NOT NULL,   -- 'doc' | 'workspace' | 'model' | 'tool' | 'role'
+    source_id       TEXT NOT NULL,
+    target_type     TEXT NOT NULL,
+    target_id       TEXT NOT NULL,
+    edge_type       TEXT NOT NULL,   -- may-read | may-write | may-execute | may-propose | promoted-to | derives-from | conflicts-with
+    state           INTEGER,         -- +1|0|-1 trinary
+    detail          TEXT,
+    created_ts      INTEGER NOT NULL,
+    UNIQUE(source_type, source_id, target_type, target_id, edge_type)
+);
+CREATE INDEX IF NOT EXISTS idx_system_edges_source ON system_edges(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_system_edges_target ON system_edges(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_system_edges_type   ON system_edges(edge_type);
