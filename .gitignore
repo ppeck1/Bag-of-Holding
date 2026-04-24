@@ -205,3 +205,52 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ==========================================
+# Bag of Holding v2 — project-specific ignores
+# ==========================================
+
+# Local BOH runtime databases
+boh.db
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# BOH generated review artifacts
+*.review.json
+library/**/*.review.json
+
+# Temporary scratch docs
+library/*
+!library/planar-math.md
+!library/rubrix-lifecycle.md
+!library/.gitkeep
+
+# Patch/archive artifacts
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Backup/temp files
+*.bak
+*.bak*
+*.old
+*.tmp
+*.temp
+
+# Local logs/state/exports
+logs/
+exports/
+snapshots/
+
+# Local IDE settings, if you do not want them public
+.idea/
+.vscode/
+
+# Keep intended PyInstaller spec despite global *.spec ignore
+!boh.spec
