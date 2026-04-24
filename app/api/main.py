@@ -47,6 +47,19 @@ async def lifespan(app: FastAPI):
     # shutdown: nothing to teardown
 
 
+def _get_cors_origins() -> list[str]:
+    """Localhost-only by default; override with BOH_CORS_ORIGINS=url1,url2."""
+    env = os.environ.get("BOH_CORS_ORIGINS", "")
+    if env.strip():
+        return [o.strip() for o in env.split(",") if o.strip()]
+    return [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+
 app = FastAPI(
     title="Bag of Holding v2",
     description=(
@@ -62,9 +75,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # BOH is a local-first tool. Restrict to localhost by default.
+    # Override at deployment by setting BOH_CORS_ORIGINS=https://... (comma-separated).
+    allow_origins=_get_cors_origins(),
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
 )
 
 # ── API routers — registered BEFORE static mount ──────────────────────────────
