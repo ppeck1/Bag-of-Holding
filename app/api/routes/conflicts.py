@@ -1,4 +1,7 @@
-"""app/api/routes/conflicts.py"""
+"""app/api/routes/conflicts.py: Conflict detection endpoints for Bag of Holding v2.
+
+Phase 9: conflict list enriched with doc titles and paths for human readability.
+"""
 from fastapi import APIRouter, HTTPException
 from app.core import conflicts as conflict_engine
 from app.db import connection as db
@@ -6,12 +9,31 @@ from app.db import connection as db
 router = APIRouter(prefix="/api")
 
 
+def _enrich_conflict(c: dict) -> dict:
+    """Attach title+path for each doc_id in a conflict record."""
+    doc_ids = [d.strip() for d in (c.get("doc_ids") or "").split(",") if d.strip()]
+    enriched_docs = []
+    for did in doc_ids:
+        row = db.fetchone("SELECT doc_id, title, path, status FROM docs WHERE doc_id = ?", (did,))
+        if row:
+            enriched_docs.append({
+                "doc_id": did,
+                "title":  row["title"] or did[:20],
+                "path":   row["path"] or "",
+                "status": row["status"] or "",
+            })
+        else:
+            enriched_docs.append({"doc_id": did, "title": did[:20], "path": "", "status": ""})
+    return {**c, "docs": enriched_docs}
+
+
 @router.get("/conflicts", summary="List all detected conflicts")
 def list_conflicts():
     all_conflicts = conflict_engine.list_conflicts()
+    enriched = [_enrich_conflict(c) for c in all_conflicts]
     return {
-        "count": len(all_conflicts),
-        "conflicts": all_conflicts,
+        "count": len(enriched),
+        "conflicts": enriched,
         "note": "No auto-resolution. All conflicts require explicit user action.",
     }
 

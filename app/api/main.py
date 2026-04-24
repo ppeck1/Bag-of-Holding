@@ -2,9 +2,12 @@
 
 Phase 3: SPA served from app/ui/ via StaticFiles.
 All /api/* routes registered before the static mount.
+Phase 12: auto-index on startup, lifecycle routes, status, LLM queue.
 """
 
 import os
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,10 +18,34 @@ from app.api.routes import (
     index, search, canon, conflicts,
     library, workflow, nodes, events,
     review, ingest, dashboard, lineage, reader,
+    authoring, execution_routes, ollama_routes, governance_routes,
+    input_routes,
+)
+# Phase 12 routes
+from app.api.routes import (
+    lifecycle_routes,
+    status_routes,
+    llm_queue_routes,
+    autoindex_routes,
 )
 
 # ── Init ──────────────────────────────────────────────────────────────────────
 db.init_db()
+
+
+# ── Lifespan: auto-index on startup ───────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run auto-index in background on startup when BOH_AUTO_INDEX=true.
+    Runs in a daemon thread — server startup is never blocked.
+    Errors inside run_on_startup_if_enabled() are caught and logged.
+    """
+    from app.core.autoindex import run_on_startup_if_enabled
+    t = threading.Thread(target=run_on_startup_if_enabled, daemon=True)
+    t.start()
+    yield
+    # shutdown: nothing to teardown
+
 
 app = FastAPI(
     title="Bag of Holding v2",
@@ -27,9 +54,10 @@ app = FastAPI(
         "Planar Math + Rubrix Governance. "
         "Local-first. No auto-resolution. Explainable scoring."
     ),
-    version="2.0.0",
+    version="2.12.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -54,6 +82,16 @@ for router in (
     dashboard.router,
     lineage.router,
     reader.router,
+    authoring.router,
+    execution_routes.router,
+    ollama_routes.router,
+    governance_routes.router,
+    input_routes.router,
+    # Phase 12
+    lifecycle_routes.router,
+    status_routes.router,
+    llm_queue_routes.router,
+    autoindex_routes.router,
 ):
     app.include_router(router)
 
@@ -68,10 +106,10 @@ def health():
     except Exception as e:
         db_status = f"error: {e}"
     return {
-        "status": "ok",
-        "version": "2.0.0",
-        "phase": 7,
-        "db": db_status,
+        "status":  "ok",
+        "version": "2.12.0",
+        "phase":   12,
+        "db":      db_status,
         "library": library_root,
     }
 

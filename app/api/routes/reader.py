@@ -27,9 +27,9 @@ router = APIRouter(prefix="/api")
 LIBRARY_ROOT = os.environ.get("BOH_LIBRARY", "./library")
 
 
-def _resolve_doc_path(doc: dict) -> Path | None:
-    """Resolve doc path relative to library root. Tries multiple root candidates."""
-    root = Path(os.environ.get("BOH_LIBRARY", LIBRARY_ROOT)).resolve()
+def _resolve_doc_path(doc: dict, library_root: Optional[str] = None) -> Path | None:
+    """Resolve doc path relative to the active library root. Tries multiple root candidates."""
+    root = Path(library_root or os.environ.get("BOH_LIBRARY", LIBRARY_ROOT)).resolve()
     p = root / (doc["path"] or "")
     if p.exists():
         return p
@@ -43,7 +43,7 @@ def _resolve_doc_path(doc: dict) -> Path | None:
 @router.get("/docs/{doc_id}/content",
             response_class=PlainTextResponse,
             summary="Get raw markdown body of a document (frontmatter stripped)")
-def get_doc_content(doc_id: str):
+def get_doc_content(doc_id: str, library_root: Optional[str] = Query(None)):
     """Returns the markdown body text of a document, with YAML frontmatter removed.
 
     Used by the client-side markdown renderer.
@@ -53,11 +53,11 @@ def get_doc_content(doc_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
 
-    full_path = _resolve_doc_path(doc)
+    full_path = _resolve_doc_path(doc, library_root=library_root)
     if not full_path:
         raise HTTPException(
             status_code=404,
-            detail=f"File not found on disk: {doc['path']} (library root: {os.environ.get('BOH_LIBRARY', LIBRARY_ROOT)})"
+            detail=f"File not found on disk: {doc['path']} (library root: {library_root or os.environ.get('BOH_LIBRARY', LIBRARY_ROOT)})"
         )
 
     text = full_path.read_text(encoding="utf-8", errors="replace")
@@ -111,9 +111,30 @@ def get_graph(
 
     Phase 8: edges sourced from explicit doc_edges (DCNS) first, then lineage,
     then optional topic-similarity pairs.
+    Phase 11: edges enriched with reasons, shared_topics, crossovers.
     Node payload includes DCNS diagnostics (load_score, conflict_count, etc.)
     """
     return get_graph_data(max_nodes=max_nodes)
+
+
+@router.get("/graph/neighborhood",
+            summary="Local neighborhood subgraph for a document node")
+def get_neighborhood(
+    doc_id: str = Query(...),
+    depth:  int = Query(1, ge=1, le=2),
+    limit:  int = Query(40, ge=5, le=80),
+):
+    """Return the local subgraph centred on doc_id for neighborhood expansion.
+
+    depth=1 — direct neighbors only
+    depth=2 — neighbors of neighbors (limit aggressively applied)
+    Edges include reasons, shared_topics, crossovers for strand tooltips.
+    """
+    from app.core.related import get_neighborhood
+    result = get_neighborhood(doc_id, depth=depth, limit=limit)
+    if result.get("error"):
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
 
 
 @router.post("/dcns/sync",
