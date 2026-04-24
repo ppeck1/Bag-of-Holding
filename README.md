@@ -28,25 +28,25 @@ BOH treats knowledge as a governed lifecycle rather than a searchable collection
 
 ## Screenshots
 
-![Bag of Holding — Constraint-Aware Knowledge Architecture](screenshots/boh-system-blueprint.jpg)
+![Bag of Holding — Constraint-Aware Knowledge Architecture](screenshots/boh_system_blueprint.jpg)
 
 *Architecture overview: the full system from ingestion through canonicalization, governance layer, and Atlas relationship topology.*
 
 ---
 
-![Atlas — 107 nodes, force-directed relationship graph](screenshots/boh-atlas-visualization.jpg)
+![Atlas — 107 nodes, force-directed relationship graph](screenshots/boh_atlas_screenshot.jpg)
 
 *Atlas renders the relationship field: what depends on what, what conflicts, what is stale, where authority flows.*
 
 ---
 
-![LLM Review Queue — proposals from Ollama awaiting user review](screenshots/boh-llm-review-queue.jpg)
+![LLM Review Queue — proposals from Ollama awaiting user review](screenshots/boh_llm_queue_screenshot.jpg)
 
 *The LLM proposes. The human governs. Nothing applies to the corpus until explicitly approved. Canonical status can never be granted from this queue.*
 
 ---
 
-![Canon & Conflicts — no auto-resolution](screenshots/boh-canon-conflict-resolution.jpg)
+![Canon & Conflicts — no auto-resolution](screenshots/boh_canon_screenshot.jpg)
 
 *All conflicts require explicit user action. The Acknowledge button marks a conflict as seen — it does not resolve it.*
 
@@ -153,15 +153,15 @@ boh:
 <details>
 <summary>Dashboard, Library, Governance, Import, Status</summary>
 
-![Dashboard — knowledge base health at a glance](screenshots/boh-dashboard.jpg)
+![Dashboard — knowledge base health at a glance](screenshots/boh_dashboard_screenshot.jpg)
 
-![Library — 107 documents with status, corpus class, type, and lifecycle state](screenshots/boh-library.jpg)
+![Library — 107 documents with status, corpus class, type, and lifecycle state](screenshots/boh_library_screenshot.jpg)
 
-![Governance — Ollama invocation with task-scoped execution and workspace policies](screenshots/boh-governance.jpg)
+![Governance — Ollama invocation with task-scoped execution and workspace policies](screenshots/boh_governance_screenshot.jpg)
 
-![Import / Ingest — filesystem indexing with canon guard active](screenshots/boh-import-ingest.jpg)
+![Import / Ingest — filesystem indexing with canon guard active](screenshots/boh_import_screenshot.jpg)
 
-![System Status — server health, library path, Ollama availability, index diagnostics](screenshots/boh-system-status.jpg)
+![System Status — server health, library path, Ollama availability, index diagnostics](screenshots/boh_status_screenshot.jpg)
 
 </details>
 
