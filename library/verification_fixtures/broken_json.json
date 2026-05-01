@@ -1,0 +1,9 @@
+{
+  "title": "Broken JSON Fixture",
+  "description": "This JSON is intentionally malformed",
+  "this_key_has_no_closing_quote: "value",
+  "another_bad_key": undefined,
+  "trailing_comma_array": [1, 2, 3,],
+  "unclosed_object": {
+    "nested": "value"
+  // Missing closing braces — parser will fail here

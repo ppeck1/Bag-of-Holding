@@ -20,6 +20,7 @@ from fastapi.responses import PlainTextResponse
 from app.db import connection as db
 from app.services.parser import parse_frontmatter_full
 from app.core.related import get_related, get_graph_data
+from app.core.visual_projection import get_projection_graph
 from app.core.daenary import get_coordinates, format_coordinate_summary
 
 router = APIRouter(prefix="/api")
@@ -115,6 +116,16 @@ def get_graph(
     Node payload includes DCNS diagnostics (load_score, conflict_count, etc.)
     """
     return get_graph_data(max_nodes=max_nodes)
+
+
+@router.get("/graph/projection",
+            summary="Projection-ready graph data for Atlas visualization")
+def get_graph_projection(
+    mode: str = Query("web", pattern="^(web|structural|constitutional|constraint|geometry|constraint-geometry|variable)$"),
+    max_nodes: int = Query(300, ge=10, le=500),
+):
+    """Returns deterministic, mode-aware graph coordinates and diagnostics."""
+    return get_projection_graph(mode=mode, max_nodes=max_nodes)
 
 
 @router.get("/graph/neighborhood",

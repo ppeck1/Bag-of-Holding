@@ -23,7 +23,7 @@ from typing import Optional
 from app.db import connection as db
 from app.core import audit
 
-SUPPORTED_EXTENSIONS = {".md", ".txt", ".markdown"}
+SUPPORTED_EXTENSIONS = {".md", ".txt", ".markdown", ".html", ".htm", ".json"}
 AUTO_INDEX_ENABLED  = os.environ.get("BOH_AUTO_INDEX", "false").lower() == "true"
 LIBRARY_ROOT        = os.environ.get("BOH_LIBRARY", "./library")
 AUTO_INDEX_MAX_FILES = int(os.environ.get("BOH_AUTO_INDEX_MAX_FILES", "5000"))
@@ -94,7 +94,9 @@ def scan_library(library_root: str, max_files: int = 5000) -> list[str]:
     for p in root.rglob("*"):
         if len(paths) >= max_files:
             break
-        if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS:
+        if (p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
+                and not p.name.endswith('.review.md')
+                and not p.name.endswith('.review.json')):
             paths.append(str(p))
     return paths
 
@@ -110,6 +112,28 @@ def _file_hash(path: str) -> str:
         return ""
     return h.hexdigest()
 
+
+
+def _classify_failure(exc_type: str, exc_msg: str, path: str) -> tuple[str, str]:
+    """Classify an indexing failure and suggest a fix."""
+    msg = exc_msg.lower()
+    if "relative_to" in msg or "attributeerror" in exc_type.lower():
+        return ("path_type_error", "Internal: path passed as string instead of Path object. Report this bug.")
+    if "no such file" in msg or "filenotfounderror" in exc_type.lower():
+        return ("file_missing", "File was found during scan but is now missing. Check if it was deleted or moved.")
+    if "unicodedecodeerror" in exc_type.lower() or "codec" in msg:
+        return ("encoding_error", f"File '{path}' has non-UTF-8 encoding. Re-save as UTF-8 or remove.")
+    if "permissionerror" in exc_type.lower():
+        return ("permission_denied", f"Cannot read '{path}'. Check file permissions.")
+    if "yaml" in msg or "scanner" in msg or "mapping" in msg:
+        return ("frontmatter_parse_error", "YAML frontmatter is malformed. Check for tab characters, bad indentation, or unclosed quotes.")
+    if "canonical" in msg and "overwrite" in msg:
+        return ("canon_protection", "File is attempting to overwrite an existing canonical document. Use the governance workflow.")
+    if "json" in msg or "jsondecode" in exc_type.lower():
+        return ("json_parse_error", "JSON is malformed. Run the file through a JSON validator.")
+    if "database" in msg or "sqlite" in msg or "operationalerror" in exc_type.lower():
+        return ("db_error", "Database write failed. Try resetting the workspace if the error persists.")
+    return ("unknown_error", f"Unexpected {exc_type}. Check the error message and file content.")
 
 def run_auto_index(
     library_root: Optional[str] = None,
@@ -146,21 +170,64 @@ def run_auto_index(
     indexed = skipped = failed = 0
     log: list[dict] = []
 
+    root_path = Path(root).resolve()
     for path in paths:
+        path_obj = Path(path)
+        rel = path_obj.relative_to(root_path).as_posix() if path_obj.is_absolute() else path
         try:
             if changed_only:
-                existing = db.fetchone("SELECT text_hash FROM docs WHERE path = ?", (path,))
+                existing = db.fetchone("SELECT text_hash FROM docs WHERE path = ?", (rel,))
                 if existing:
                     current_hash = _file_hash(path)
                     if existing["text_hash"] and existing["text_hash"] == current_hash:
                         skipped += 1
                         continue
-            crawler.index_file(path, root)
+            result = crawler.index_file(path_obj, root_path)
             indexed += 1
-            log.append({"path": path, "status": "indexed"})
+            lint = result.get("lint_errors", [])
+            entry = {"path": rel, "status": "indexed"}
+            if lint:
+                entry["lint_warnings"] = lint[:3]
+
+            # Phase 26.5 Fix B: run analysis pipeline after successful index
+            if result.get("indexed") and result.get("doc_id"):
+                try:
+                    from app.core.document_analysis_pipeline import analyze_document_after_index
+                    analysis = analyze_document_after_index(
+                        doc_id=result["doc_id"],
+                        file_path=result.get("path", rel),
+                        library_root=str(root_path),
+                        run_deterministic=os.environ.get(
+                            "BOH_DETERMINISTIC_REVIEW_ON_INDEX", "true").lower() != "false",
+                        run_llm=os.environ.get(
+                            "BOH_LLM_REVIEW_ON_INDEX", "false").lower() == "true"
+                            or os.environ.get(
+                            "BOH_ANALYZE_ON_INDEX", "false").lower() == "true",
+                        actor_id="system:autoindex",
+                    )
+                    entry["analysis"] = {
+                        "deterministic_review": analysis["deterministic_review"],
+                        "llm_analysis": {
+                            "attempted": analysis["llm_analysis"]["attempted"],
+                            "disabled": analysis["llm_analysis"]["disabled"],
+                        },
+                    }
+                except Exception as ae:
+                    entry["analysis"] = {"error": str(ae)[:100]}
+
+            log.append(entry)
         except Exception as exc:
             failed += 1
-            log.append({"path": path, "status": "failed", "error": str(exc)[:120]})
+            exc_type = type(exc).__name__
+            reason, fix = _classify_failure(exc_type, str(exc), rel)
+            log.append({
+                "path": rel,
+                "status": "failed",
+                "error": str(exc)[:200],
+                "error_type": exc_type,
+                "reason": reason,
+                "recommended_fix": fix,
+            })
 
     elapsed_ms = int((time.monotonic() - start_ms) * 1000)
 
@@ -219,3 +286,30 @@ def run_on_startup_if_enabled() -> Optional[dict]:
         except Exception:
             pass
         return {"error": str(exc)}
+
+
+def get_failure_log(library_root: str | None = None) -> list[dict]:
+    """Return the per-file failure log from the last autoindex run."""
+    _ensure_table()
+    row = db.fetchone("SELECT log_json FROM autoindex_state WHERE id = 1")
+    if not row or not row["log_json"]:
+        return []
+    import json as _json
+    try:
+        entries = _json.loads(row["log_json"])
+        return [e for e in entries if e.get("status") == "failed"]
+    except Exception:
+        return []
+
+
+def get_full_log(library_root: str | None = None) -> list[dict]:
+    """Return the complete per-file log from the last autoindex run."""
+    _ensure_table()
+    row = db.fetchone("SELECT log_json FROM autoindex_state WHERE id = 1")
+    if not row or not row["log_json"]:
+        return []
+    import json as _json
+    try:
+        return _json.loads(row["log_json"])
+    except Exception:
+        return []

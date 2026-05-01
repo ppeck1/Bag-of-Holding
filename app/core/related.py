@@ -113,31 +113,36 @@ def get_related(doc_id: str, limit: int = 8) -> dict:
 
 
 def get_graph_data(max_nodes: int = 200) -> dict:
-    """Return graph nodes and edges for the Atlas visualization.
+    """Return Phase 14 Atlas graph data grouped by project → class → layer.
 
-    Phase 8: edges now sourced from doc_edges (explicit DCNS) first,
-    falling back to lineage + topic-similarity inferred edges.
-    Node payload enriched with DCNS diagnostics.
-
-    Returns:
-      { nodes: [...], edges: [...] }
+    Suggested semantic/topic edges are never authoritative across projects.
+    Cross-project edges are rendered as suggested, low-authority links until approved.
     """
     from app.core.dcns import get_node_diagnostics, get_all_doc_edges
+    from app.core.authority_state import authority_score
 
     docs = db.fetchall(
         """
         SELECT doc_id, path, type, status, corpus_class, topics_tokens,
-               plane_scope_json, version, updated_ts,
-               title, summary
+               plane_scope_json, version, updated_ts, title, summary,
+               project, document_class, canonical_layer, authority_state,
+               review_state, provenance_json, source_hash, document_id,
+               epistemic_d, epistemic_m, epistemic_q, epistemic_c,
+               epistemic_correction_status, epistemic_valid_until,
+               epistemic_context_ref, epistemic_source_ref,
+               epistemic_last_evaluated, meaning_cost_json,
+               custodian_review_state
         FROM docs
-        ORDER BY
-          CASE corpus_class
-            WHEN 'CORPUS_CLASS:CANON' THEN 0
-            WHEN 'CORPUS_CLASS:DRAFT' THEN 1
-            WHEN 'CORPUS_CLASS:DERIVED' THEN 2
-            WHEN 'CORPUS_CLASS:EVIDENCE' THEN 3
-            WHEN 'CORPUS_CLASS:ARCHIVE' THEN 4
-            ELSE 5
+        ORDER BY project, document_class,
+          CASE canonical_layer
+            WHEN 'canonical' THEN 0
+            WHEN 'supporting' THEN 1
+            WHEN 'evidence' THEN 2
+            WHEN 'review' THEN 3
+            WHEN 'conflict' THEN 4
+            WHEN 'quarantine' THEN 5
+            WHEN 'archive' THEN 6
+            ELSE 7
           END,
           updated_ts DESC
         LIMIT ?
@@ -145,15 +150,24 @@ def get_graph_data(max_nodes: int = 200) -> dict:
         (max_nodes,),
     )
 
-    # Build node list with DCNS diagnostics
     import os
     nodes = []
+    projects, classes, layers = set(), set(), set()
     for doc in docs:
-        from app.core.canon import canon_score
-        c_score = canon_score(doc)
         diag = get_node_diagnostics(doc["doc_id"])
+        project = doc.get("project") or "Quarantine / Legacy Import"
+        document_class = doc.get("document_class") or doc.get("type") or "unknown"
+        layer = doc.get("canonical_layer") or "quarantine"
+        projects.add(project); classes.add(document_class); layers.add(layer)
         basename = os.path.basename(doc["path"] or "").replace(".md", "") or doc["doc_id"][:12]
         display_title = doc.get("title") or basename
+        authority = authority_score(doc.get("status") or "", layer, doc.get("review_state") or "")
+        # Compute canon score for node sizing
+        try:
+            from app.core.canon import canon_score as _cs
+            c_score = _cs(dict(doc))
+        except Exception:
+            c_score = round(authority * 100, 1)
         nodes.append({
             "id": doc["doc_id"],
             "label": display_title[:28],
@@ -164,90 +178,139 @@ def get_graph_data(max_nodes: int = 200) -> dict:
             "status": doc["status"],
             "corpusClass": doc["corpus_class"],
             "canonScore": round(c_score, 1),
+            "project": project,
+            "projectId": project,
+            "document_class": document_class,
+            "documentClass": document_class,
+            "canonical_layer": layer,
+            "canonicalLayer": layer,
+            "authority_state": doc.get("authority_state") or "quarantined",
+            "authority": authority,
+            "review_state": doc.get("review_state") or "unassigned",
+            "version": doc.get("version"),
             "topics": doc["topics_tokens"] or "",
-            # DCNS diagnostics
-            "loadScore":              diag["load_score"],
-            "conflictCount":          diag["conflict_count"],
-            "expiredCoordinates":     diag["expired_coordinate_count"],
-            "uncertainCoordinates":   diag["uncertain_coordinate_count"],
+            "loadScore": diag["load_score"],
+            "conflictCount": diag["conflict_count"],
+            "expiredCoordinates": diag["expired_coordinate_count"],
+            "uncertainCoordinates": diag["uncertain_coordinate_count"],
+            # Phase 18: Daenary epistemic substrate
+            "epistemic_d":                 doc.get("epistemic_d"),
+            "epistemic_m":                 doc.get("epistemic_m"),
+            "epistemic_q":                 doc.get("epistemic_q"),
+            "epistemic_c":                 doc.get("epistemic_c"),
+            "epistemic_correction_status": doc.get("epistemic_correction_status"),
+            "epistemic_valid_until":       doc.get("epistemic_valid_until"),
+            "meaning_cost_json":           doc.get("meaning_cost_json"),
+            "custodian_review_state":      doc.get("custodian_review_state"),
         })
 
     node_ids = {n["id"] for n in nodes}
-
-    # Phase 8: prefer explicit doc_edges over raw lineage
+    node_project = {n["id"]: n["project"] for n in nodes}
+    node_layer = {n["id"]: n["canonical_layer"] for n in nodes}
     seen_edges: set = set()
     edges: list[dict] = []
 
-    explicit_edges = get_all_doc_edges(node_ids)
-    for row in explicit_edges:
-        key = tuple(sorted([row["source_doc_id"], row["target_doc_id"]]) + [row["edge_type"]])
+    def add_edge(edge: dict):
+        src, tgt = edge.get("source"), edge.get("target")
+        if src not in node_ids or tgt not in node_ids:
+            return
+        cross = node_project.get(src) != node_project.get(tgt)
+        approved = bool(edge.get("approved", edge.get("authority") == "approved"))
+        if cross and not approved:
+            edge["type"] = edge.get("type") or "suggested"
+            edge["authority"] = "suggested"
+            edge["approved"] = False
+            edge["suggested"] = True
+            edge["weight"] = min(float(edge.get("weight") or 0.2), 0.25)
+            edge["style"] = "low-opacity dashed"
+        else:
+            edge.setdefault("authority", "approved" if approved or edge.get("type") in {"lineage","supersedes","derived_from","derives"} else "suggested")
+            edge.setdefault("approved", approved or edge["authority"] == "approved")
+        edge["cross_project"] = cross
+        key = tuple(sorted([src, tgt]) + [edge.get("type", "edge")])
         if key not in seen_edges:
             seen_edges.add(key)
-            edges.append(_enrich_edge({
-                "source":       row["source_doc_id"],
-                "target":       row["target_doc_id"],
-                "type":         row["edge_type"],
-                "relationship": row["edge_type"],
-                "weight":       row.get("permeability") or 1.0,
-                "state":        row.get("state"),
-                "loadScore":    row.get("load_score"),
-                "detail":       row.get("detail"),
+            edges.append(edge)
+
+    for row in get_all_doc_edges(node_ids):
+        typ = row["edge_type"]
+        # Normalize: "derived_from" -> "derives" for backward compat with existing tests
+        norm_typ = "derives" if typ in ("derived_from", "derives") else typ
+        add_edge(_enrich_edge({
+            "source": row["source_doc_id"],
+            "target": row["target_doc_id"],
+            "type":   norm_typ,
+            "relationship": typ,
+            "strength": row.get("permeability") or 1.0,
+            "weight":   row.get("permeability") or 1.0,
+            "state":    row.get("state"),
+            "loadScore": row.get("load_score"),
+            "detail":   row.get("detail"),
+            "approved": True,
+            "authority": "approved",
+        }, node_ids))
+
+    for row in db.fetchall("SELECT doc_id, related_doc_id, relationship FROM lineage"):
+        if row["doc_id"] in node_ids and row["related_doc_id"] in node_ids:
+            rel = row["relationship"] or "lineage"
+            add_edge(_enrich_edge({
+                "source": row["doc_id"],
+                "target": row["related_doc_id"],
+                "type": "supersedes" if rel == "supersedes" else ("derives" if rel in {"derives", "derived_from"} else "lineage"),
+                "relationship": rel,
+                "strength": 1.0,
+                "weight": 1.0,
+                "approved": True,
+                "authority": "approved",
             }, node_ids))
 
-    # Fallback: lineage records not yet in doc_edges
-    lineage_rows = db.fetchall(
-        "SELECT doc_id, related_doc_id, relationship FROM lineage"
-    )
-    for row in lineage_rows:
-        if row["doc_id"] in node_ids and row["related_doc_id"] in node_ids:
-            key = tuple(sorted([row["doc_id"], row["related_doc_id"]]) + ["lineage"])
-            if key not in seen_edges:
-                seen_edges.add(key)
-                edges.append(_enrich_edge({
-                    "source":       row["doc_id"],
-                    "target":       row["related_doc_id"],
-                    "type":         "lineage",
-                    "relationship": row["relationship"],
-                    "weight":       1.0,
-                    "state":        None,
-                    "loadScore":    None,
-                }, node_ids))
-
-    # Topic similarity edges (inferred, only for small corpora)
-    if len(docs) <= 80:
-        doc_topic_map = {
-            doc["doc_id"]: set((doc["topics_tokens"] or "").split()) - {""}
-            for doc in docs
-        }
+    # Topic overlap edges remain suggested and non-authoritative by default.
+    n_docs = len(docs)
+    if n_docs <= 500:
+        threshold = 0.30 if n_docs <= 80 else (0.40 if n_docs <= 200 else 0.55)
+        max_topic_edges = min(240, n_docs * 3)
+        doc_topic_map = {doc["doc_id"]: set((doc["topics_tokens"] or "").split()) - {""} for doc in docs}
+        candidates = []
         for i, doc_a in enumerate(docs):
             tokens_a = doc_topic_map[doc_a["doc_id"]]
-            if not tokens_a:
-                continue
-            for doc_b in docs[i + 1:]:
+            if not tokens_a: continue
+            for doc_b in docs[i+1:]:
                 tokens_b = doc_topic_map[doc_b["doc_id"]]
-                if not tokens_b:
-                    continue
+                if not tokens_b: continue
                 j = _jaccard(tokens_a, tokens_b)
-                if j >= 0.3:
-                    key = tuple(sorted([doc_a["doc_id"], doc_b["doc_id"]]) + ["related"])
-                    if key not in seen_edges:
-                        seen_edges.add(key)
-                        shared = sorted(tokens_a & tokens_b)[:8]
-                        edges.append({
-                            "source":        doc_a["doc_id"],
-                            "target":        doc_b["doc_id"],
-                            "type":          "related",
-                            "relationship":  "topic_similarity",
-                            "weight":        round(j, 3),
-                            "label":         "shared topics",
-                            "reasons":       [f"topic: {t}" for t in shared],
-                            "shared_topics": shared,
-                            "crossovers":    [{"kind": "topic", "value": t} for t in shared],
-                            "state":         None,
-                            "loadScore":     None,
-                        })
+                if j >= threshold:
+                    candidates.append((j, doc_a["doc_id"], doc_b["doc_id"], sorted(tokens_a & tokens_b)[:8]))
+        for j, aid, bid, shared in sorted(candidates, key=lambda x: x[0], reverse=True)[:max_topic_edges]:
+            add_edge({
+                "source": aid, "target": bid,
+                "type": "related",          # normalized from topic_overlap for test compat
+                "relationship": "topic_similarity",
+                "strength": round(j, 3),
+                "weight":   round(j, 3),
+                "label":    "shared topics",
+                "reasons":  [f"topic: {t}" for t in shared],
+                "shared_topics": shared,
+                "crossovers":    [{"kind": "topic", "value": t} for t in shared],
+                "authority": "suggested",
+                "approved":  False,
+            })
 
-    return {"nodes": nodes, "edges": edges}
+    clusters = []
+    for project in sorted(projects):
+        for klass in sorted({n["document_class"] for n in nodes if n["project"] == project}):
+            ids = [n["id"] for n in nodes if n["project"] == project and n["document_class"] == klass]
+            if ids:
+                clusters.append({"project": project, "class": klass, "node_ids": ids, "count": len(ids)})
+
+    return {
+        "projects": sorted(projects),
+        "classes": sorted(classes),
+        "layers": sorted(layers),
+        "clusters": clusters,
+        "nodes": nodes,
+        "edges": edges,
+    }
+
 
 
 def _enrich_edge(edge: dict, node_ids: set) -> dict:

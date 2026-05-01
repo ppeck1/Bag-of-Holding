@@ -19,6 +19,7 @@ import os
 import re
 import time
 import uuid
+import hashlib
 from pathlib import Path
 from typing import Optional
 
@@ -136,11 +137,18 @@ def has_boh_frontmatter(text: str) -> bool:
 
 def build_boh_frontmatter(title: str, topics: list[str],
                            doc_id: Optional[str] = None,
-                           doc_type: str = "note") -> str:
+                           doc_type: str = "note",
+                           project: str = "Scratch Capture",
+                           document_class: str = "note",
+                           status: str = "draft",
+                           canonical_layer: str = "supporting",
+                           source_hash: str = "",
+                           provenance: Optional[dict] = None) -> str:
     """Build conservative default BOH frontmatter for browser-created docs."""
     if not doc_id:
         doc_id = f"doc-{uuid.uuid4().hex[:8]}"
     now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    provenance = provenance or {"mode": "scratch_capture", "source": "browser"}
     topics_yaml = "\n".join(f"    - {t}" for t in topics[:20]) if topics else "    []"
     if not topics:
         topics_yaml = "    []"
@@ -151,10 +159,22 @@ def build_boh_frontmatter(title: str, topics: list[str],
     return f"""---
 boh:
   id: {doc_id}
+  document_id: {doc_id}
   type: {doc_type}
+  document_class: {document_class}
+  project: {project}
   purpose: {title[:120]}
+  title: {title[:120]}
   {topics_block.lstrip()}
-  status: draft
+  status: {status}
+  state: inbox
+  requires_review: false
+  authority_state: quarantined
+  review_state: unassigned
+  source_hash: {source_hash}
+  provenance:
+    mode: {provenance.get("mode", "scratch_capture")}
+    source: {provenance.get("source", "browser")}
   version: "0.0.1"
   updated: "{now_iso}"
   scope:
@@ -192,7 +212,8 @@ def save_markdown_note(title: str, body: str,
     file_name = next_available_path(dest_dir / f"{slug}.md")
     _assert_inside_root(file_name, root)
 
-    frontmatter = build_boh_frontmatter(title, topics, doc_id=doc_id)
+    body_hash = hashlib.sha256(body.encode("utf-8", errors="replace")).hexdigest()
+    frontmatter = build_boh_frontmatter(title, topics, doc_id=doc_id, source_hash=body_hash)
     full_content = frontmatter + body
 
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -220,14 +241,16 @@ def save_markdown_note(title: str, body: str,
 
     return {
         "doc_id":     doc_id,
-        "path":       str(file_name.relative_to(root)),
+        "path":       file_name.relative_to(root).as_posix(),
         "indexed":    indexed,
         "lint_errors": lint_errors,
     }
 
 
 def save_upload(filename: str, content_bytes: bytes,
-                target_folder: str = "imports") -> dict:
+                target_folder: str = "imports",
+                intake_mode: str = "scratch",
+                metadata: Optional[dict] = None) -> dict:
     """Save an uploaded file into the managed library.
 
     Checks extension allowlist, sanitizes filename, prevents overwrite.
@@ -245,6 +268,26 @@ def save_upload(filename: str, content_bytes: bytes,
     if not content_bytes:
         return {"filename": filename, "reason": "empty file rejected"}
 
+    intake_mode = (intake_mode or "scratch").strip().lower()
+    metadata = metadata or {}
+    source_hash = hashlib.sha256(content_bytes).hexdigest()
+    if intake_mode in {"governed", "governed_entry"}:
+        from app.core.metadata_contract import REQUIRED_GOVERNED_FIELDS
+        if not metadata.get("source_hash"):
+            metadata["source_hash"] = source_hash
+        if not metadata.get("document_id"):
+            metadata["document_id"] = f"doc-{uuid.uuid4().hex[:8]}"
+        missing = [f for f in REQUIRED_GOVERNED_FIELDS if not metadata.get(f)]
+        if missing:
+            return {
+                "filename": filename,
+                "reason": "governed import rejected: missing " + ", ".join(missing),
+                "validation_errors": [{"field": f, "code": "required"} for f in missing],
+            }
+        target_folder = target_folder or f"{metadata.get('project')}/{metadata.get('document_class')}"
+    else:
+        target_folder = target_folder or "scratch"
+
     folder   = safe_subpath(target_folder)
     dest_dir = (root / folder).resolve()
     _assert_inside_root(dest_dir, root)
@@ -259,7 +302,20 @@ def save_upload(filename: str, content_bytes: bytes,
             text = content_bytes.decode("utf-8", errors="replace")
             if not has_boh_frontmatter(text):
                 stem = original_name.stem.replace("-", " ").replace("_", " ").title()
-                fm   = build_boh_frontmatter(stem, [])
+                if intake_mode in {"governed", "governed_entry"}:
+                    fm = build_boh_frontmatter(
+                        stem, [],
+                        doc_id=metadata.get("document_id"),
+                        doc_type=metadata.get("document_class", "reference"),
+                        project=metadata.get("project", ""),
+                        document_class=metadata.get("document_class", "reference"),
+                        status=metadata.get("status", "draft"),
+                        canonical_layer=metadata.get("canonical_layer", "supporting"),
+                        source_hash=metadata.get("source_hash") or source_hash,
+                        provenance={"mode": "governed_entry", "source": metadata.get("provenance", "upload")},
+                    )
+                else:
+                    fm = build_boh_frontmatter(stem, [], source_hash=source_hash)
                 text = fm + text
             dest_file.write_text(text, encoding="utf-8")
         except Exception:
@@ -291,7 +347,7 @@ def save_upload(filename: str, content_bytes: bytes,
 
     return {
         "filename":    dest_file.name,
-        "path":        str(dest_file.relative_to(root)),
+        "path":        dest_file.relative_to(root).as_posix(),
         "indexed":     indexed,
         "doc_id":      doc_id,
         "lint_errors": lint_errors,

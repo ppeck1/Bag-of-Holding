@@ -1034,3 +1034,722 @@ pre {
 body.resizing-drawer * { user-select: none; cursor: ew-resize !important; }
 
 /* ── Atlas reader width controls handled in JS via gridTemplateColumns ── */
+
+
+/* Phase 15.5 — Governance Legibility */
+.governance-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  flex-wrap: wrap;
+}
+
+.approval-card {
+  border: 1px solid var(--border-dim);
+  border-left: 4px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01));
+}
+
+.approval-card.gov-sev-low { border-left-color: var(--border); }
+.approval-card.gov-sev-medium { border-left-color: var(--amber); box-shadow: 0 0 0 1px rgba(245,158,11,.08); }
+.approval-card.gov-sev-high { border-left-color: var(--red); box-shadow: 0 0 18px rgba(239,68,68,.10); }
+.approval-card.gov-sev-extreme { border-left-color: #ff3355; box-shadow: 0 0 26px rgba(255,51,85,.18); }
+
+.gov-severity-pill {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-right: 8px;
+}
+.gov-severity-pill.gov-sev-low { background: rgba(148,163,184,.16); color: var(--text-faint); }
+.gov-severity-pill.gov-sev-medium { background: rgba(245,158,11,.18); color: var(--amber); }
+.gov-severity-pill.gov-sev-high,
+.gov-severity-pill.gov-sev-extreme { background: rgba(239,68,68,.18); color: var(--red); }
+
+.blast-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(90px, 1fr));
+  gap: 6px;
+  margin: 10px 0;
+}
+.blast-grid > div {
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: rgba(0,0,0,.12);
+}
+.blast-grid span {
+  display: block;
+  color: var(--text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.blast-grid strong {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.gov-escalation {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(239,68,68,.35);
+  background: rgba(239,68,68,.08);
+  color: var(--red);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.review-diff-shell {
+  margin-top: 10px;
+}
+.constitutional-diff {
+  margin-top: 8px;
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0,0,0,.16);
+}
+.diff-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 6px 12px;
+  padding: 10px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.diff-table {
+  max-height: 360px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.diff-row {
+  display: grid;
+  grid-template-columns: 48px minmax(160px,1fr) minmax(160px,1fr) 68px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.diff-row.changed {
+  background: rgba(245,158,11,.055);
+}
+.diff-line,
+.diff-decision {
+  color: var(--text-faint);
+  padding: 5px 6px;
+  border-right: 1px solid rgba(255,255,255,.04);
+}
+.diff-cell {
+  white-space: pre-wrap;
+  padding: 5px 8px;
+  border-right: 1px solid rgba(255,255,255,.04);
+}
+.diff-cell.old { color: rgba(248,113,113,.92); }
+.diff-cell.new { color: rgba(74,222,128,.92); }
+
+.ledger-table {
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.ledger-row {
+  display: grid;
+  grid-template-columns: 170px 1.2fr 90px 110px 1fr 120px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-dim);
+  align-items: center;
+}
+.ledger-row:last-child { border-bottom: none; }
+.ledger-head {
+  background: rgba(255,255,255,.055);
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: 10px;
+}
+.ledger-row.gov-sev-high,
+.ledger-row.gov-sev-extreme {
+  background: rgba(239,68,68,.045);
+}
+.ledger-row.gov-sev-medium {
+  background: rgba(245,158,11,.04);
+}
+
+@media (max-width: 900px) {
+  .blast-grid { grid-template-columns: repeat(2, minmax(90px, 1fr)); }
+  .diff-meta { grid-template-columns: 1fr; }
+  .diff-row { grid-template-columns: 38px 1fr; }
+  .diff-cell.new { grid-column: 2; }
+  .diff-decision { display: none; }
+  .ledger-row { grid-template-columns: 1fr; }
+}
+
+
+/* Phase 15.6 — Product legibility + progressive disclosure */
+/* Phase 26.4: Pill switch toggle — clear visual state */
+.mode-toggle {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+  border-radius: 999px;
+  padding: 3px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  display: inline-flex;
+  gap: 0;
+  align-items: center;
+}
+.mode-toggle:hover { border-color: var(--blue); }
+.mode-pill {
+  display: flex;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.mode-pill .mode-simple-label,
+.mode-pill .mode-advanced-label {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+/* Active pill highlight */
+.simple-mode .mode-pill .mode-simple-label {
+  background: var(--bg-card);
+  color: var(--text-bright);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.advanced-mode .mode-pill .mode-advanced-label {
+  background: rgba(96,165,250,.18);
+  color: #60a5fa;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+/* Simple mode: hint bar shown above panels to explain the toggle */
+.simple-mode-hint {
+  display: none;
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border-dim);
+  background: rgba(15,23,42,0.4);
+  text-align: right;
+}
+.simple-mode .simple-mode-hint { display: block; }
+.onboarding-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-accent);
+  background: linear-gradient(135deg, rgba(59,130,246,.12), rgba(16,185,129,.06));
+  border-radius: var(--radius-lg);
+}
+.onboarding-card p { margin-top: 5px; color: var(--text-muted); font-size: 12px; line-height: 1.7; }
+.plain-impact {
+  margin: 10px 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border-soft);
+  background: rgba(59,130,246,.07);
+  border-radius: var(--radius);
+  color: var(--text-main);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.simple-mode .constitutional-diff .diff-meta .advanced-only { display:none !important; }
+
+/* Phase 15.6A: visibly mounted Simple | Advanced control */
+.mode-toggle { min-width: 132px; justify-content: center; gap: 4px; }
+.mode-toggle .mode-simple-label,
+.mode-toggle .mode-advanced-label { opacity: .55; font-weight: 500; }
+.mode-toggle.is-simple .mode-simple-label,
+.mode-toggle.is-advanced .mode-advanced-label { opacity: 1; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Phase 16 — Visualization layer + lifecycle clarity */
+.lifecycle-ladder {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+.lifecycle-ladder > div {
+  border: 1px solid var(--border-soft);
+  background: rgba(15, 23, 42, .46);
+  border-radius: 10px;
+  padding: 10px 12px;
+  position: relative;
+}
+.lifecycle-ladder > div:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  z-index: 2;
+}
+.lifecycle-ladder strong { display:block; color:var(--text-bright); font-size:12px; }
+.lifecycle-ladder span { display:block; color:var(--text-faint); font-size:11px; margin-top:2px; }
+.viz-mode-tabs { display:flex; gap:4px; padding:2px; border:1px solid var(--border-dim); border-radius:8px; background:rgba(2,6,23,.35); }
+.viz-mode.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.viz-overlay {
+  position:absolute; inset:0; z-index:4; overflow:auto;
+  padding:76px 24px 24px;
+  background:transparent;
+  pointer-events:none;
+}
+/* Phase 17 pre-redesign modal styles removed in Phase 17.3 */
+.duplicate-card { border:1px solid var(--border-soft); border-radius:12px; padding:12px; margin-bottom:12px; background:rgba(15,23,42,.56); }
+.dup-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:10px; color:var(--text-bright); }
+.dup-head span { color:var(--text-faint); font-size:11px; }
+.dup-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.dup-grid label { display:block; color:var(--text-faint); font-size:10px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; }
+.dup-grid code { display:block; white-space:normal; overflow-wrap:anywhere; font-size:11px; padding:7px; border:1px solid var(--border-dim); border-radius:6px; background:rgba(2,6,23,.45); }
+.dup-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+.duplicate-card[data-review-state="ignored"] { opacity:.72; }
+.duplicate-card[data-review-state="canonical"] { border-color:rgba(16,185,129,.65); }
+.duplicate-card[data-review-state="duplicate"] { border-color:rgba(245,158,11,.65); }
+/* Phase 16.1: visualization controls remain visible in every mode.
+   Simple/Advanced affects detail density, not access to recovery paths. */
+.simple-mode #atlas-perf-mode,
+.simple-mode #atlas-opt-ripples,
+.simple-mode #atlas-opt-glow,
+.simple-mode #graph-show-strand-labels { opacity:.78; }
+.simple-mode .dup-grid .advanced-only { display:none !important; }
+.advanced-mode .duplicate-card { box-shadow: inset 0 0 0 1px rgba(96,165,250,.08); }
+#graph-filter-project[multiple] { height:auto; max-height:28px; vertical-align:middle; }
+#graph-filter-project[multiple]:focus { max-height:150px; }
+.advanced-mode .lifecycle-ladder { outline:1px dashed rgba(96,165,250,.22); outline-offset:3px; }
+@media (max-width: 900px) { .lifecycle-ladder, .viz-card-grid, .dup-grid { grid-template-columns:1fr; } .lifecycle-ladder > div::after { display:none; } }
+
+/* ── Phase 16.2: Simple vs Advanced real separation ─────────────────────── */
+
+/* Simple mode: clean, consequence-focused */
+.simple-mode .lib-path { display: none; }
+.simple-mode .advanced-only { display: none !important; }
+.simple-mode .kv-key[data-adv], .simple-mode .kv-val[data-adv] { display: none; }
+
+/* Advanced mode: machine room feel */
+.advanced-mode .simple-only { display: none !important; }
+.advanced-mode { --bg-void: #050811; --bg-card: #0d1420; }
+.advanced-mode .panel { border-left: 2px solid rgba(96,165,250,.15); }
+.advanced-mode #ui-mode-toggle { background: rgba(96,165,250,.08); border-color: rgba(96,165,250,.3); color: #60a5fa; font-family: var(--font-mono); }
+.advanced-mode .section-head { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.advanced-mode .stat-card { border-color: rgba(96,165,250,.12); }
+.advanced-mode .kv-key { color: var(--blue); font-family: var(--font-mono); font-size: 10px; }
+.advanced-mode .kv-val code { color: #93c5fd; }
+
+/* Missing file graceful display */
+.file-unavailable-card {
+  padding: 16px; border-radius: 6px;
+  border: 1px solid rgba(245,158,11,.25);
+  background: rgba(245,158,11,.04);
+  color: var(--text-muted);
+}
+.file-unavailable-card .recovery-options { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Approval severity visual hierarchy */
+.severity-low    { border-left: 3px solid var(--text-faint); }
+.severity-medium { border-left: 3px solid var(--amber); }
+.severity-high   { border-left: 3px solid #f97316; background: rgba(249,115,22,.04); }
+.severity-extreme {
+  border-left: 4px solid #ef4444;
+  background: rgba(239,68,68,.06);
+  animation: severity-pulse 2.5s ease-in-out infinite;
+}
+@keyframes severity-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  50% { box-shadow: 0 0 12px 2px rgba(239,68,68,.15); }
+}
+.severity-badge-low     { color: var(--text-faint); font-size: 10px; }
+.severity-badge-medium  { color: var(--amber); font-size: 10px; font-weight: 600; }
+.severity-badge-high    { color: #f97316; font-size: 10px; font-weight: 700; }
+.severity-badge-extreme { color: #ef4444; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+
+/* Provenance human-readable first */
+.provenance-card { padding: 12px; border-radius: 5px; border: 1px solid var(--border-dim); margin-bottom: 8px; }
+.provenance-card .provenance-summary { font-size: 13px; margin-bottom: 8px; }
+.provenance-card .provenance-meta { font-size: 11px; color: var(--text-muted); }
+.provenance-card .provenance-crypto { font-size: 10px; color: var(--text-faint); font-family: var(--font-mono); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-dim); }
+.simple-mode .provenance-card .provenance-crypto { display: none; }
+
+/* Node identity in Atlas */
+.atlas-node-identity { font-size: 12px; padding: 10px; background: var(--bg-card); border-radius: 5px; border: 1px solid var(--border-dim); margin-bottom: 8px; }
+.atlas-node-identity .node-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.atlas-node-identity .node-meta { color: var(--text-muted); font-size: 11px; line-height: 1.6; }
+.simple-mode .node-path-detail, .simple-mode .node-hash-detail { display: none; }
+
+/* Variable confidence states */
+.mapping-canonical  { color: var(--green-bright); }
+.mapping-reviewed   { color: #60a5fa; }
+.mapping-suggested  { color: var(--amber); }
+.mapping-contested  { color: #f97316; }
+.mapping-rejected   { color: #ef4444; text-decoration: line-through; }
+.mapping-historical { color: var(--text-faint); font-style: italic; }
+
+.viz-diagnostic-block { margin-top:12px; padding:10px; border:1px solid var(--border-dim); border-radius:10px; background:rgba(15,23,42,.55); color:var(--text-muted); font-size:11px; line-height:1.45; }
+.viz-risk-table { width:100%; border-collapse:collapse; margin-top:6px; font-size:10.5px; }
+.viz-risk-table th, .viz-risk-table td { text-align:left; border-bottom:1px solid var(--border-dim); padding:4px 6px; color:var(--text-muted); }
+.viz-risk-table th { color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; }
+
+/* ── Phase 17.3: Mode-specific instrument panel styles ───────────────────── */
+
+/* Sidebar layout: instrument panel anchored to the right, graph visible left */
+.viz-overlay {
+  pointer-events: none;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 72px 16px 16px 0;
+}
+.viz-instrument-sidebar {
+  width: 320px;
+  max-width: 340px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  margin: 0;
+  flex-shrink: 0;
+}
+.viz-back-btn {
+  float: right;
+  margin-bottom: 8px;
+}
+
+/* Panel header */
+.viz-panel-header { margin-bottom: 10px; }
+.viz-panel-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 5px;
+  font-family: var(--font-mono);
+}
+.viz-panel-question {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+/* Phase 26.2: purpose line differentiates panels */
+.viz-panel-purpose {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.5;
+  margin-top: 4px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border-dim);
+}
+
+/* Visual grammar summary */
+.viz-grammar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0 10px;
+  padding: 8px;
+  background: rgba(15,23,42,.55);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  font-size: 11px;
+}
+.viz-grammar-grid > div { display: flex; gap: 6px; align-items: baseline; color: var(--text-muted); }
+.viz-grammar-label {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  min-width: 68px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Section heads */
+.viz-section-head {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 10px 0 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+/* Mini stat row */
+.viz-mini-stats {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0;
+}
+.viz-mini-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  padding: 5px 6px;
+  border: 1px solid var(--border-dim);
+  border-radius: 7px;
+  background: rgba(15,23,42,.45);
+}
+.viz-mini-stats b { font-size: 18px; color: var(--text-bright); line-height: 1.1; }
+.viz-mini-stats span { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+
+/* Variable row (override existing) */
+.viz-var-row { display: flex; gap: 8px; align-items: center; font-size: 11px; }
+
+/* Zone / lane pills */
+.viz-zone-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.viz-zone-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  font-size: 10px;
+  min-width: 50px;
+  text-align: center;
+}
+.viz-zone-pill b { font-size: 16px; line-height: 1.1; }
+.viz-zone-pill span { color: var(--text-faint); margin-top: 1px; }
+
+/* Constitutional node lists */
+.viz-const-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.viz-const-item {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: rgba(15,23,42,.35);
+}
+.viz-empty-note { color: var(--text-faint); font-size: 11px; font-style: italic; padding: 4px 0; }
+
+/* Tip / look-for block */
+.viz-tip-block {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 7px 10px;
+  border-left: 2px solid rgba(245,158,11,.4);
+  margin: 6px 0 10px;
+  line-height: 1.5;
+  background: rgba(245,158,11,.05);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Gap / missing data notice */
+.viz-gap-notice {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(245,158,11,.09);
+  border: 1px solid rgba(245,158,11,.28);
+  margin-bottom: 8px;
+  line-height: 1.45;
+}
+
+/* Projection footer */
+.viz-proj-footer {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-dim);
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.5;
+}
+
+/* ── Phase 18: Daenary Epistemic Badges ─────────────────────────────────── */
+.ep-badge {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ep-d {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+.ep-d-pos  { background: rgba(34,197,94,.12);  color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+.ep-d-zero { background: rgba(245,158,11,.12); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+.ep-d-neg  { background: rgba(239,68,68,.12);  color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+.ep-d-none { background: rgba(71,85,105,.12);  color: #475569; border: 1px solid rgba(71,85,105,.3); }
+
+.ep-m-contain { background: rgba(245,158,11,.10); color: #f59e0b; border: 1px solid rgba(245,158,11,.25); border-radius: 3px; font-size: 10px; padding: 1px 4px; }
+.ep-m-cancel  { background: rgba(239,68,68,.10);  color: #ef4444; border: 1px solid rgba(239,68,68,.25);  border-radius: 3px; font-size: 10px; padding: 1px 4px; }
+
+.ep-qc { font-size: 10px; color: var(--text-faint); font-family: var(--font-mono); }
+.ep-correction { font-size: 10px; font-family: var(--font-mono); }
+.ep-correction-accurate        { color: #22c55e; }
+.ep-correction-incomplete      { color: #60a5fa; }
+.ep-correction-outdated        { color: #f59e0b; }
+.ep-correction-conflicting     { color: #f97316; }
+.ep-correction-likely_incorrect { color: #ef4444; }
+
+/* Custodian lane pill (used in Library and node detail) */
+.ep-lane {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.ep-lane-raw_imported  { background: rgba(71,85,105,.12);  color: #475569; }
+.ep-lane-expired       { background: rgba(107,114,128,.12); color: #6b7280; }
+.ep-lane-canceled      { background: rgba(239,68,68,.12);   color: #ef4444; }
+.ep-lane-contained     { background: rgba(245,158,11,.12);  color: #f59e0b; }
+.ep-lane-under_review  { background: rgba(96,165,250,.12);  color: #60a5fa; }
+.ep-lane-approved      { background: rgba(52,211,153,.12);  color: #34d399; }
+.ep-lane-canonical     { background: rgba(16,185,129,.12);  color: #10b981; }
+.ep-lane-archived      { background: rgba(51,65,85,.12);    color: #334155; }
+
+/* Viability zones (used in library table) */
+.ep-zone-viable      { color: #22c55e; }
+.ep-zone-contain     { color: #f59e0b; }
+.ep-zone-weak        { color: #f97316; }
+.ep-zone-low         { color: #ef4444; }
+
+/* ── Phase 19.5: Projection Manifest Panel ──────────────────────────────── */
+.viz-manifest-panel {
+  margin-top: 10px;
+  border: 1px solid rgba(96,165,250,0.18);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.viz-manifest-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-faint);
+  background: rgba(96,165,250,0.05);
+  user-select: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+.viz-manifest-toggle:hover { background: rgba(96,165,250,0.10); color: var(--text-muted); }
+.viz-manifest-toggle .vm-chevron { margin-left: auto; transition: transform 0.18s; }
+.viz-manifest-toggle.open .vm-chevron { transform: rotate(90deg); }
+.viz-manifest-body {
+  display: none;
+  padding: 8px 10px;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.viz-manifest-body.open { display: block; }
+.viz-manifest-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 4px 8px;
+  margin-bottom: 4px;
+}
+.viz-manifest-key {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding-top: 1px;
+}
+.viz-manifest-val { color: var(--text-muted); }
+.viz-manifest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.viz-manifest-list-item {
+  font-size: 10px;
+  padding: 1px 0;
+}
+.viz-manifest-list-item.allowed  { color: #22c55e; }
+.viz-manifest-list-item.forbidden { color: #ef4444; }
+.viz-manifest-list-item.discarded { color: var(--text-faint); font-style: italic; }
+.viz-manifest-axis-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(96,165,250,0.3);
+  background: rgba(96,165,250,0.08);
+  color: #60a5fa;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.viz-manifest-non-auth {
+  margin-top: 6px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.20);
+  color: rgba(239,68,68,0.75);
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
+/* ── Phase 20: Certificate Gate + Lattice Badge Styles ──────────────────── */
+.cert-badge {
+  display: inline-block;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.cert-badge-contained        { background:rgba(245,158,11,.14); color:#f59e0b; border:1px solid rgba(245,158,11,.3); }
+.cert-badge-pending_review   { background:rgba(96,165,250,.14);  color:#60a5fa; border:1px solid rgba(96,165,250,.3); }
+.cert-badge-certified        { background:rgba(52,211,153,.14);  color:#34d399; border:1px solid rgba(52,211,153,.3); }
+.cert-badge-canonical        { background:rgba(16,185,129,.18);  color:#10b981; border:1px solid rgba(16,185,129,.4); }
+.cert-badge-expired          { background:rgba(107,114,128,.12); color:#6b7280; border:1px solid rgba(107,114,128,.25); }
+.cert-badge-reverted         { background:rgba(100,116,139,.12); color:#64748b; border:1px solid rgba(100,116,139,.25); }
+.cert-badge-blocked          { background:rgba(239,68,68,.12);   color:#ef4444; border:1px solid rgba(239,68,68,.3); }
+.cert-badge-forced_collapse  { background:rgba(239,68,68,.20);   color:#ef4444; border:1px solid #ef4444; animation: cert-pulse 1.4s ease-in-out infinite; }
+@keyframes cert-pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* Certificate Review Queue table */
+.cert-queue-row { display:grid; grid-template-columns:140px 80px 80px 1fr 60px 80px auto; gap:6px; align-items:center; padding:8px 6px; border-bottom:1px solid var(--border-dim); font-size:11px; }
+.cert-queue-row:last-child { border-bottom: none; }
+.cert-queue-head { font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; font-family:var(--font-mono); background:rgba(15,23,42,.35); border-radius:4px; }
+.cert-risk-low      { color:#22c55e; font-weight:600; }
+.cert-risk-moderate { color:#f59e0b; font-weight:600; }
+.cert-risk-high     { color:#f97316; font-weight:600; }
+.cert-risk-critical { color:#ef4444; font-weight:600; }
+.cert-transition { font-family:var(--font-mono); font-size:10px; color:var(--text-muted); }
+.cert-action-group { display:flex; gap:4px; }

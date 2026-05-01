@@ -71,15 +71,9 @@ def ollama_invoke(req: InvokeRequest):
     All outputs are non_authoritative=True and require explicit confirmation.
     Models cannot write to canon directly.
     """
-    # Fix 1 — 503 guard at route level (belt-and-suspenders with core check)
-    if not ollama._is_enabled():
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Ollama integration is disabled. "
-                "Set BOH_OLLAMA_ENABLED=true to enable LLM features."
-            ),
-        )
+    # Phase 14: Validate task type first (always, regardless of enabled state)
+    if req.task_type not in ollama.TASK_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unknown task_type: {req.task_type!r}. Valid: {sorted(ollama.TASK_TYPES)}")
 
     # Fix 3 — content size gate at route level
     if len(req.content) > _MAX_CONTENT_CHARS:
@@ -101,9 +95,9 @@ def ollama_invoke(req: InvokeRequest):
         timeout=req.timeout,
     )
 
-    # Propagate 503 from core if enabled flag changed between checks
+    # Disabled: core returns structured response with invocation_id — pass through
     if result.get("disabled"):
-        raise HTTPException(status_code=503, detail=result["error"])
+        return result
 
     # Propagate rejected scope dirs
     if result.get("rejected_dirs") is not None:
@@ -168,3 +162,44 @@ def get_invocation(invocation_id: str):
             detail=f"Invocation {invocation_id} not found",
         )
     return inv
+
+
+# ── Ollama enable/disable toggle ──────────────────────────────────────────────
+from pydantic import BaseModel as _BM
+
+class OllamaToggleRequest(_BM):
+    enabled: bool
+
+
+@router.get("/ollama/enabled", summary="Get Ollama enabled state", tags=["ollama"])
+def get_ollama_enabled():
+    """Returns whether Ollama is enabled (UI-controlled toggle, DB-persisted)."""
+    from app.db import connection as _db
+    row = _db.fetchone("SELECT value FROM system_config WHERE key = 'ollama_enabled'")
+    env_enabled = ollama._is_enabled()
+    db_enabled  = (row["value"] == "true") if row else False
+    return {
+        "enabled": db_enabled or env_enabled,
+        "db_enabled": db_enabled,
+        "env_enabled": env_enabled,
+        "source": "env" if env_enabled else ("db" if db_enabled else "none"),
+    }
+
+
+@router.post("/ollama/enabled", summary="Enable or disable Ollama via UI toggle", tags=["ollama"])
+def set_ollama_enabled(req: OllamaToggleRequest):
+    """Toggle Ollama on/off from the UI. Persisted in system_config table.
+    Does not require editing environment variables or restarting the server.
+    """
+    import time as _time
+    from app.db import connection as _db
+    val = "true" if req.enabled else "false"
+    _db.execute(
+        "INSERT OR REPLACE INTO system_config (key, value, updated_ts) VALUES ('ollama_enabled', ?, ?)",
+        (val, int(_time.time())),
+    )
+    return {
+        "ok": True,
+        "enabled": req.enabled,
+        "message": f"Ollama {'enabled' if req.enabled else 'disabled'} (persisted in DB).",
+    }

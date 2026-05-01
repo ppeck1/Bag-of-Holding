@@ -145,3 +145,49 @@ def get_migration_summary():
         "lineage_records": lin_c["n"] if lin_c else 0,
         "schema_versions": [r["version"] for r in schema],
     }
+
+
+class DuplicateDecision(BaseModel):
+    doc_id: str
+    related_doc_id: str
+    decision: str
+    note: Optional[str] = ""
+
+
+@router.post("/duplicates/decision", summary="Record a duplicate review decision")
+def record_duplicate_decision(req: DuplicateDecision):
+    """Persist a duplicate disposition without deleting files.
+
+    Decisions are review metadata only. Bag of Holding never removes source files.
+    """
+    allowed = {"canonical", "duplicate", "ignored", "quarantine"}
+    if req.decision not in allowed:
+        raise HTTPException(status_code=400, detail=f"decision must be one of {sorted(allowed)}")
+    import time
+    conn = db.get_conn()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS duplicate_reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id TEXT NOT NULL,
+                related_doc_id TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                note TEXT DEFAULT '',
+                reviewer TEXT DEFAULT 'local_user',
+                reviewed_ts INTEGER NOT NULL
+            )
+        """)
+        ts = int(time.time())
+        conn.execute(
+            "INSERT INTO duplicate_reviews (doc_id, related_doc_id, decision, note, reviewed_ts) VALUES (?, ?, ?, ?, ?)",
+            (req.doc_id, req.related_doc_id, req.decision, req.note or '', ts),
+        )
+        if req.decision == "quarantine":
+            conn.execute(
+                "UPDATE docs SET canonical_layer='quarantine', authority_state='quarantined', review_state='duplicate_review' WHERE doc_id IN (?, ?)",
+                (req.doc_id, req.related_doc_id),
+            )
+        conn.commit()
+        return {"ok": True, "decision": req.decision, "reviewed_ts": ts, "deletes_files": False}
+    finally:
+        conn.close()

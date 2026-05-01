@@ -55,29 +55,65 @@ def _v4_placement_suggestion_from_meta(meta: dict) -> dict:
     return {"recommended_folder": folder, "reasoning": reasoning}
 
 
-def _resolve_doc_path(doc_path: str, library_root: str) -> tuple[str, Path] | tuple[None, None]:
-    """Deterministic fallback: try library_root/doc_path, then library_root/basename."""
-    root = Path(library_root)
-    p1 = root / doc_path
-    if p1.exists():
-        return doc_path, p1
+def _safe_join_library(library_root: str, rel_path: str) -> tuple[str, Path] | tuple[None, None]:
+    """Resolve a library-relative path without deleting separators.
 
-    base = Path(doc_path).name
-    p2 = root / base
-    if p2.exists():
-        return base, p2
+    Preserves nested paths while blocking absolute paths and traversal outside
+    the library root. Returns a normalized POSIX-style relative path and the
+    resolved absolute path.
+    """
+    root = Path(library_root).resolve()
+    rel = (rel_path or "").replace("\\", "/").lstrip("/")
+
+    # Block empty paths and Windows drive paths.
+    first_part = Path(rel).parts[0] if Path(rel).parts else ""
+    if not rel or ":" in first_part:
+        return None, None
+
+    target = (root / rel).resolve()
+    try:
+        normalized = target.relative_to(root).as_posix()
+    except ValueError:
+        return None, None
+    return normalized, target
+
+
+def _resolve_doc_path(doc_path: str, library_root: str) -> tuple[str, Path] | tuple[None, None]:
+    """Resolve a document path safely under library_root.
+
+    Primary behavior preserves directory separators. The basename fallback is
+    retained only for legacy artifacts that stored a flat filename.
+    """
+    resolved, p1 = _safe_join_library(library_root, doc_path)
+    if p1 and p1.exists() and p1.is_file():
+        return resolved, p1
+
+    base = Path((doc_path or "").replace("\\", "/")).name
+    resolved, p2 = _safe_join_library(library_root, base)
+    if p2 and p2.exists() and p2.is_file():
+        return resolved, p2
 
     return None, None
 
 
 def _artifact_path(doc_path: str, library_root: str) -> Path:
-    """Return the .review.json path for a given doc_path."""
-    return Path(library_root) / doc_path.replace(".md", ".review.json")
+    """Return the .review.json path for a given doc_path, safely under the library.
+
+    For markdown files, foo.md -> foo.review.json. For other text-like files,
+    foo.rst -> foo.review.json. This avoids overwriting the source file.
+    """
+    normalized, source = _safe_join_library(library_root, doc_path)
+    if source is None:
+        raise ValueError(f"Unsafe review artifact path: {doc_path}")
+    return source.with_suffix(".review.json")
 
 
 def review_artifact_exists(doc_path: str, library_root: str) -> bool:
     """Return True if a review artifact file already exists on disk."""
-    p = _artifact_path(doc_path, library_root)
+    try:
+        p = _artifact_path(doc_path, library_root)
+    except ValueError:
+        return False
     return p.exists()
 
 
@@ -85,7 +121,10 @@ def load_review_artifact(doc_path: str, library_root: str) -> dict | None:
     """Load and return an existing review artifact without regenerating.
     Returns None if no artifact exists.
     """
-    p = _artifact_path(doc_path, library_root)
+    try:
+        p = _artifact_path(doc_path, library_root)
+    except ValueError:
+        return None
     if not p.exists():
         return None
     try:
@@ -179,8 +218,10 @@ def generate_review_artifact(doc_path: str, library_root: str) -> dict:
     }, sort_keys=True)
     normalization_output_hash = hashlib.sha256(norm_input.encode()).hexdigest()
 
+    source_hash = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
     artifact = {
         "doc_path":   doc_path,
+        "source_path": doc_path,
         "doc_id":     doc_id,
         "doc_title":  doc_title,
         "doc_status": doc_status,
@@ -188,8 +229,16 @@ def generate_review_artifact(doc_path: str, library_root: str) -> dict:
 
         # LR1, LR2, LR3 — immutable fields
         "reviewer": "BOH_WORKER_v4",
+        "status": "review_artifact",
+        "canonical_layer": "review",
+        "authority_state": "non_authoritative",
+        "review_state": "pending",
         "non_authoritative": True,           # ALWAYS TRUE — corpus_migration_doctrine §7
         "requires_explicit_confirmation": True,  # ALWAYS TRUE
+        "may_overwrite_source": False,
+        "may_promote_canonical": False,
+        "source_hash": source_hash,
+        "lineage": {"relationship": "derived_from", "source_doc_id": doc_id, "source_path": doc_path},
 
         "extracted_topics": extracted_topics,
         "extracted_definitions": extracted_definitions,

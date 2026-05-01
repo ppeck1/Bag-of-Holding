@@ -3,20 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bag of Holding v2 — Phase 12</title>
-  <link rel="stylesheet" href="/style.css?v=12">
-  <link rel="stylesheet" href="/vendor/katex.min.css?v=12">
+  <title>Bag of Holding — Reasoning Workspace</title>
+  <link rel="stylesheet" href="/style.css?v=180">
+  <link rel="stylesheet" href="/vendor/katex.min.css?v=102">
 </head>
 <body>
+<!-- compatibility anchors: New / Import Atlas expandSelectedAtlasNode collapseAtlasToInitial setAtlasReaderWidth -->
+
 <div id="app">
 
   <!-- ── Top bar ──────────────────────────────────────────── -->
   <div id="topbar">
-    <div class="wordmark">📦 Bag of Holding <span>v2</span> <span style="font-size:9px;color:var(--text-faint);letter-spacing:.08em;margin-left:4px">Phase 12</span></div>
+    <div class="wordmark">📦 Bag of Holding <span>A trusted workspace for preserving your thinking.</span></div>
     <div id="conflict-badge" onclick="nav('canon-conflicts')">
       ⚠ <span id="conflict-badge-count">0</span> open conflict(s)
     </div>
     <div id="topbar-right">
+      <button id="ui-mode-toggle" class="mode-toggle" onclick="toggleUiMode()" title="Switch between Simple and Advanced display" aria-label="Toggle Simple or Advanced display mode">
+        <span class="mode-pill">
+          <span class="mode-simple-label">Simple</span>
+          <span class="mode-advanced-label">Advanced</span>
+        </span>
+      </button>
+      <div id="mode-indicator" style="font-size:10px;color:var(--text-faint);align-self:center;font-family:var(--font-mono)"></div>
       <span id="db-status">⬤ connecting…</span>
       <a href="/docs" target="_blank" style="font-size:11px;color:var(--text-faint)">API docs ↗</a>
     </div>
@@ -26,11 +35,17 @@
   <nav id="nav" role="navigation" aria-label="Main navigation">
     <div class="nav-section-label">Workbench</div>
 
-    <div class="nav-item active" data-panel="dashboard" onclick="nav('dashboard')" role="menuitem" tabindex="0" aria-label="Dashboard">
+    <div class="nav-item active" data-panel="integrity" onclick="nav('integrity')" role="menuitem" tabindex="0" aria-label="Authority Center">
+      <span class="icon">▣</span> Authority Center
+    </div>
+    <div class="nav-item" data-panel="dashboard" onclick="nav('dashboard')" role="menuitem" tabindex="0" aria-label="Dashboard">
       <span class="icon">◈</span> Dashboard
     </div>
     <div class="nav-item" data-panel="input" onclick="nav('input')" role="menuitem" tabindex="0" aria-label="New or Import">
-      <span class="icon">＋</span> New / Import
+      <span class="icon">＋</span> Inbox
+    </div>
+    <div class="nav-item simple-only" data-panel="import-ingest" onclick="nav('import-ingest')" role="menuitem" tabindex="0" aria-label="Import">
+      <span class="icon">⊕</span> Add Documents
     </div>
     <div class="nav-item" data-panel="library" onclick="nav('library')" role="menuitem" tabindex="0" aria-label="Library">
       <span class="icon">⊞</span> Library
@@ -39,24 +54,31 @@
       <span class="icon">⌕</span> Search
     </div>
     <div class="nav-item" data-panel="canon-conflicts" onclick="nav('canon-conflicts')" role="menuitem" tabindex="0" aria-label="Canon and Conflicts">
-      <span class="icon">⚖</span> Canon & Conflicts
+      <span class="icon">⚖</span> Conflicts
       <span class="badge hidden" id="nav-conflict-badge">0</span>
     </div>
-    <div class="nav-item" data-panel="import-ingest" onclick="nav('import-ingest')" role="menuitem" tabindex="0" aria-label="Import and Ingest">
-      <span class="icon">⊕</span> Import / Ingest
+    <div class="nav-item advanced-only" data-panel="duplicates" onclick="nav('duplicates')" role="menuitem" tabindex="0" aria-label="Duplicate Review">
+      <span class="icon">≋</span> Duplicates
+      <span class="badge hidden" id="nav-duplicate-badge">0</span>
     </div>
-    <div class="nav-item" data-panel="atlas" onclick="nav('atlas')" role="menuitem" tabindex="0" aria-label="Knowledge Atlas">
-      <span class="icon">◉</span> Atlas
+    <div class="nav-item advanced-only" data-panel="import-ingest" onclick="nav('import-ingest')" role="menuitem" tabindex="0" aria-label="Import and Ingest">
+      <span class="icon">⊕</span> Bulk Import
     </div>
-    <div class="nav-item" data-panel="governance" onclick="nav('governance')" role="menuitem" tabindex="0" aria-label="Governance">
-      <span class="icon">⊛</span> Governance
+    <div class="nav-item" data-panel="atlas" onclick="nav('atlas')" role="menuitem" tabindex="0" aria-label="Visualization">
+      <span class="icon">◉</span> Visualization
     </div>
-    <div class="nav-item" data-panel="llm-queue" onclick="nav('llm-queue')" role="menuitem" tabindex="0" aria-label="LLM Review Queue">
-      <span class="icon">◈</span> LLM Queue
+    <div class="nav-item" data-panel="governance" onclick="nav('governance')" role="menuitem" tabindex="0" aria-label="Review Center">
+      <span class="icon">⊛</span> Custodian Layer
+    </div>
+    <div class="nav-item" data-panel="llm-queue" onclick="nav('llm-queue')" role="menuitem" tabindex="0" aria-label="Proposed Changes">
+      <span class="icon">◈</span> Proposed Changes
       <span class="badge hidden" id="nav-llm-badge" style="background:var(--amber)">0</span>
     </div>
     <div class="nav-item" data-panel="status" onclick="nav('status')" role="menuitem" tabindex="0" aria-label="System Status">
       <span class="icon">⊙</span> Status
+    </div>
+    <div class="nav-item advanced-only" data-panel="planes" onclick="nav('planes')" role="menuitem" tabindex="0" aria-label="Domains">
+      <span class="icon">⊟</span> Domains
     </div>
 
     <div id="nav-footer">
@@ -67,24 +89,102 @@
 
   <!-- ── Main panel area ──────────────────────────────────── -->
   <main id="main" role="main">
+    <div class="simple-mode-hint">Simple view — showing essentials only. Switch to <a href="#" onclick="toggleUiMode();return false;" style="color:var(--blue)">Advanced</a> for full controls.</div>
+
+
+    <!-- ╔══ Primary Panel: Integrity ══╗ -->
+    <section class="panel active" id="panel-integrity" aria-label="Authority Center">
+      <div class="panel-header">
+        <div class="panel-title">Authority Center</div>
+        <div class="panel-subtitle">Trust state before content interaction</div>
+      </div>
+
+      <div class="stat-grid" id="integrity-stat-grid">
+        <div class="stat-card"><div class="label">Integrity State</div><div class="value" id="integrity-label">—</div><div class="sub" id="integrity-score">Loading…</div></div>
+        <div class="stat-card"><div class="label">Authority Violations</div><div class="value" id="integrity-authority-violations">—</div></div>
+        <div class="stat-card"><div class="label">Open Containments</div><div class="value" id="integrity-containments">—</div></div>
+        <div class="stat-card"><div class="label">Active Escalations</div><div class="value" id="integrity-escalations">—</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Highest Drift Risk <span class="count" id="integrity-risk-count"></span></div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>Node</th><th>Visual State</th><th>Drift Risk</th><th>Valid Until</th><th>Action</th></tr></thead>
+            <tbody id="integrity-risk-body"><tr><td colspan="5" class="text-faint" style="padding:12px">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Authority Violations <span class="count" id="integrity-authority-count"></span></div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>Target</th><th>Required Authority</th><th>Attempted By</th><th>Time</th></tr></thead>
+            <tbody id="integrity-authority-body"><tr><td colspan="4" class="text-faint" style="padding:12px">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Open Registry Items <span class="count" id="integrity-open-items-count"></span></div>
+        <div class="section-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>Item</th><th>Status</th><th>Required Resolver</th><th>Created</th></tr></thead>
+            <tbody id="integrity-open-items-body"><tr><td colspan="4" class="text-faint" style="padding:12px">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
 
     <!-- ╔══ Panel 1: Dashboard ══╗ -->
-    <section class="panel active" id="panel-dashboard" aria-label="Dashboard">
+    <section class="panel" id="panel-dashboard" aria-label="Dashboard">
       <div class="panel-header">
         <div class="panel-title">Dashboard</div>
-        <div class="panel-subtitle">Knowledge base health at a glance</div>
+        <div class="panel-subtitle">Your reasoning workspace at a glance</div>
+      </div>
+
+      <div id="onboarding-card" class="onboarding-card">
+        <div>
+          <strong>Bag of Holding helps you preserve reasoning, not just files.</strong>
+          <p>Drop messy notes, drafts, documents, or LLM outputs into the Inbox. Review suggested changes before they become saved versions. Use Visualization to see how ideas relate. Use Decision History to see what changed, when, and why.</p>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="dismissOnboarding()">Don’t show again</button>
+      </div>
+
+      <div class="lifecycle-ladder" aria-label="Document lifecycle">
+        <div><strong>Inbox</strong><span>Captured, not trusted</span></div>
+        <div><strong>Review</strong><span>Needs decision</span></div>
+        <div><strong>Stable</strong><span>Usable working truth</span></div>
+        <div><strong>Trusted Source</strong><span>Approved by authority chain</span></div>
+        <div><strong>Archive</strong><span>Superseded memory</span></div>
       </div>
 
       <div class="stat-grid" id="stat-grid">
         <div class="stat-card"><div class="label">Total Docs</div><div class="value" id="stat-total">—</div></div>
-        <div class="stat-card"><div class="label">Canonical</div><div class="value" id="stat-canonical" style="color:var(--green-bright)">—</div></div>
+        <div class="stat-card"><div class="label">Saved Versions</div><div class="value" id="stat-canonical" style="color:var(--green-bright)">—</div></div>
         <div class="stat-card"><div class="label">Draft / Working</div><div class="value" id="stat-draft">—</div></div>
         <div class="stat-card"><div class="label">Archived</div><div class="value" id="stat-archived" style="color:var(--text-faint)">—</div></div>
         <div class="stat-card" id="stat-conflict-card"><div class="label">Open Conflicts</div><div class="value" id="stat-conflicts">—</div></div>
         <div class="stat-card"><div class="label">Events</div><div class="value" id="stat-events">—</div></div>
-        <div class="stat-card"><div class="label">Planes Indexed</div><div class="value" id="stat-planes">—</div></div>
+        <div class="stat-card"><div class="label">Domains Indexed</div><div class="value" id="stat-planes">—</div></div>
         <div class="stat-card"><div class="label">Lineage Records</div><div class="value" id="stat-lineage">—</div><div class="sub">links between docs</div></div>
         <div class="stat-card"><div class="label">Duplicates Found</div><div class="value" id="stat-duplicates">—</div><div class="sub">content-identical</div></div>
+      </div>
+
+      <!-- Phase 18: Epistemic health grid with project filter (Phase 26.6) -->
+      <div class="section">
+        <div class="section-head" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          Confidence State
+          <span class="text-faint font-sm advanced-only" style="font-weight:400">ε epistemic health</span>
+          <select id="dash-project-filter" onchange="loadDashboard()"
+            style="margin-left:auto;font-size:11px;padding:2px 6px;border:1px solid var(--border-dim);border-radius:4px;background:var(--bg-card);color:var(--text-bright);max-width:160px">
+            <option value="">All projects</option>
+          </select>
+        </div>
+        <div class="stat-grid" id="stat-epistemic-grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">
+          <div class="stat-card"><div class="label">Loading…</div></div>
+        </div>
       </div>
 
       <div id="dash-conflict-alert" class="alert alert-red hidden">
@@ -101,7 +201,7 @@
         <div class="section-body">
           <div class="table-wrap">
             <table id="recent-table">
-              <thead><tr><th>Path</th><th>Status</th><th>Type</th><th>State</th></tr></thead>
+              <thead><tr><th>Title / Project</th><th>Status</th><th>Authority</th><th>Lifecycle</th></tr></thead>
               <tbody id="recent-body"><tr><td colspan="4" class="text-faint">Loading…</td></tr></tbody>
             </table>
           </div>
@@ -139,7 +239,8 @@
       <div class="section">
         <div class="section-head">⚡ Quick Actions</div>
         <div class="section-body flex gap-8" style="flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="nav('import-ingest')">⊕ Index Library</button>
+          <button class="btn btn-primary simple-only" onclick="nav('import-ingest')">⊕ Add Documents</button>
+          <button class="btn btn-primary advanced-only" onclick="nav('import-ingest')">⊕ Index Library</button>
           <button class="btn btn-ghost" onclick="nav('search')">⌕ Search Documents</button>
           <button class="btn btn-ghost" onclick="nav('canon-conflicts')">⚖ Review Conflicts</button>
           <a class="btn btn-ghost" href="/api/events/export.ics" target="_blank">📅 Export ICS</a>
@@ -157,12 +258,13 @@
       <div class="section">
         <div class="section-head">Filters</div>
         <div class="section-body">
-          <div class="form-row">
+          <div class="form-row" style="flex-wrap:wrap;gap:8px">
             <span class="form-label">Status</span>
             <select id="lib-status" onchange="loadLibrary()">
               <option value="">All</option>
               <option>draft</option><option>working</option>
               <option>canonical</option><option>archived</option>
+              <option>scratch</option><option>legacy</option><option>quarantine</option>
             </select>
             <span class="form-label">Type</span>
             <select id="lib-type" onchange="loadLibrary()">
@@ -176,6 +278,19 @@
               <option value="">All</option>
               <option>observe</option><option>vessel</option><option>constraint</option>
               <option>integrate</option><option>release</option>
+            </select>
+            <span class="form-label">Authority</span>
+            <select id="lib-authority" onchange="loadLibrary()">
+              <option value="">All</option>
+              <option value="non_authoritative">Non-authoritative</option>
+              <option value="quarantined">Quarantined</option>
+              <option value="suggested">Suggested</option>
+              <option value="approved">Approved</option>
+              <option value="canonical_locked">Canonical</option>
+            </select>
+            <span class="form-label">Project</span>
+            <select id="lib-project" onchange="loadLibrary()">
+              <option value="">All projects</option>
             </select>
             <button class="btn btn-ghost btn-sm" onclick="clearLibFilters()">Clear</button>
           </div>
@@ -195,7 +310,15 @@
         <div class="section-body" style="padding:0">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Title / Path</th><th>Status</th><th>Corpus</th><th>Type</th><th>State</th><th>Version</th><th></th></tr></thead>
+              <thead><tr>
+                <th>Title</th>
+                <th>Project</th>
+                <th>Authority</th>
+                <th>Status</th>
+                <th>Lifecycle</th>
+                <th>Requires Action</th>
+                <th></th>
+              </tr></thead>
               <tbody id="lib-body"><tr><td colspan="6" class="text-faint" style="padding:20px;text-align:center">Loading…</td></tr></tbody>
             </table>
           </div>
@@ -224,7 +347,7 @@
           </div>
 
           <!-- Daenary advanced filters (Phase 8) -->
-          <div class="accordion mt-8">
+          <div class="accordion mt-8 advanced-only">
             <div class="accordion-head" onclick="toggleAccordion(this)">
               Daenary semantic filters <span class="chevron">▶</span>
             </div>
@@ -260,7 +383,7 @@
             </div>
           </div>
 
-          <div class="accordion mt-8">
+          <div class="accordion mt-8 advanced-only">
             <div class="accordion-head" onclick="toggleAccordion(this)">
               Score formula reference <span class="chevron">▶</span>
             </div>
@@ -294,10 +417,10 @@
       </div>
     </section>
 
-    <!-- ╔══ Panel 4: Canon & Conflicts ══╗ -->
+    <!-- ╔══ Panel 4: Conflicts ══╗ -->
     <section class="panel" id="panel-canon-conflicts" aria-label="Canon and Conflicts">
       <div class="panel-header">
-        <div class="panel-title">Canon & Conflicts</div>
+        <div class="panel-title">Conflicts</div>
         <div class="panel-subtitle">Resolution, collision detection, and governance</div>
       </div>
 
@@ -369,94 +492,129 @@
       </div>
     </section>
 
-    <!-- ╔══ Panel 5: Import / Ingest ══╗ -->
+    <!-- ╔══ Panel 5: Bulk Import (unified) ══╗ -->
     <section class="panel" id="panel-import-ingest" aria-label="Import and Ingest">
       <div class="panel-header">
-        <div class="panel-title">Import / Ingest</div>
-        <div class="panel-subtitle">Index filesystem library or ingest snapshot exports</div>
+        <div class="panel-title">Bulk Import</div>
+        <div class="panel-subtitle">Add documents to your knowledge base</div>
       </div>
 
-      <!-- Filesystem index -->
-      <div class="section">
-        <div class="section-head">⊕ Index Filesystem Library</div>
-        <div class="section-body">
-          <div class="form-row" style="margin-bottom:12px">
-            <span class="form-label">Library root</span>
-            <input class="input" id="index-root" placeholder="./library" style="flex:1">
-            <button class="btn btn-primary" id="index-btn" onclick="doIndex()">Index Library</button>
+      <!-- Primary action: three big buttons -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+        <button class="btn btn-primary" style="font-size:14px;padding:12px 20px;flex:1;min-width:160px"
+          onclick="openFolderPicker()">
+          📂 Choose folder
+        </button>
+        <button class="btn btn-ghost" style="font-size:14px;padding:12px 20px;flex:1;min-width:160px"
+          onclick="doIndex()">
+          ↻ Re-index library
+        </button>
+        <label style="flex:1;min-width:160px">
+          <div class="btn btn-ghost" style="font-size:14px;padding:12px 20px;width:100%;box-sizing:border-box;cursor:pointer;text-align:center">
+            ⬆ Upload files
           </div>
-          <div id="index-result"></div>
+          <input id="upload-files" type="file" multiple
+            accept=".md,.txt,.markdown,.json,.html,.htm,.yaml,.yml,.rst,.csv"
+            style="display:none" onchange="uploadDocuments()">
+        </label>
+      </div>
+
+      <!-- Status lines for the above actions -->
+      <div id="folder-picker-status" class="status-line font-sm" style="margin-bottom:6px"></div>
+      <div id="index-result"         class="status-line font-sm" style="margin-bottom:6px"></div>
+      <div id="upload-status"        class="status-line font-sm" style="margin-bottom:16px"></div>
+
+      <!-- Secondary options (collapsed by default feel) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        <!-- Index server-side path -->
+        <div class="section">
+          <div class="section-head">Index a server-side path</div>
+          <div class="section-body">
+            <div class="flex gap-8">
+              <input class="input" id="index-source-path" placeholder="./library or /abs/path" style="flex:1">
+              <button class="btn btn-ghost" onclick="indexFolderFromInputPanel()">Index</button>
+            </div>
+            <div id="index-folder-status" class="status-line font-sm" style="margin-top:6px"></div>
+          </div>
+        </div>
+
+        <!-- Upload target folder -->
+        <div class="section">
+          <div class="section-head">Upload destination</div>
+          <div class="section-body">
+            <input class="input" id="upload-target-folder" placeholder="imports" style="width:100%">
+            <div class="text-faint font-sm" style="margin-top:4px">Subfolder inside library for uploaded files</div>
+          </div>
         </div>
       </div>
 
-      <!-- Snapshot ingest -->
-      <div class="section">
-        <div class="section-head">⊞ Ingest Snapshot Export</div>
-        <div class="section-body">
-          <div class="form-row" style="margin-bottom:12px">
-            <span class="form-label">JSON file path</span>
-            <input class="input" id="snap-path" placeholder="/path/to/boh_export_run.json" style="flex:1">
-            <button class="btn btn-ghost" id="snap-btn" onclick="doIngestSnapshot()">Ingest Snapshot</button>
+      <!-- Snapshot ingest (advanced) -->
+      <details class="advanced-only" style="margin-top:16px">
+        <summary class="text-faint font-sm" style="cursor:pointer;padding:6px 0">▶ Advanced: Snapshot ingest &amp; reports</summary>
+        <div style="padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="section">
+            <div class="section-head">Ingest Snapshot JSON</div>
+            <div class="section-body">
+              <div class="flex gap-8">
+                <input class="input" id="snap-path" placeholder="/path/to/export.json" style="flex:1">
+                <button class="btn btn-ghost" onclick="doIngestSnapshot()">Ingest</button>
+              </div>
+              <div class="alert alert-blue font-sm" style="margin-top:8px">
+                Canon guard active — cannot overwrite canonical docs.
+              </div>
+              <div id="snap-result" class="status-line font-sm" style="margin-top:6px"></div>
+            </div>
           </div>
-          <div class="alert alert-blue font-sm">
-            ◈ Canon guard active — snapshot cannot overwrite canonical documents.
-            Docs that would overwrite canon are skipped and reported.
+          <div class="section">
+            <div class="section-head">Corpus Migration Report</div>
+            <div class="section-body">
+              <div class="flex gap-8">
+                <input class="input" id="report-path" value="docs/migration_report.md" style="flex:1">
+                <button class="btn btn-ghost" onclick="doMigrationReport()">Generate</button>
+              </div>
+              <div id="report-result" class="status-line font-sm" style="margin-top:6px"></div>
+            </div>
           </div>
-          <div id="snap-result"></div>
         </div>
-      </div>
+      </details>
 
-      <!-- Migration report -->
-      <div class="section">
-        <div class="section-head">◈ Corpus Migration Report</div>
-        <div class="section-body">
-          <p class="text-muted font-sm" style="margin-bottom:10px">
-            Generates <code>docs/migration_report.md</code> — corpus class distribution,
-            conflict summary, lineage stats, and invariant verification.
-          </p>
-          <div class="form-row" style="margin-bottom:10px">
-            <input class="input" id="report-path" value="docs/migration_report.md" style="flex:1">
-            <button class="btn btn-ghost" id="report-btn" onclick="doMigrationReport()">Generate Report</button>
-          </div>
-          <div id="report-result"></div>
-        </div>
-      </div>
 
-      <!-- Export -->
-      <div class="section">
-        <div class="section-head">↓ Exports</div>
-        <div class="section-body flex gap-12" style="flex-wrap:wrap;align-items:center">
-          <a class="btn btn-ghost" href="/api/events/export.ics" target="_blank">📅 Download ICS Calendar</a>
-          <span class="text-faint font-sm">All events with explicit start + timezone</span>
-        </div>
-      </div>
     </section>
 
-  
-    <!-- ╔══ Panel 6: Atlas ══╗ -->
-    <section class="panel" id="panel-atlas" aria-label="Knowledge Atlas" style="padding:0;max-width:100%;height:calc(100vh - 48px)">
+    <!-- ╔══ Panel 6: Visualization ══╗ -->
+    <section class="panel" id="panel-atlas" aria-label="Visualization" style="padding:0;max-width:100%;height:calc(100vh - 48px)">
       <div id="atlas-layout" style="display:grid;grid-template-columns:1fr 420px;height:100%;overflow:hidden">
 
         <!-- Graph canvas -->
-        <div id="graph-pane" style="position:relative;background:var(--bg-void);overflow:hidden">
+        <div id="graph-pane" style="position:relative;background:var(--bg-void);overflow:hidden;height:100%;min-height:400px">
           <div id="graph-toolbar" style="position:absolute;top:12px;left:12px;z-index:10;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <div class="wordmark" style="font-size:11px;margin-right:4px">◉ 2D Atlas</div>
-
-            <!-- Zoom -->
-            <button class="btn btn-ghost btn-sm" onclick="zoomAtlas(1.2)" title="Zoom in">＋</button>
-            <button class="btn btn-ghost btn-sm" onclick="zoomAtlas(1/1.2)" title="Zoom out">－</button>
-            <button class="btn btn-ghost btn-sm" onclick="resetAtlasView()" title="Reset zoom and pan to default">⟳ Reset</button>
-            <button class="btn btn-ghost btn-sm" onclick="fitAtlasToScreen()" title="Fit all nodes to screen">⊡ Fit</button>
-            <button class="btn btn-ghost btn-sm" onclick="focusSelectedAtlasNode()" title="Center view on selected node">◎ Focus</button>
-
-            <!-- Graph controls -->
+            <div class="wordmark" style="font-size:11px;margin-right:4px">◉ Visualization</div>
+            <div class="viz-mode-tabs" role="tablist" aria-label="Visualization mode">
+              <button id="viz-mode-web" class="btn btn-ghost btn-sm viz-mode active" onclick="setVisualizationMode('web')">Web</button>
+              <button id="viz-mode-variable" class="btn btn-ghost btn-sm viz-mode" onclick="setVisualizationMode('variable')">Evidence State</button>
+              <button id="viz-mode-constraint" class="btn btn-ghost btn-sm viz-mode" onclick="setVisualizationMode('constraint')">Risk Map</button>
+              <button id="viz-mode-constitutional" class="btn btn-ghost btn-sm viz-mode" onclick="setVisualizationMode('constitutional')">Authority Path</button>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="zoomVisualization(1.2)" title="Zoom in">＋</button>
+            <button class="btn btn-ghost btn-sm" onclick="zoomVisualization(1/1.2)" title="Zoom out">－</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetVisualizationView()">⟳ Reset</button>
+            <button class="btn btn-ghost btn-sm" onclick="fitVisualizationToScreen()">⊡ Fit</button>
+            <button class="btn btn-ghost btn-sm" onclick="focusSelectedVisualizationNode()">◎ Focus</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearVisualizationSelection()">Clear selection</button>
             <span style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
-            <button class="btn btn-ghost btn-sm" onclick="expandSelectedAtlasNode()" title="Expand neighborhood of selected node (or shift-click node)">⊕ Expand</button>
             <button class="btn btn-ghost btn-sm" onclick="reloadGraph()">↻ Refresh</button>
 
             <!-- Filters -->
             <span style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
-            <select id="graph-filter-class" onchange="applyGraphFilter()" style="font-size:11px;padding:2px 6px">
+
+            <!-- Project filter (populated on load) -->
+            <select id="graph-filter-project" multiple size="1" onchange="applyGraphFilter()" style="font-size:11px;padding:2px 6px;min-width:132px" title="Project scope: Ctrl/Cmd-click for multi-project compare. Leave empty for all projects.">
+              <option value="" selected>All projects</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearProjectScope()" title="Clear project scope">Clear scope</button>
+
+            <select id="graph-filter-class" onchange="applyGraphFilter()" class="advanced-only" style="font-size:11px;padding:2px 6px">
               <option value="">All classes</option>
               <option value="CORPUS_CLASS:CANON">Canon</option>
               <option value="CORPUS_CLASS:DRAFT">Draft</option>
@@ -464,29 +622,67 @@
               <option value="CORPUS_CLASS:ARCHIVE">Archive</option>
               <option value="CORPUS_CLASS:EVIDENCE">Evidence</option>
             </select>
-            <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+
+            <select id="graph-filter-layer" onchange="applyGraphFilter()" class="advanced-only" style="font-size:11px;padding:2px 6px" title="Filter by canonical layer">
+              <option value="">All layers</option>
+              <option value="canonical">Canonical</option>
+              <option value="supporting">Supporting</option>
+              <option value="evidence">Evidence</option>
+              <option value="review">Review</option>
+              <option value="conflict">Conflict</option>
+              <option value="quarantine">Quarantine</option>
+              <option value="archive">Archive</option>
+            </select>
+
+            <select id="graph-filter-status" onchange="applyGraphFilter()" class="advanced-only" style="font-size:11px;padding:2px 6px" title="Filter by status">
+              <option value="">All statuses</option>
+              <option value="canonical">Canonical</option>
+              <option value="draft">Draft</option>
+              <option value="review_required">Review required</option>
+              <option value="review_artifact">Review artifact</option>
+              <option value="conflict">Conflict</option>
+              <option value="superseded">Superseded</option>
+              <option value="archived">Archived</option>
+              <option value="scratch">Scratch</option>
+              <option value="legacy">Legacy</option>
+            </select>
+
+
+            <!-- Lineage-only view toggle -->
+            <label class="advanced-only" style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px" title="Show only documents with lineage relationships">
+              <input type="checkbox" id="graph-lineage-only" onchange="applyGraphFilter()"> Lineage only
+            </label>
+            <label class="advanced-only" style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
               <input type="checkbox" id="graph-show-related" onchange="applyGraphFilter()" checked> Topic edges
             </label>
-            <label class="font-sm" style="display:flex;align-items:center;gap:4px;color:var(--text-faint)">
+            <label class="font-sm advanced-only" style="display:flex;align-items:center;gap:4px;color:var(--text-faint)">
               <input type="checkbox" id="graph-show-strand-labels" onchange="applyGraphFilter()"> Labels
             </label>
 
-            <!-- Performance controls -->
-            <span style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
-            <select id="atlas-perf-mode" onchange="setAtlasPerfMode(this.value)" style="font-size:11px;padding:2px 5px" title="Performance preset">
+            <!-- Performance controls (advanced only) -->
+            <span class="advanced-only" style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
+            <select id="atlas-perf-mode" onchange="setVisualizationPerfMode(this.value)" class="advanced-only" style="font-size:11px;padding:2px 5px">
               <option value="balanced" selected>Balanced</option>
               <option value="high">High Quality</option>
               <option value="static">Static</option>
             </select>
-            <label style="font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:3px" title="Animated ripple effect on node select">
-              <input type="checkbox" id="atlas-opt-ripples" onchange="setAtlasOption('animatedRipples', this.checked)"> Ripples
+            <label class="advanced-only" style="font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:3px">
+              <input type="checkbox" id="atlas-opt-ripples" onchange="setVisualizationOption('animatedRipples', this.checked)"> Ripples
             </label>
-            <label style="font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:3px" title="Glow rings on canon nodes">
-              <input type="checkbox" id="atlas-opt-glow" onchange="setAtlasOption('edgeGlow', this.checked)"> Glow
+            <label class="advanced-only" style="font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:3px">
+              <input type="checkbox" id="atlas-opt-glow" onchange="setVisualizationOption('edgeGlow', this.checked)"> Glow
             </label>
-          </div>
 
-          <!-- Performance warning (shown by auto-reduce) -->
+            <!-- Priority 3: Mode recovery — always visible, no dead ends -->
+            <span style="width:1px;height:16px;background:var(--border-dim);margin:0 2px"></span>
+            <button class="btn btn-ghost btn-sm" onclick="resetAtlasScope()" title="Reset all filters and return to full web view" style="font-size:10px">
+              ↺ Reset all
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="returnToWebView()" title="Return to standard web view" style="font-size:10px">
+              ⊕ Web view
+            </button>
+          </div>
+<!-- Performance warning (shown by auto-reduce) -->
           <div id="atlas-perf-warning" style="display:none;position:absolute;top:50px;right:12px;z-index:10;font-size:10px;color:var(--amber);background:rgba(18,27,38,0.85);padding:3px 8px;border-radius:3px;border:1px solid var(--amber)">
             ⚠ Effects reduced for performance
           </div>
@@ -496,19 +692,28 @@
             Scroll to zoom · Drag canvas to pan · Drag node to reposition · Shift+click to expand
           </div>
           <div id="graph-legend" style="position:absolute;bottom:12px;left:12px;z-index:10;font-size:10px;color:var(--text-faint)">
-            <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+              <strong style="color:var(--text-muted)">Nodes:</strong>
               <span><span style="color:#10b981">●</span> Canon</span>
               <span><span style="color:#6b7a96">●</span> Draft</span>
               <span><span style="color:#f59e0b">●</span> Derived</span>
               <span><span style="color:#3d4d63">●</span> Archive</span>
               <span><span style="color:#8b5cf6">●</span> Evidence</span>
-              <span style="margin-left:8px;border-left:1px solid var(--border-dim);padding-left:8px"><span style="color:#ef4444">⊙</span> Conflict</span>
+              <span style="margin-left:6px;border-left:1px solid var(--border-dim);padding-left:6px"><span style="color:#ef4444">⊙</span> Conflict</span>
               <span><span style="color:#f59e0b">⊙</span> Stale</span>
-              <span><span style="color:#60a5fa">•</span> Uncertain</span>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <strong style="color:var(--text-muted)">Edges:</strong>
+              <span><span style="color:#60a5fa">—</span> Lineage</span>
+              <span><span style="color:#14b8a6">- -</span> Supersedes</span>
+              <span><span style="color:#f59e0b">- -</span> Derives</span>
+              <span><span style="color:#ef4444">—</span> Conflict</span>
+              <span><span style="color:#6b7a96">···</span> Topic overlap</span>
             </div>
             <div id="graph-stats" style="margin-top:4px"></div>
           </div>
-          <canvas id="graph-canvas" style="display:block;width:100%;height:100%"></canvas>
+          <canvas id="graph-canvas" style="display:block;width:100%;height:100%;position:relative;z-index:1"></canvas>
+          <div id="viz-overlay" class="viz-overlay hidden"></div>
         </div>
 
         <!-- Reader pane -->
@@ -516,9 +721,11 @@
           <div id="reader-header" style="padding:8px 16px;border-bottom:1px solid var(--border-dim);flex-shrink:0">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
               <div style="font-size:10px;color:var(--text-faint);letter-spacing:.1em;text-transform:uppercase;flex:1">Document Reader</div>
-              <button class="btn btn-ghost btn-sm" onclick="setAtlasReaderWidth('hide')" title="Hide reader">Hide</button>
-              <button class="btn btn-ghost btn-sm" onclick="setAtlasReaderWidth('normal')" title="Normal width">Normal</button>
-              <button class="btn btn-ghost btn-sm" onclick="setAtlasReaderWidth('wide')" title="Wide reader">Wide</button>
+              <button class="btn btn-ghost btn-sm" onclick="setVisualizationReaderWidth('hide')" title="Hide reader">Hide</button>
+              <button class="btn btn-ghost btn-sm" onclick="setVisualizationReaderWidth('normal')" title="Normal width">Normal</button>
+              <button class="btn btn-ghost btn-sm" onclick="setVisualizationReaderWidth('wide')" title="Wide reader">Wide</button>
+              <button class="btn btn-ghost btn-sm" onclick="expandSelectedVisualizationNode()" title="Expand selected node neighborhood">Expand</button>
+              <button class="btn btn-ghost btn-sm" onclick="collapseVisualizationToInitial()" title="Reset to initial view">Collapse</button>
             </div>
             <div id="reader-title" style="font-size:13px;font-weight:700;color:var(--text-bright)">Select a node in the graph</div>
             <div id="reader-meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
@@ -548,25 +755,54 @@
         </div>
       </div>
     </section>
-    <!-- ╔══ Panel: New / Import ══╗ -->
+    <!-- ╔══ Panel: Duplicate Review ══╗ -->
+    <section class="panel" id="panel-duplicates" aria-label="Duplicate Review">
+      <div class="panel-header">
+        <div class="panel-title">Duplicate Review</div>
+        <div class="panel-subtitle">The system detects likely duplicates. You decide what to preserve, ignore, quarantine, or remove manually.</div>
+      </div>
+      <div class="alert alert-blue font-sm" style="margin-bottom:12px">Files are never deleted here. Use Copy Path or Open Location, then remove files manually outside Bag of Holding.</div>
+      <div class="section">
+        <div class="section-head">Duplicate Candidates <span class="count" id="duplicate-count"></span></div>
+        <div class="section-body" id="duplicate-review-body"><div class="text-faint font-sm">Loading duplicate candidates…</div></div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel: Inbox ══╗ -->
     <section class="panel" id="panel-input" aria-label="New or Import">
       <div class="panel-header">
-        <div class="panel-title">New / Import</div>
-        <div class="panel-subtitle">Create notes, paste text, upload files, or index an existing folder.</div>
+        <div class="panel-title">Inbox</div>
+        <div class="panel-subtitle">Capture notes, drafts, documents, and LLM outputs before deciding what should become a saved version.</div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Start here</div>
+        <div class="section-body flex gap-8" style="flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" onclick="runCleanTestWorkspace()" title="One-click: Reset DB → Seed fixtures → Reindex → Verify — clean slate for testing">
+            ⊕ Clean Test Workspace
+          </button>
+          <button class="btn btn-ghost" onclick="loadDemoProject()">Load Demo Project</button>
+          <button class="btn btn-ghost" onclick="loadDaenaryDemoSeed()" title="Load 25 documents with real Daenary epistemic states">⊛ Daenary Demo</button>
+          <button class="btn btn-ghost" onclick="seedVerificationFixtures()" title="Seed verification fixtures">⊕ Seed Fixtures</button>
+          <button class="btn btn-ghost" onclick="showResetWorkspaceModal()" title="Reset workspace state">⟳ Reset</button>
+          <button class="btn btn-ghost" onclick="nav('status'); loadVerificationDashboard()">📋 Verify</button>
+          <span class="text-faint font-sm">Clean Test Workspace = reset + seed + reindex in one step. Verify = show pass/fail for every workflow step.</span>
+          <span id="demo-project-status" class="status-line font-sm"></span>
+        </div>
       </div>
 
       <div class="input-grid">
         <section class="card input-card">
-          <div class="section-head">Create Markdown note</div>
+          <div class="section-head">Create inbox note</div>
           <div class="section-body">
             <label>Title</label>
             <input class="input" id="new-doc-title" type="text" placeholder="Untitled note" style="width:100%">
-            <label>Topics <span class="text-faint">(comma-separated)</span></label>
+            <label style="margin-top:8px">Topics <span class="text-faint">(comma-separated)</span></label>
             <input class="input" id="new-doc-topics" type="text" placeholder="topic-a, topic-b" style="width:100%">
-            <label>Body <span class="text-faint">(Markdown, $math$, $$block math$$)</span></label>
+            <label style="margin-top:8px">Body <span class="text-faint">(Markdown, $math$, $$block math$$)</span></label>
             <textarea class="input" id="new-doc-body" rows="14" placeholder="Write or paste Markdown here…" style="width:100%;font-family:var(--font-mono);font-size:12px;resize:vertical"></textarea>
-            <div class="row-actions">
-              <button class="btn btn-primary" onclick="createMarkdownDoc()">Save note</button>
+            <div class="row-actions" style="margin-top:10px">
+              <button class="btn btn-primary" onclick="createMarkdownDoc()">Save to Inbox</button>
               <button class="btn btn-ghost" onclick="previewNewDoc()">Preview</button>
             </div>
             <div id="new-doc-status" class="status-line"></div>
@@ -574,30 +810,26 @@
         </section>
 
         <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- Quick upload -->
           <section class="card input-card">
-            <div class="section-head">Upload files</div>
+            <div class="section-head">Add files to Inbox</div>
             <div class="section-body">
-              <div class="text-faint font-sm" style="margin-bottom:8px">Upload .md, .txt, .json, .csv, .html, .yaml into the managed library.</div>
-              <input id="upload-files" type="file" multiple accept=".md,.txt,.markdown,.rst,.csv,.json,.html,.htm,.yaml,.yml" style="margin-bottom:8px;width:100%">
-              <label>Target folder <span class="text-faint">(inside library)</span></label>
-              <input class="input" id="upload-target-folder" type="text" placeholder="imports" style="width:100%">
-              <button class="btn btn-ghost" onclick="uploadDocuments()" style="margin-top:10px">Upload and index</button>
-              <div id="upload-status" class="status-line"></div>
+              <div class="text-faint font-sm" style="margin-bottom:10px">Supported: .md .html .json .txt .yaml .csv</div>
+              <label class="btn btn-ghost" style="display:inline-block;cursor:pointer;margin-bottom:8px">
+                ⬆ Choose files…
+                <input id="upload-files-new" type="file" multiple
+                  accept=".md,.txt,.markdown,.json,.html,.htm,.yaml,.yml,.rst,.csv"
+                  style="display:none" onchange="uploadDocumentsFromInput(this)">
+              </label>
+              <div class="text-faint font-sm" style="margin-bottom:6px">— or —</div>
+              <button class="btn btn-primary" onclick="openFolderPicker()">📂 Choose folder…</button>
+              <div id="upload-status-new" class="status-line font-sm" style="margin-top:8px"></div>
             </div>
           </section>
 
-          <section class="card input-card">
-            <div class="section-head">Index existing folder</div>
-            <div class="section-body">
-              <div class="text-faint font-sm" style="margin-bottom:8px">Index a local folder path without copying files.</div>
-              <input class="input" id="index-source-path" type="text" placeholder="/path/to/folder" style="width:100%">
-              <button class="btn btn-ghost" onclick="indexFolderFromInputPanel()" style="margin-top:10px">Index folder</button>
-              <div id="index-folder-status" class="status-line"></div>
-            </div>
-          </section>
-
+          <!-- Recent Inbox Items -->
           <section class="card">
-            <div class="section-head">Recent intake</div>
+            <div class="section-head">Recent Inbox Items</div>
             <div class="section-body">
               <div id="recent-input-list" class="text-faint font-sm">
                 <button class="btn btn-ghost btn-sm" onclick="loadRecentInput()">↻ Load recent</button>
@@ -615,21 +847,202 @@
       </div>
     </section>
 
-    <!-- ╔══ Panel: Governance ══╗ -->
-    <section class="panel" id="panel-governance" aria-label="Governance">
+    <!-- ╔══ Panel: Review Center ══╗ -->
+    <section class="panel" id="panel-governance" aria-label="Review Center">
       <div class="panel-header">
-        <div class="panel-title">Governance</div>
-        <div class="panel-subtitle">Workspace policies · Audit log · Ollama · Execution</div>
+        <div class="panel-title">Custodian Layer</div>
+        <div class="panel-subtitle">Epistemic custody — evaluate mutations, enforce state contracts, route ambiguity and contradiction.</div>
       </div>
 
-      <!-- Ollama status -->
+      <!-- Phase 15: Approval Workflow ─────────────────────────────────────── -->
       <div class="section">
+        <div class="section-head" style="display:flex;align-items:center;gap:8px">
+          ◈ Review Workflow
+          <span id="pending-approvals-badge" class="badge hidden" style="background:var(--amber);color:#000;padding:1px 7px;border-radius:10px;font-size:10px">0</span>
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="loadApprovalQueue()">↻ Refresh</button>
+        </div>
+        <div class="section-body">
+          <div class="text-faint font-sm" style="margin-bottom:12px;line-height:1.6">
+            Every canonical mutation requires epistemic justification: d/m/q/c state, evidence refs, and cost assessment.<br>
+            Nothing becomes a Trusted Source without a custodian review record. Contradiction routes to <strong>Contradiction Blocked</strong>. Ambiguity routes to <strong>Held for Resolution</strong>.
+          </div>
+
+          <div class="governance-tabs">
+            <button class="btn btn-ghost btn-sm" onclick="loadApprovalQueue()">Resolution Center</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadResolutionLedger()">Decision History</button>
+          </div>
+
+          <!-- Pending approvals / constitutional ledger -->
+          <div id="approval-queue-list">
+            <div class="text-faint font-sm"><span class="spinner"></span> Loading…</div>
+          </div>
+
+          <!-- Request canonical promotion certificate -->
+          <details style="margin-top:16px">
+            <summary class="text-faint font-sm" style="cursor:pointer;padding:6px 0">▶ Request Canonical Promotion Certificate</summary>
+            <div class="alert alert-blue font-sm" style="margin:8px 0">
+              This creates a pending certificate only. It does not mutate canonical state. Approved certificates must be applied through the certificate flow.
+            </div>
+            <div style="padding:12px 0;display:grid;gap:8px">
+              <input class="input" id="apr-doc-id" placeholder="Node / document ID" style="width:100%">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <select class="input" id="apr-from-d">
+                  <option value="">from d: unset</option>
+                  <option value="0">from d: 0 contain/cancel</option>
+                  <option value="1">from d: +1 affirm</option>
+                  <option value="-1">from d: -1 negate</option>
+                </select>
+                <select class="input" id="apr-to-d">
+                  <option value="1">to d: +1 verification</option>
+                  <option value="0">to d: 0 contain</option>
+                  <option value="-1">to d: -1 negate</option>
+                </select>
+              </div>
+              <input class="input" id="apr-reason" placeholder="Reason (required)" style="width:100%">
+              <input class="input" id="apr-evidence" placeholder="Evidence refs, comma-separated (required)" style="width:100%">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                <input class="input" id="apr-q" type="number" step="0.01" min="0" max="1" placeholder="q e.g. 0.86">
+                <input class="input" id="apr-c" type="number" step="0.01" min="0" max="1" placeholder="c e.g. 0.78">
+                <select class="input" id="apr-authority-plane">
+                  <option value="verification">authority: verification</option>
+                  <option value="governance">authority: governance</option>
+                  <option value="evidence">authority: evidence</option>
+                  <option value="narrative">authority: narrative</option>
+                  <option value="operational">authority: operational</option>
+                  <option value="constitutional">authority: constitutional</option>
+                </select>
+              </div>
+              <input class="input" id="apr-cost" placeholder="Cost of wrong / risk class statement" style="width:100%">
+              <input class="input" id="apr-context" placeholder="Context ref" style="width:100%">
+              <input class="input" id="apr-valid-until" placeholder="Valid until ISO timestamp, e.g. 2026-05-01T00:00:00Z" style="width:100%">
+              <button class="btn btn-ghost" onclick="requestPromotion()">Request Certificate</button>
+              <div id="apr-result" class="status-line font-sm"></div>
+            </div>
+          </details>
+
+          <!-- Request supersede -->
+          <details style="margin-top:8px">
+            <summary class="text-faint font-sm" style="cursor:pointer;padding:6px 0">▶ Request saved-version replacement</summary>
+            <div style="padding:12px 0;display:grid;gap:8px">
+              <input class="input" id="sup-current-id"    placeholder="Current canonical doc ID" style="width:100%">
+              <input class="input" id="sup-replacement-id" placeholder="Replacement doc ID" style="width:100%">
+              <input class="input" id="sup-reason"        placeholder="Reason (required)" style="width:100%">
+              <input class="input" id="sup-requester"     placeholder="Requested by" style="width:100%">
+              <button class="btn btn-ghost" onclick="requestSupersede()">Preview impact &amp; submit</button>
+              <div id="sup-result" class="status-line font-sm"></div>
+            </div>
+          </details>
+
+          <!-- Request review patch -->
+          <details style="margin-top:8px">
+            <summary class="text-faint font-sm" style="cursor:pointer;padding:6px 0">▶ Submit suggested change</summary>
+            <div style="padding:12px 0;display:grid;gap:8px">
+              <input class="input" id="patch-doc-id" placeholder="Source document ID" style="width:100%">
+              <input class="input" id="patch-review-artifact" placeholder="Review artifact / LLM output reference" style="width:100%">
+              <input class="input" id="patch-llm-source" placeholder="LLM source disclosure (model/provider)" style="width:100%">
+              <input class="input" id="patch-reason" placeholder="Reason for proposed change" style="width:100%">
+              <input class="input" id="patch-requester" placeholder="Requested by" style="width:100%">
+              <textarea class="input" id="patch-original" rows="5" placeholder="Original canonical text" style="font-family:var(--font-mono);font-size:11px"></textarea>
+              <textarea class="input" id="patch-proposed" rows="5" placeholder="Proposed review artifact text" style="font-family:var(--font-mono);font-size:11px"></textarea>
+              <button class="btn btn-ghost" onclick="requestReviewPatch()">Submit suggested change</button>
+              <div id="patch-result" class="status-line font-sm"></div>
+            </div>
+          </details>
+
+          <!-- Request edge promotion -->
+          <details style="margin-top:8px">
+            <summary class="text-faint font-sm" style="cursor:pointer;padding:6px 0">▶ Accept suggested connection</summary>
+            <div style="padding:12px 0;display:grid;gap:8px">
+              <div id="pending-edge-list" class="text-faint font-sm">
+                <button class="btn btn-ghost btn-sm" onclick="loadPendingEdges()">↻ Load pending edge requests</button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- Phase 20: Certificate Review Queue -->
+      <div class="section">
+        <div class="section-head" style="display:flex;align-items:center;gap:8px">
+          ⊛ Certificate Resolution Center
+          <span id="cert-pending-badge" class="badge hidden" style="background:var(--amber);color:#000;padding:1px 7px;border-radius:10px;font-size:10px">0</span>
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="loadCertQueue()">↻ Refresh</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="text-faint font-sm" style="padding:8px 12px;line-height:1.6;border-bottom:1px solid var(--border-dim)">
+            All d-state transitions require a human-issued certificate.<br>
+            <strong>d=0 → ±1</strong> is a forced collapse without one.
+            Approve or reject each request explicitly. No automation.
+          </div>
+          <!-- Queue header -->
+          <div class="cert-queue-row cert-queue-head">
+            <div>Node</div><div>Transition</div><div>Risk</div>
+            <div>Reason</div><div>q/c</div><div>Expires</div><div>Actions</div>
+          </div>
+          <div id="cert-queue-body">
+            <div class="text-faint font-sm" style="padding:16px;text-align:center">
+              Click ↻ to load pending certificates
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 20: Request Certificate form -->
+      <div class="section">
+        <div class="section-head">⊕ Request Transition Certificate</div>
+        <div class="section-body">
+          <div class="alert alert-blue font-sm" style="margin-bottom:10px">
+            d=0 → ±1 requires a certificate. Only human-issued certificates are accepted.
+            LLM, projection, and automated issuers are rejected.
+          </div>
+          <div style="display:grid;gap:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <input class="input" id="cert-node-id" placeholder="Node / doc_id" style="font-size:11px">
+              <div style="display:flex;gap:6px;align-items:center">
+                <span class="form-label">from d</span>
+                <select class="input" id="cert-from-d" style="font-size:11px">
+                  <option value="">—</option><option value="0">0 (contain)</option>
+                  <option value="1">+1</option><option value="-1">-1</option>
+                </select>
+                <span class="form-label">→</span>
+                <select class="input" id="cert-to-d" style="font-size:11px">
+                  <option value="1">+1 (affirm)</option>
+                  <option value="-1">-1 (negate)</option>
+                  <option value="0">0 (revert)</option>
+                </select>
+              </div>
+            </div>
+            <input class="input" id="cert-reason" placeholder="Reason (required — describe the evidence basis)" style="font-size:11px">
+            <input class="input" id="cert-evidence" placeholder="Evidence refs (comma-separated: source_1, source_2)" style="font-size:11px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+              <input class="input" id="cert-q" type="number" step="0.01" min="0" max="1" placeholder="q (quality 0–1)" style="font-size:11px">
+              <input class="input" id="cert-c" type="number" step="0.01" min="0" max="1" placeholder="c (confidence 0–1)" style="font-size:11px">
+              <input class="input" id="cert-valid-until" type="date" style="font-size:11px">
+            </div>
+            <input class="input" id="cert-cost" placeholder="Cost if wrong (optional)" style="font-size:11px">
+            <button class="btn btn-ghost" onclick="submitCertRequest()">Submit Certificate Request</button>
+            <div id="cert-request-result" class="status-line font-sm"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ollama status (advanced) -->
+      <div class="section advanced-only">
         <div class="section-head">
           ◈ Local Model (Ollama)
           <span id="ollama-status-badge" class="text-faint font-sm" style="margin-left:8px">—</span>
           <button class="btn btn-ghost btn-sm ml-auto" onclick="checkOllama()">↻ Check</button>
         </div>
         <div class="section-body">
+          <!-- Phase 13: UI enable/disable toggle (no env var needed) -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px;background:var(--bg-card);border-radius:5px;border:1px solid var(--border-dim)">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+              <input type="checkbox" id="ollama-ui-toggle" onchange="setOllamaEnabled(this.checked)" style="width:16px;height:16px;cursor:pointer">
+              <span class="text-bright">Enable Ollama LLM integration</span>
+            </label>
+            <span class="text-faint font-sm">(persisted — no restart needed)</span>
+            <div id="ollama-toggle-result" style="margin-left:auto;font-size:11px"></div>
+          </div>
           <div id="ollama-models-list" class="text-faint font-sm">Click ↻ to check availability</div>
           <div class="mt-8">
             <div class="form-label" style="margin-bottom:6px">Run a task-scoped invocation</div>
@@ -657,8 +1070,8 @@
         </div>
       </div>
 
-      <!-- Workspace policies -->
-      <div class="section">
+      <!-- Workspace policies (advanced) -->
+      <div class="section advanced-only">
         <div class="section-head">
           ⊞ Workspace Policies
           <button class="btn btn-ghost btn-sm ml-auto" onclick="loadPolicies()">↻ Refresh</button>
@@ -695,8 +1108,8 @@
         </div>
       </div>
 
-      <!-- Audit log -->
-      <div class="section">
+      <!-- Audit log (advanced) -->
+      <div class="section advanced-only">
         <div class="section-head">
           ◈ Audit Log
           <button class="btn btn-ghost btn-sm ml-auto" onclick="loadAuditLog()">↻ Load</button>
@@ -711,8 +1124,8 @@
         </div>
       </div>
 
-      <!-- Execution runs -->
-      <div class="section">
+      <!-- Execution runs (advanced) -->
+      <div class="section advanced-only">
         <div class="section-head">
           ⊕ Recent Execution Runs
           <input class="input" id="exec-doc-filter" placeholder="Filter by doc_id…" style="width:200px;margin-left:8px">
@@ -730,15 +1143,15 @@
 
     </section>
 
-    <!-- ╔══ Panel: LLM Review Queue ══╗ -->
-    <section class="panel" id="panel-llm-queue" aria-label="LLM Review Queue">
+    <!-- ╔══ Panel: Proposed Changes ══╗ -->
+    <section class="panel" id="panel-llm-queue" aria-label="Proposed Changes">
       <div class="panel-header">
-        <div class="panel-title">LLM Review Queue</div>
+        <div class="panel-title">Proposed Changes</div>
         <div class="panel-subtitle">Proposals from Ollama awaiting user review — nothing applies automatically</div>
       </div>
 
       <div class="alert alert-amber font-sm" style="margin-bottom:12px">
-        ⚠ All items below are <strong>non-authoritative LLM proposals</strong>. Nothing is applied to your corpus until you explicitly approve it. Canonical status can never be granted from this queue.
+        ⚠ All items below are <strong>non-authoritative LLM proposals</strong>. Nothing is applied to your corpus until you explicitly approve it. Trusted Source status can never be granted from this queue.
       </div>
 
       <div class="section">
@@ -774,34 +1187,89 @@
         <div class="stat-card"><div class="label">Indexed Docs</div><div class="value" id="st-docs">—</div></div>
         <div class="stat-card"><div class="label">Graph Edges</div><div class="value" id="st-edges">—</div></div>
         <div class="stat-card"><div class="label">Ollama</div><div class="value" id="st-ollama">—</div></div>
-        <div class="stat-card"><div class="label">LLM Queue</div><div class="value" id="st-queue">—</div></div>
+        <div class="stat-card"><div class="label">Proposed Changes</div><div class="value" id="st-queue">—</div></div>
         <div class="stat-card"><div class="label">Index Errors</div><div class="value" id="st-errors">—</div></div>
+        <div class="stat-card"><div class="label">Plane Cards</div><div class="value" id="st-plane-cards">—</div></div>
       </div>
 
       <div class="section">
-        <div class="section-head">Library &amp; Auto-Index</div>
+        <div class="section-head">Workspace Health</div>
+        <div class="section-body">
+          <div id="st-workspace-health" class="font-sm" style="margin-bottom:10px;padding:8px;background:var(--bg-card);border-radius:4px;border:1px solid var(--border-dim)">
+            <span class="text-faint"><span class="spinner"></span> Loading…</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="loadWorkspaceHealth()">↻ Check health</button>
+            <button class="btn btn-ghost btn-sm" onclick="seedVerificationFixtures()">⊕ Seed fixtures</button>
+            <button class="btn btn-ghost btn-sm" onclick="showResetWorkspaceModal()">⟳ Reset state</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Library &amp; Reindex</div>
         <div class="section-body">
           <div class="kv-grid" id="st-library-kv" style="margin-bottom:12px"></div>
           <div class="flex gap-8" style="flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" onclick="triggerAutoIndex(true)">△ Index changed only</button>
             <button class="btn btn-ghost btn-sm" onclick="triggerAutoIndex(false)">↻ Full re-index</button>
             <button class="btn btn-ghost btn-sm" onclick="loadStatus()">↻ Refresh status</button>
+            <button class="btn btn-ghost btn-sm" onclick="downloadIndexReport()">⬇ Export report</button>
           </div>
-          <div id="st-index-result" class="font-sm" style="margin-top:10px;color:var(--text-faint)"></div>
+          <div id="st-index-result" class="font-sm" style="margin-top:10px"></div>
         </div>
       </div>
 
+      <!-- Phase 26.4: AI Analysis Health -->
       <div class="section">
+        <div class="section-head">AI Analysis Health</div>
+        <div class="section-body">
+          <div class="text-faint font-sm" style="margin-bottom:8px">
+            AI Analysis is <strong>deterministic</strong> — no Ollama required. Tests if the analysis pipeline can read, normalize, and extract topics from a document.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="checkAnalysisHealth()">▶ Run health check</button>
+          </div>
+          <div id="st-analysis-health" class="font-sm" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <!-- Phase 26.4: Workspace Activity Log -->
+      <div class="section">
+        <div class="section-head">
+          Workspace Activity Log
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="loadActivityLog()">↻ Refresh</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="text-faint font-sm" style="padding:8px 12px;border-bottom:1px solid var(--border-dim)">
+            Every import, reset, index run, AI analysis, authority check, and governance action — permanent record.
+          </div>
+          <div id="st-activity-log" style="max-height:320px;overflow-y:auto">
+            <div class="text-faint font-sm" style="padding:12px">Click Refresh to load activity.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section advanced-only">
         <div class="section-head">Ollama / LLM</div>
         <div class="section-body">
+          <!-- Inline enable toggle — same as Review Center panel -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px;background:var(--bg-card);border-radius:5px;border:1px solid var(--border-dim)">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+              <input type="checkbox" id="status-ollama-toggle" onchange="setOllamaEnabled(this.checked); loadStatus()" style="width:16px;height:16px;cursor:pointer">
+              <span class="text-bright">Enable Ollama LLM integration</span>
+            </label>
+            <span class="text-faint font-sm">(persisted — no restart needed)</span>
+          </div>
           <div class="kv-grid" id="st-ollama-kv"></div>
           <div class="font-sm" style="margin-top:8px;color:var(--text-faint)">
-            Set <code>BOH_OLLAMA_ENABLED=true</code> and <code>BOH_OLLAMA_URL</code> to enable LLM features.
+            Default model: <code id="st-ollama-model">—</code> · URL: <code>http://localhost:11434</code><br>
+            Override via <code>BOH_OLLAMA_URL</code> or <code>BOH_OLLAMA_MODEL</code> env vars.
           </div>
         </div>
       </div>
 
-      <div class="section">
+      <div class="section advanced-only">
         <div class="section-head">Mutation Safety Rules</div>
         <div class="section-body font-sm" style="color:var(--text-muted);line-height:1.7">
           <div>✓ Imported files are <strong>draft/reference</strong> by default — never auto-canonical.</div>
@@ -810,6 +1278,101 @@
           <div>✓ Every lifecycle change is recorded in the lifecycle history log.</div>
           <div>✓ Backward movement and undo are available in the document drawer.</div>
           <div>✓ All mutations are appended to the audit log — never silently erased.</div>
+        </div>
+      </div>
+
+      <!-- Phase 26.6: Verification Dashboard -->
+      <div class="section">
+        <div class="section-head" style="display:flex;align-items:center;gap:8px">
+          Verification Dashboard
+          <button class="btn btn-ghost btn-sm" onclick="loadVerificationDashboard()" style="margin-left:auto">↻ Run checks</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div class="text-faint font-sm" style="padding:8px 12px;border-bottom:1px solid var(--border-dim)">
+            End-to-end workflow verification: reset → seed → import → index → AI analysis → lineage → activity log.
+          </div>
+          <div id="st-verification-dashboard">
+            <div class="text-faint font-sm" style="padding:12px">Click "Run checks" to verify the full workflow.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 26.6: Import Report Viewer -->
+      <div class="section">
+        <div class="section-head" style="display:flex;align-items:center;gap:8px">
+          Import Report
+          <button class="btn btn-ghost btn-sm" onclick="loadImportReport()" style="margin-left:auto">↻ Load report</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div id="st-import-report">
+            <div class="text-faint font-sm" style="padding:12px">Shows per-file parse/skip/fail after reindex. Click Load report.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══ Panel: Domains ══╗ -->
+    <section class="panel" id="panel-planes" aria-label="Domain Cards">
+      <div class="panel-header">
+        <div class="panel-title">Domains</div>
+        <div class="panel-subtitle">Domain Card storage — the canonical memory unit for each governed document.</div>
+      </div>
+
+      <div class="alert alert-blue font-sm" style="margin-bottom:12px">
+        Phase 19: Each indexed document is wrapped as a <strong>PlaneCard</strong> — the PCDS storage primitive.
+        A card carries: <code>plane</code>, <code>card_type</code>, <code>topic</code>, <code>b/d/m</code>, <code>constraints</code>, <code>validity</code>, <code>context_ref</code>, <code>payload</code>.
+      </div>
+
+      <div class="stat-grid" id="planes-stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px">
+        <div class="stat-card"><div class="label">Loading…</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head" style="display:flex;align-items:center;gap:8px">
+          PlaneCards
+          <span class="count" id="planes-card-count"></span>
+          <button class="btn btn-ghost btn-sm ml-auto" onclick="loadPlanes()">↻ Refresh</button>
+          <button class="btn btn-ghost btn-sm" onclick="backfillPlaneCards()">⊕ Backfill all</button>
+        </div>
+        <div class="section-body" style="padding:0">
+          <div style="padding:8px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border-dim)">
+            <select id="planes-filter-plane" onchange="loadPlanCards()" style="font-size:11px;padding:2px 6px">
+              <option value="">All planes</option>
+              <option>Canonical</option><option>Internal</option><option>Evidence</option>
+              <option>Review</option><option>Conflict</option><option>Archive</option>
+            </select>
+            <select id="planes-filter-type" onchange="loadPlanCards()" style="font-size:11px;padding:2px 6px">
+              <option value="">All types</option>
+              <option>claim</option><option>observation</option><option>evidence</option>
+              <option>review</option><option>reference</option><option>import</option>
+            </select>
+            <select id="planes-filter-d" onchange="loadPlanCards()" style="font-size:11px;padding:2px 6px">
+              <option value="">Any d</option>
+              <option value="1">d=+1 affirmed</option>
+              <option value="0">d=0 unresolved</option>
+              <option value="-1">d=-1 negated</option>
+            </select>
+            <select id="planes-filter-m" onchange="loadPlanCards()" style="font-size:11px;padding:2px 6px">
+              <option value="">Any m</option>
+              <option value="contain">contain</option>
+              <option value="cancel">cancel</option>
+            </select>
+            <label style="font-size:11px;display:flex;align-items:center;gap:4px">
+              <input type="checkbox" id="planes-filter-valid" onchange="loadPlanCards()"> Valid now
+            </label>
+            <label style="font-size:11px;display:flex;align-items:center;gap:4px">
+              <input type="checkbox" id="planes-filter-expired" onchange="loadPlanCards()"> Expired
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Card ID</th><th>Plane</th><th>Type</th><th>Topic</th>
+                <th>b/d/m</th><th>Valid until</th><th>Source doc</th>
+              </tr></thead>
+              <tbody id="planes-body"><tr><td colspan="7" class="text-faint" style="padding:16px;text-align:center">Click ↻ to load cards</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -829,8 +1392,10 @@
   <div id="doc-drawer-content"></div>
 </div>
 
-<script src="/vendor/katex.min.js?v=11"></script>
-<script src="/vendor/marked.min.js?v=11"></script>
-<script src="/app.js?v=11"></script>
+<!-- cache: ?v=11 -->
+<script src="/vendor/katex.min.js?v=102"></script>
+<script src="/vendor/marked.min.js?v=102"></script>
+<script src="/copy_map.js?v=180"></script>
+<script src="/app.js?v=183"></script>
 </body>
 </html>

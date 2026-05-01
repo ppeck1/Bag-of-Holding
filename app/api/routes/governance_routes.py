@@ -43,6 +43,20 @@ class SystemEdgeRequest(BaseModel):
     detail:      Optional[str] = None
 
 
+class GovernanceResolveActor(BaseModel):
+    actor_id: str
+    actor_role: str = ""
+    actor_team: str = ""
+    actor_scope: str = ""
+    actor_plane_authority: str = ""
+
+
+class GovernanceResolveRequest(BaseModel):
+    item_id: str
+    actor: GovernanceResolveActor
+    resolution_note: str = ""
+
+
 @router.get("/governance/policies", summary="List all workspace policies")
 def list_policies(workspace: Optional[str] = Query(None)):
     """Return all workspace policies, optionally filtered by workspace."""
@@ -145,6 +159,37 @@ def add_system_edge(req: SystemEdgeRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/governance/resolve", summary="Phase 24.3 authority-enforced canonical resolution")
+def resolve_with_authority(req: GovernanceResolveRequest):
+    """Resolve an open governance item only through legitimate authority.
+
+    The client identifies the actor, but authority_valid is derived server-side
+    from the open item's required resolution_authority. Unauthorized attempts are
+    permanent governance events, not ordinary validation errors.
+    """
+    from app.core.authority_guard import ActorProfile, authority_gated_resolve
+
+    actor = ActorProfile(**req.actor.model_dump())
+    result = authority_gated_resolve(actor, req.item_id, req.resolution_note)
+    if result.get("ok"):
+        return {"status": "resolved", "authority_valid": True, **result}
+
+    if result.get("authorized") is False:
+        detail = {
+            "status": "rejected",
+            "reason": "authority_mismatch",
+            "failure_type": result.get("failure_type") or ["identity", "team", "role", "scope"],
+            "required_authority": result.get("required_authority"),
+            "attempted_by": actor.actor_id,
+            "authority_valid": False,
+            "governance_event": True,
+            "raw": result,
+        }
+        raise HTTPException(status_code=403, detail=detail)
+
+    raise HTTPException(status_code=400, detail=result)
+
+
 @router.get("/audit", summary="Query the governance audit log")
 def query_audit(
     doc_id:     Optional[str] = Query(None),
@@ -161,4 +206,16 @@ def query_audit(
         doc_id=doc_id, event_type=event_type,
         actor_type=actor_type, since_ts=since_ts, limit=limit,
     )
+    return {"events": events, "count": len(events)}
+
+
+@router.get("/log", summary="Phase 15 governance event log (approval events)")
+def governance_log(
+    doc_id: Optional[str] = Query(None),
+    limit:  int            = Query(100, ge=1, le=500),
+):
+    """Return the governance event log — approval requests, grants, rejections,
+    edge promotions, and supersede operations. Append-only."""
+    from app.core import approval as _appr
+    events = _appr.get_governance_log(doc_id=doc_id, limit=limit)
     return {"events": events, "count": len(events)}

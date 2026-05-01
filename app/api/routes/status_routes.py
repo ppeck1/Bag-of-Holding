@@ -55,14 +55,12 @@ def get_system_status():
     except Exception:
         ai_status = {"last_run_ts": None, "last_indexed": 0}
 
-    # Ollama
+    # Ollama. Use the same DB-or-env gate as the Ollama routes so the
+    # Status panel reflects the UI toggle immediately.
     try:
-        from app.core.ollama import health_check, OLLAMA_URL, DEFAULT_MODEL
-        ollama_enabled = os.environ.get("BOH_OLLAMA_ENABLED", "false").lower() == "true"
-        if ollama_enabled:
-            hc = health_check()
-        else:
-            hc = {"available": False}
+        from app.core.ollama import health_check, OLLAMA_URL, DEFAULT_MODEL, _is_enabled
+        ollama_enabled = _is_enabled()
+        hc = health_check() if ollama_enabled else {"available": False}
         ollama_info = {
             "enabled":   ollama_enabled,
             "available": hc.get("available", False),
@@ -72,8 +70,16 @@ def get_system_status():
     except Exception:
         ollama_info = {"enabled": False, "available": False, "model": None}
 
+    try:
+        from app.core.governance_metrics import governance_native_metrics
+        gov_metrics = governance_native_metrics(limit=10).get("primary_metrics", {})
+    except Exception:
+        gov_metrics = {}
+
     return {
         "server":         "ok",
+        "primary_status_surface": "/api/integrity/dashboard",
+        "governance_native_metrics": gov_metrics,
         "phase":          12,
         "library_root":   library_root,
         "library_found":  library_found,

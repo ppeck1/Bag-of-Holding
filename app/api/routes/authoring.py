@@ -136,7 +136,11 @@ def save_draft(
         elif result.get("permission_denied"):
             status_code = 403
         elif result.get("external_modification"):
-            status_code = 409  # Conflict
+            status_code = 409
+        elif result.get("path_traversal"):
+            status_code = 400
+        elif "No draft found" in result.get("error", ""):
+            status_code = 404
         else:
             status_code = 500
         raise HTTPException(status_code=status_code, detail=result["error"])

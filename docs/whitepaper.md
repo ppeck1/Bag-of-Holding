@@ -2,7 +2,7 @@
 
 ## A Constraint-Governed Local Knowledge Workbench for Persistent Human–LLM Reasoning
 
-### Canonical Memory · Atlas Visualization · Auditability · Sovereign Knowledge Systems
+### Canonical Memory · Explicit Governance · Signed Provenance · Sovereign Knowledge Systems
 
 ---
 
@@ -20,13 +20,11 @@ Bag of Holding exists to solve that failure.
 
 Bag of Holding is a local-first, constraint-governed knowledge workbench designed for persistent reasoning, canonical document stewardship, and auditable human–LLM collaboration. It is not a note-taking application, a vector database wrapper, or a chatbot with memory. It is an operational substrate for maintaining knowledge integrity across time, users, and changing model layers.
 
-The system combines durable Markdown-based knowledge structures, SQLite-backed state management, graph-based relationship modeling, Atlas visualization, and constrained LLM integration through governed inlet and outlet filters. Knowledge is not merely stored — it is normalized, classified, versioned, linked, and verified.
+The system combines durable Markdown-based knowledge structures, SQLite-backed state management, graph-based relationship modeling, multi-mode Atlas visualization, constrained LLM integration, an explicit governance approval layer with signed provenance artifacts, and a PCDS (PlaneCard Data Structure) epistemic encoding layer.
 
-Every document carries lineage. Every learning event carries provenance. Every canonical artifact survives model replacement.
+Every document carries lineage. Every canonical transition carries a signed approval record. Every authority event is attributable, auditable, and reversible. Every indexed document exists simultaneously as a structured epistemic object — a PlaneCard — with explicit belief, direction, mode, and validity fields.
 
 The objective is simple: preserve reasoning, not just information.
-
-Bag of Holding is designed for environments where trust, traceability, and knowledge continuity matter more than convenience: healthcare operations, clinical informatics, consulting, research systems, governance-heavy enterprises, and technical architecture work.
 
 Systems fail where memory becomes folklore.
 
@@ -38,258 +36,271 @@ Bag of Holding exists to prevent that.
 
 Organizations do not fail because they lack information.
 
-They fail because they lose structure.
+They fail because they lose structure — and because systems that appear to govern knowledge actually rely on implicit trust.
 
-Most operational environments already contain enough knowledge to solve their problems. The failure occurs in translation: fragmented documentation, undocumented decisions, inconsistent ownership, disappearing institutional memory, and invisible assumptions carried only by specific people.
+A decision made in March becomes institutional fog by September. The rationale is gone. The reasoning is lost. The constraint is invisible to the people now governed by it. In most systems, reconstructing that decision requires finding the right people, hoping their memory is accurate, and accepting that the record will be incomplete.
 
-The result is familiar:
+A second failure mode is less obvious but more dangerous: systems that store governance metadata but never enforce it. "Canonical" becomes a label, not a guarantee. Approval becomes a convention, not a mechanism. The system looks governed while authority transfers silently.
 
-- Teams rebuild decisions that were already made
-- Policy becomes dependent on tribal memory
-- Critical workflows degrade when key people leave
-- Compliance becomes reconstruction instead of verification
-- Strategic reasoning collapses into disconnected artifacts
+A third failure mode has emerged with the proliferation of LLM-assisted work: epistemic state without epistemic accountability. A model proposes. The proposal enters the corpus. The corpus becomes the next model's context. The original uncertainty — the delta between observation and conclusion, the measurement quality, the interpretation confidence — has been silently discarded. The system cannot distinguish what was known from what was inferred.
 
-A concrete example makes this tangible. A clinical team makes a triage escalation decision in March. The rationale is clear to the people in the room. Six months later, that decision needs to be audited — a near-miss event, a regulatory review, a new team member who needs to understand the constraint. In most systems, the rationale is gone. What survives is the conclusion, stripped of the reasoning that produced it. Reconstructing that reasoning requires finding the right people, hoping their memory is accurate, and accepting that the record will be incomplete.
-
-In Bag of Holding, that March decision is a governed document: its reasoning is preserved, its status is traceable, its relationship to downstream policies is explicit, and the audit trail is intact. Nothing requires reconstruction because nothing was allowed to decay.
-
-Traditional tools address storage, but not stewardship.
-
-**Notes applications** like Obsidian preserve files well, but governance is largely manual. Relationships, authority, and canonical status are optional rather than structural.
-
-**Notebook systems** like Jupyter preserve execution, but not organizational reasoning. They are excellent for experiments and poor for durable decision architecture.
-
-**Retrieval-augmented generation** improves retrieval speed but does not solve persistence. Retrieved fragments are useful in the moment but disappear immediately afterward. Most RAG systems retrieve knowledge without improving the underlying structure.
-
-**LLM chat interfaces** produce answers without preserving formal reasoning paths. They optimize response quality, not institutional continuity. This creates a dangerous illusion: intelligence appears present while structural memory continues to decay.
-
-Bag of Holding addresses this by treating knowledge architecture — not retrieval speed — as the primary problem.
+Bag of Holding addresses all three.
 
 ---
 
 # 2. Design Philosophy
 
-The system is built around one principle: constraint first, not feature first.
+## Constraint First, Then Authority Transfer Law
 
-Truth is not what is stored. Truth is what survives constraint. Persistence without governance produces noise, not knowledge. Durable systems require explicit structure for what becomes canonical, what remains provisional, and what must be archived.
+Truth is not what is stored. Truth is what survives constraint.
 
-This produces four commitments that govern every design decision.
+But constraint without enforcement is insufficient. A system that has canonical state but no canonical promotion mechanism is a filing cabinet with colored tabs.
 
-**Canonical status must be earned.** Not every document should become authoritative. Drafts, notes, imported artifacts, and exploratory thinking remain valuable, but they are not equal to validated reference material. The system enforces this distinction structurally, not by convention.
+The authority layer establishes what states exist, what transitions are legal, and what requires approval. The authority transfer mechanism provides the explicit, signed, auditable pathway by which transitions actually occur. Both are required. Neither is sufficient alone.
 
-**Knowledge must be traceable.** Every artifact should answer: where did this come from, what replaced it, what depends on it, who changed it, and why? This is more important than confidence scoring alone. Lineage before confidence.
+## Two Intake Lanes
 
-**Archives are active infrastructure.** Most systems treat archives as dead storage. Bag of Holding treats archive state as preserved context, historical reasoning, and explicit supersession. Old knowledge should not disappear — it should become properly positioned.
+**Scratch capture** — Minimal metadata. Documents enter as non-authoritative. Searchable and readable. Excluded from canonical topology. Not canonical-capable without explicit promotion.
 
-**Operator intent is explicit.** Every interaction exists inside a declared operational state. The system tracks whether the operator is observing, capturing, constraining, or canonicalizing. This prevents ambiguity between exploration and authority.
+**Governed entry** — Full metadata validation. Eligible for Atlas topology, LLM review, and canonical promotion. Promotion still requires explicit approval.
+
+This separation prevents the most common failure: treating ingestion as implicit endorsement.
+
+## Epistemic State Is Not Lifecycle State
+
+The Rubrix lifecycle (observe → vessel → constraint → integrate → release) governs a document's operational position in the governance pipeline. It is explicit, reversible, and append-only.
+
+The Daenary epistemic state (d-state, quality, confidence, mode, temporal validity) governs a document's epistemic position in the knowledge field. It is encoded in `doc_coordinates`, visualized across four Atlas modes, and preserved through the PCDS PlaneCard layer.
+
+These systems do not overlap. A document can be in `stable` lifecycle state while having low epistemic confidence. A document can be in `review` state while having high measurement quality. Conflating governance state with epistemic state produces exactly the kind of silent authority transfer that BOH is built to prevent.
+
+## Governance Without Explicit Approval Is Still Implicit Governance
+
+A document becoming canonical is not a formatting event. It is an authority event.
+
+Without explicit approval workflow, the system still relies on hidden authority transfer — silent re-imports, implied trust in review artifacts, semantic similarity becoming structural truth, unrecorded supersession.
+
+This recreates the exact failure mode Bag of Holding was built to prevent: intelligence appearing present while provenance silently decays.
 
 ---
 
 # 3. System Architecture
 
-Bag of Holding is built as a local knowledge operating system rather than a single application. Its architecture prioritizes durability, auditability, and model independence.
+Bag of Holding is built as a local knowledge operating system, not a single application.
 
-## Ingestion Layer
+**Ingestion** → controlled intake of Markdown, HTML, JSON, plain text, YAML, and CSV with frontmatter validation
 
-Responsible for controlled intake of external material: PDFs, Markdown, HTML, research notes, project documents, policy artifacts, and imported legacy systems. The goal is not immediate indexing, but governed entry.
+**Normalization** → duplicate detection, metadata extraction, hash-based change detection
 
-## Normalization Layer
+**Lifecycle engine** → `observe → vessel → constraint → integrate → release` with reversible transitions and append-only history
 
-Raw input is transformed into durable, machine-readable structure through frontmatter standardization, formatting normalization, duplicate identification, metadata extraction, and schema alignment. This prevents ingestion entropy.
+**Canon & conflict layer** → deterministic scoring resolves authority; conflicts surface and stay until explicitly resolved
 
-## Canonicalization Layer
+**Certification layer** → hash-based, id-projection, and automated issuers; no authority transition without a valid certificate
 
-Documents are classified by operational role: reference, note, draft, canonical, or archive. Canonical outputs become governed system artifacts. Achieving canonical status requires explicit review and designation — it cannot be automated.
+**Graph layer** → explicit edges for lineage, derivation, conflict, and supersession with five visual strand types
 
-## State Engine
+**Atlas** → force-directed visualization with four projection modes: Web (relational), Evidence State (confidence × quality), Risk Map (constraint geometry viability), and Authority Path (constitutional topology)
 
-SQLite functions as the local governed state engine. It stores registry metadata, document coordinates, graph relationships, lifecycle states, lineage references, verification queues, and audit trails. Durability matters more than novelty. The current version is designed for single-operator local-first use; multi-user stewardship is on the roadmap.
+**LLM interface** → Ollama integration with inlet/outlet filters and mandatory review queue; `non_authoritative: true` enforced at data layer; toggle persisted without restart
 
-## Graph Relationship Layer
+**Approval workflow** → four explicit approval surfaces with signed provenance artifacts; no authority transfer without a signed record
 
-Knowledge is not flat. Documents, concepts, decisions, and operational nodes require relational structure. Graph edges capture dependency, inheritance, contradiction, supersession, domain adjacency, and authority relationships. This supports reasoning rather than search alone.
+**PCDS layer** → Phase 19 PlaneCard Data Structure: every indexed document wrapped as a PlaneCard with plane, card_type, topic, b/d/m, constraints, validity, context_ref, and payload
 
-## Atlas Visualization Layer
-
-Atlas provides visible topology. Users can inspect system structure, conflict zones, dependency chains, orphaned knowledge, canonical pathways, and cross-domain relationships. Knowledge must be inspectable, not hidden. Atlas is observability infrastructure, not decoration.
-
-## LLM Interface Layer
-
-Large language models operate inside the system — not above it. They function as constrained operators rather than autonomous authorities. The architecture is intentionally model-agnostic, supporting Ollama, local GGUF models, OpenAI, Anthropic, Gemini, and future model layers. Knowledge survives model replacement. This is mandatory.
-
-## Verification Layer
-
-Human review remains mandatory for all authority transitions. The system does not outsource truth.
+**CA Explorer** → companion substrate lattice application providing cellular automata-based confidence and belief-state analysis with direct CANON integration
 
 ---
 
-# 4. Knowledge Model
+# 4. The Four Visualization Modes
 
-Bag of Holding uses intentionally simple durable substrates. Complexity belongs in structure, not storage dependencies.
+The Atlas is not decorative graph visualization. It is the operational visibility layer — the instrument panel for the epistemic state of the corpus.
 
-## Markdown as Primary Substrate
+## Web (Relational)
 
-Markdown is portable, inspectable, versionable, human-readable, and tool-independent. Knowledge should survive software changes. The system must outlive the interface.
+The foundational topology view. Nodes represent documents; edges represent typed relationships (lineage, supersession, derivation, conflict, topic overlap). Node color encodes corpus class; node size reflects canon score. This mode answers: what depends on what, what conflicts with what, and what is trusted.
 
-## Frontmatter as Governance Layer
+## Evidence State
 
-Each file carries structured frontmatter encoding identity, purpose, operational status, version, scope, topics, operator state, and lifecycle metadata. This creates durable machine readability without sacrificing direct human ownership.
+Documents are positioned on a 2D plane where X = interpretation confidence and Y = measurement quality. Node color encodes d-state (green = +1 affirmed, amber = 0 unresolved, red = −1 negated). Documents without epistemic state cluster in the lower-left sentinel zone. This mode identifies knowledge gaps, contradictions, and documents requiring epistemic intervention. It answers: where is the corpus epistemically weak, and where are assertions being made without adequate evidential grounding?
 
-```yaml
-boh:
-  id: unique-id-001
-  type: canonical
-  purpose: What this document governs
-  status: canonical
-  version: "1.2.0"
-  updated: "2026-04-24T00:00:00Z"
-  topics: [triage escalation, clinical workflow]
-  rubrix:
-    operator_state: release
-    operator_intent: canonize
+## Risk Map
+
+A constraint geometry projection. Documents are positioned by their q/c viability surface — epistemic confidence × quality × meaning cost. Four viability quadrants define actionable zones: Viable (high q, high c, upper-right), Contain Zone, Weak Zone, and Low Zone requiring intervention (lower-left). Each Projection Manifest defines the active signal, conserved metric, quality gate thresholds, discarded dimensions, and allowed governance actions for the current view.
+
+## Authority Path
+
+The constitutional topology projection. Documents are positioned by custodian lane × governance state ordering. Lane distribution counters surface how many documents are in each governance state: raw imported, expired, cancelled, contained, under review, approved, canonical, archived. Contradiction-blocked and held-for-resolution nodes are highlighted explicitly. This mode identifies governance bottlenecks, unresolved authority transitions, and documents approaching expiration.
+
+---
+
+# 5. Explicit Approval Surfaces
+
+Every authority transfer requires a visible, deliberate, signed approval. Four surfaces:
+
+**1. Canonical promotion** (`draft → canonical_candidate → canonical`)
+
+Operator creates a promotion request. The document state does not change. A reviewer inspects the request, provides a mandatory review note, and approves. At approval, the system creates a signed provenance artifact (HMAC-SHA256) and then executes the state change.
+
+**2. Cross-project edge promotion** (`suggested → governed`)
+
+Semantic similarity suggests relationships. It does not establish authority. Suggested edges render as dashed low-opacity strands in Atlas. Promoting to governed requires explicit approval acknowledging the cross-project authority dependency.
+
+**3. Review artifact patch approval**
+
+LLM review output must never silently rewrite source truth. Applying a patch requires a diff_hash of proposed changes and explicit line-by-line approval before any content merge. No auto-merge. No silent overwrite.
+
+**4. Supersede operation**
+
+Superseding a canonical document requires an impact preview (downstream reference count), explicit acknowledgment, and approval. Old canonicals are never deleted — they remain queryable with `status=superseded`. Lineage records preserve the full chain.
+
+**Provenance artifact:**
+
+```json
+{
+  "artifact_id": "prv-abc123",
+  "action_type": "canonical_promotion",
+  "document_id": "...",
+  "from_state": "draft",
+  "to_state": "canonical",
+  "approved_by": "operator",
+  "approved_at": 1714000000,
+  "reason": "Reconciled formal variable definitions",
+  "signature": "hmac-sha256:..."
+}
 ```
 
-## Rubrix Lifecycle
-
-Documents move through a governed operational progression:
-
-```
-observe → vessel → constraint → integrate → release
-```
-
-Each state carries explicit meaning. `observe` is intake. `vessel` is captured but not yet evaluated. `constraint` is under active review. `integrate` is ready for canonical promotion. `release` is canonical or archived. Every transition is recorded with timestamp, actor, direction, and reason.
-
-Critically: lifecycle movement is reversible. A document can move backward through states. Undo is available. The history is append-only and never deleted. This means mistakes in governance are recoverable, not catastrophic.
-
-## SQLite as State Authority
-
-SQLite manages governed system state locally without infrastructure overhead. It handles canonical registry, duplicate resolution, lineage chains, verification status, and operational indexing. The database is the record of authority — not the files alone.
+Every approval creates this record before the state change executes. The record is immutable and append-only.
 
 ---
 
-# 5. LLM Integration
+# 6. The Certification Layer
 
-Bag of Holding does not position the LLM as the system.
+Phase 15 introduced signed provenance artifacts. The certification layer extends this into a full validation infrastructure.
 
-The LLM is an operator inside the system.
+Authority transitions — canonical promotion, supersession, governed edge creation — require a certificate. Only three issuer types are accepted: hash-based, id-projection, and automated (with explicit automation scope). Certificate requests carry a justification and conflict hash. Certificates are validated before any governance state change is executed.
 
-This distinction is critical and non-negotiable.
+The Certification Validation Center in the Resolution Center provides a full certificate inspection surface. Every certificate is queryable, inspectable, and linked to its originating governance event. The audit log preserves the full issuance and validation chain.
 
-## Inlet Filter
-
-Before a prompt reaches the model, the inlet filter retrieves relevant governed context from the knowledge graph: prior decisions, canonical references, active project state, linked constraints, operational definitions, and prior contradictions. The model receives structured context, not isolated prompts.
-
-## Outlet Filter
-
-After model response, the outlet filter evaluates output for learnable content: candidate facts, structural updates, new relationships, contradictions, unresolved ambiguities, and review requirements. High-confidence outputs do not automatically become truth. They become review candidates.
-
-## Verification Queue
-
-Authority requires confirmation. Ollama proposals and model outputs enter a review queue where the operator inspects each item and explicitly approves or rejects it. Approval applies only safe, non-canonical metadata fields. Canonical status cannot be granted from the queue. This is enforced at the data layer, not by convention.
-
-This prevents hallucination becoming infrastructure.
-
-## What the Model Cannot Do
-
-These constraints are architectural, not advisory:
-
-- The model cannot overwrite canonical documents
-- The model cannot auto-promote documents to canonical status
-- The model cannot bypass the verification queue
-- No model output applies to the corpus without explicit operator action
-
-The goal is a system where the LLM makes the operator faster, not one where the LLM makes decisions the operator later discovers.
+This means the system can answer: *not just who approved this, but what certificate validated that approval, and what was the conflict state at the time of issuance.*
 
 ---
 
-# 6. Atlas Interface
+# 7. PlaneCards — Phase 19 PCDS Layer
 
-Most knowledge systems fail because the structure is invisible.
+Phase 19 introduced the PlaneCard Data Structure. Every indexed document is wrapped as a PlaneCard — a structured epistemic object that carries:
 
-Atlas solves that.
+| Field | Description |
+|-------|-------------|
+| `plane` | Named knowledge plane |
+| `card_type` | Semantic classification |
+| `topic` | Normalized topic string |
+| `b/d/m` | Belief / Direction / Mode values |
+| `constraints` | Active validity constraints |
+| `validity` | Temporal validity window |
+| `context_ref` | Cross-reference handle |
+| `payload` | Document content reference |
 
-Lists and folders are insufficient for reasoning-heavy environments. Users need to see dependency chains, contradiction zones, hidden centrality, weakly governed clusters, and system fragmentation. Atlas provides graph-native visibility into all of it.
+The PlaneCard layer is the bridge between the document governance system and the substrate epistemic analysis layer. It provides a normalized, structured representation of each document's epistemic position that can be consumed by external analysis tools — including the CA Explorer.
 
-Nodes are colored by corpus class and sized by canon score. Red halos indicate conflicts. Amber halos indicate stale coordinates. Edges show lineage, derivation, and topic relationships. Hovering an edge reveals shared topics, edge type, and confidence. Hovering a node reveals title, status, and diagnostic indicators.
-
-The interface supports zoom, pan, node drag, neighborhood expansion, fit-to-screen, and focus-on-selected. Performance presets allow the graph to run smoothly on ordinary hardware across corpora of hundreds of documents.
-
-Atlas answers operational questions:
-
-- What depends on this document?
-- What conflicts with it?
-- What is stale and may need re-evaluation?
-- Where is authority weakly established?
-- What would break if this were archived?
-
-These are not questions that search engines answer. They require visible structure.
+PlaneCards are backfillable from existing index data and visible through the Domains panel.
 
 ---
 
-# 7. Comparison to Existing Systems
+# 8. CA Explorer Integration
 
-| System | Strength | Limitation relative to BOH |
-|--------|----------|----------------------------|
-| **Obsidian** | Local note ownership, linking | No canonical governance, no lineage enforcement, no operational authority |
-| **Jupyter** | Computation and execution workflows | No durable institutional reasoning, no decision architecture |
-| **LangChain / LlamaIndex** | Pipeline orchestration | Optimizes pipelines, not institutional memory |
-| **Mem0 / Persistent AI Memory** | LLM continuity | Prioritizes personalization over formal knowledge governance |
-| **Neo4j** | Graph construction | Focused on ingestion, not full lifecycle management |
-| **Notovision** | Bidirectional filter architecture, persistent assistant memory | BOH extends further into canonical document stewardship, operational topology, and formal knowledge lifecycle governance |
+The CA Explorer (v11.2.0, Substrate Lattice + CANON) is a companion research application that provides cellular automata-based substrate analysis with direct integration into BOH's CANON layer.
 
-The common thread: existing tools solve retrieval, continuity, or execution well. Few explicitly govern the full knowledge lifecycle from intake through canonical status through archive with an intact audit trail.
+The CA Explorer models the epistemic substrate as a cellular automaton with configurable parameters: rule set, threshold, coupling, inertia, and pulse rate. The substrate generates waveform outputs across E, H, B, D channels. X_S belief bounds, radial analysis, and VECT field diagnostics are available in real time.
+
+The CANON panel within CA Explorer reads from BOH's canonical state, allowing the substrate dynamics to be tuned against the actual epistemic topology of the corpus. This provides a research surface for understanding how belief propagates, stabilizes, and decays across a knowledge field over time.
+
+The CA Explorer does not write back to BOH's primary governance layer. Its outputs are non-authoritative research data, consistent with BOH's constraint that epistemic analysis tools cannot promote their own conclusions to canonical status.
 
 ---
 
-# 8. Use Cases
+# 9. What the System Can Defend
 
-BOH is strongest in environments where decisions carry consequence and ambiguity has cost.
+**Why is this document canonical?**  
+→ The provenance chain shows who approved it, when, for what reason, from what prior state, and what certificate validated the transition.
 
-**Clinical informatics.** Healthcare systems depend on decisions surviving turnover. Triage protocols, workflow rationale, and policy constraints require auditability when something goes wrong. BOH preserves the reasoning behind governance decisions, not just the decisions themselves.
+**Who approved this?**  
+→ `reviewed_by` is required for every approval execution. The governance event log is append-only.
 
-**Consulting and architecture review.** Complex advisory work regularly disappears into slide decks and call recordings. BOH preserves decision lineage and design rationale so that follow-on engagements begin from a documented position, not oral reconstruction.
+**What did it replace?**  
+→ Supersession records preserve the full lineage chain. Old canonicals remain queryable.
 
-**Policy and compliance.** Compliance increasingly requires tracing a decision back to its source authority, not reconstructing it from memory. BOH maintains source authority rather than reconstructed memory.
+**Why does this cross-project edge exist?**  
+→ Either explicitly approved (governed, full opacity in Atlas) or it remains suggested (dashed, low-opacity).
 
-**Research systems.** Literature reviews, theory development, and formal research benefit from canonical persistence across a working corpus rather than scattered note accumulation with no explicit authority structure.
+**What is the epistemic quality of this document?**  
+→ Daenary coordinates (d-state, quality, confidence) are preserved at index time and visible in Evidence State mode.
 
-**Enterprise knowledge retention.** Institutional knowledge should not leave when individuals do. This is a structural problem, not a documentation problem. BOH provides the structural answer.
+**Where are the governance bottlenecks?**  
+→ Authority Path mode shows lane distribution and held-for-resolution counts across the corpus.
 
----
+**Which documents are at epistemic risk?**  
+→ Risk Map mode surfaces documents in the contain, weak, and low viability zones.
 
-# 9. Current State and Roadmap
+**Can this be rolled back?**  
+→ Lifecycle backward movement is available at every stage. Superseded documents remain queryable. The provenance sequence makes any rollback attributable and verifiable.
 
-Bag of Holding is transitioning from prototype into operator-grade tooling.
+These answers come from the system itself — not from Slack, not from tribal memory, not from institutional folklore.
 
-The current implementation is a single-operator, local-first workbench. It handles corpora of hundreds of documents with full lifecycle governance, Atlas visualization, Ollama integration with review queue, and audit-safe mutation history. It runs without cloud dependency, infrastructure overhead, or external services.
-
-**What is implemented:**
-
-- Governed lifecycle transitions with reversible backward movement and append-only history
-- Deterministic canon resolution and conflict detection
-- Atlas force-directed graph with zoom, pan, drag, edge hover, and performance controls
-- Ollama LLM integration with inlet/outlet filter and mandatory review queue
-- Startup auto-indexing with hash-based change detection
-- Full-text search with semantic state filters
-- `/api/status` diagnostics and system health monitoring
-- Audit log for every mutation
-
-**Phase roadmap:**
-
-| Phase | Focus |
-|-------|-------|
-| 1–12 | Core workbench: ingestion, lifecycle, canon, conflicts, Atlas, LLM governance *(complete)* |
-| 13 | Multi-document reasoning chains, cross-document conflict resolution |
-| 14 | Multi-user stewardship, role boundaries, shared canonical layers |
-| 15 | MCP integrations, containerized deployment, enterprise partitioning |
-| 16 | Operator-grade production hardening, long-term institutional deployment |
-
-The current priority is not more features. It is proof through strong operational use cases.
+That is the distinction between a governed system and a well-organized filing cabinet.
 
 ---
 
-# 10. Conclusion
+# 10. LLM Integration
+
+The LLM is an operator inside the system. It does not govern it.
+
+The following are enforced at the data layer:
+
+- Canonical status cannot be granted from the LLM review queue
+- Trusted Source status cannot be granted from the LLM review queue
+- All model outputs carry `non_authoritative: true`
+- Every invocation is recorded in `llm_invocations` for audit
+- Ollama failures never block server startup or document indexing
+- The Ollama enable/disable toggle is persisted without server restart
+
+When Ollama is disabled, the system returns structured non-authoritative responses with invocation records. The AI Analysis pipeline operates deterministically — baseline analysis (topic extraction, normalization, conflict detection) requires no Ollama. Indexing, lifecycle management, and the approval workflow function independently of model availability.
+
+---
+
+# 11. Current State
+
+Bag of Holding is an operational system through Phase 19, handling structured document corpora with full lifecycle governance, deterministic canon resolution, multi-mode Atlas visualization, Ollama integration, explicit approval workflow with signed provenance artifacts, a certification validation layer, and a PCDS PlaneCard substrate.
+
+It runs without cloud dependency, infrastructure overhead, or external services.
+
+| Phase Range | Focus |
+|------------|-------|
+| 1–11 | Core workbench: ingestion, lifecycle, canon, conflicts, FTS5, Atlas, Daenary, LLM |
+| 12 | Lifecycle undo/backward, auto-index, LLM review queue, Ollama hardening, status API |
+| 13 | Multi-format ingestion, folder picker, Atlas physics, edge visual strands |
+| 14 | Authority state machine, metadata contract, two intake lanes |
+| 15 | Explicit approval workflow, signed provenance artifacts, governance UI |
+| 16–18 | Multi-mode visualization (Evidence State, Risk Map, Authority Path), Projection Manifests, certification layer, Resolution Center consolidation |
+| **19** | **PlaneCard / PCDS layer, Domains panel, CA Explorer integration, full epistemic stack** |
+
+---
+
+# 12. Why This Matters
+
+This project reflects a specific approach to systems design: governance first, authority explicit, and failure modes made visible before they become operational incidents.
+
+Most knowledge tooling is built for convenience. Bag of Holding is built for environments where convenience is the wrong optimization — where a decision canonized prematurely, or an LLM output applied without review, can produce real downstream harm.
+
+The architecture is intentional. It is not the fastest path to a working demo. It is the right path to a trustworthy system.
+
+The multi-mode visualization is not cosmetic variety. Each mode surfaces a different class of epistemic risk: relational topology (Web), measurement and confidence gaps (Evidence State), viability and intervention priority (Risk Map), and governance pipeline blockage (Authority Path). A system that can only show you what is connected cannot tell you whether what is connected is trustworthy.
+
+The PCDS layer is not metadata enrichment. It is the structural commitment that every document's epistemic position — not just its existence — is a first-class object in the system. Documents are not records that happen to have coordinates. They are epistemic objects that happen to have content.
+
+---
+
+# 13. Conclusion
 
 Most systems optimize convenience.
 
@@ -297,15 +308,15 @@ Few optimize continuity.
 
 Bag of Holding is built for continuity.
 
-It preserves not only files, but authority. Not only retrieval, but reasoning. Not only memory, but survivable structure.
+The authority layer established what states exist and what transitions are legal. The authority transfer mechanism provided the signed, auditable pathway. The certification layer extended this into full transition validation. The PCDS layer extended this further into epistemic object representation.
 
-Large language models are powerful accelerators. Without governance, they become another layer of institutional forgetting — faster answers that leave the underlying structure weaker than before.
+Each phase added not features, but defenses — additional surfaces where the system can be asked to account for itself and can answer.
 
-The future of trustworthy AI is not better prompts.
-
-It is better architecture.
+That is the distinction between a system that stores knowledge and a system that can defend truth.
 
 Organizations do not lose knowledge because people fail to document. They lose knowledge because systems fail to preserve authority.
+
+The future of trustworthy AI is not better prompts. It is better architecture.
 
 Systems fail where memory becomes folklore.
 
@@ -315,3 +326,4 @@ Bag of Holding exists to prevent that.
 
 *Local-first · SQLite + Markdown · No cloud dependency*  
 *Source: github.com/ppeck1/Bag-of-Holding*
+

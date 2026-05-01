@@ -36,8 +36,19 @@ OLLAMA_URL    = os.environ.get("BOH_OLLAMA_URL",   "http://localhost:11434")
 DEFAULT_MODEL = os.environ.get("BOH_OLLAMA_MODEL", "llama3.2")
 
 # Fix 1: Enabled gate. invoke() returns 503 unless this is "true".
+# Checks DB toggle first (UI-controlled), falls back to env var.
 def _is_enabled() -> bool:
-    return os.environ.get("BOH_OLLAMA_ENABLED", "false").lower() == "true"
+    """Return True if Ollama is enabled via UI toggle (DB) or env var."""
+    # Env var always wins if explicitly set to true
+    if os.environ.get("BOH_OLLAMA_ENABLED", "").lower() == "true":
+        return True
+    # Check DB-persisted toggle (set by UI)
+    try:
+        from app.db import connection as _db
+        row = _db.fetchone("SELECT value FROM system_config WHERE key = 'ollama_enabled'")
+        return bool(row and row["value"] == "true")
+    except Exception:
+        return False
 
 # Fix 3: Content size cap (characters). Override via BOH_OLLAMA_MAX_CONTENT.
 _MAX_CONTENT_CHARS: int = int(os.environ.get("BOH_OLLAMA_MAX_CONTENT", "20000"))
@@ -338,16 +349,40 @@ def invoke(
         non_authoritative (always True),
         error (if failed)
     """
-    # Fix 1 — enabled gate
-    if not _is_enabled():
-        return {
-            "error":       "Ollama integration is disabled. Set BOH_OLLAMA_ENABLED=true to enable.",
-            "disabled":    True,
-            "status_code": 503,
-        }
-
+    # Phase 14: When disabled, still validate task_type, record attempt, and
+    # return a structured non-authoritative response with invocation_id.
+    # This allows the system to track LLM attempts even when the service is off.
     if task_type not in TASK_TYPES:
         return {"error": f"Unknown task_type: {task_type}. Valid: {sorted(TASK_TYPES)}"}
+
+    if not _is_enabled():
+        # Still create an invocation record for auditability
+        invocation_id = _new_invocation_id()
+        scope = scope or {}
+        scope_json = json.dumps(scope)
+        scope_enforced = bool(scope.get("docs") or scope.get("dirs"))
+        try:
+            _record_invocation(invocation_id, task_type, model or DEFAULT_MODEL, doc_id, scope_json, "disabled")
+            _finish_invocation(invocation_id, "", None, "Ollama disabled")
+        except Exception:
+            pass
+        return {
+            "invocation_id":  invocation_id,
+            "task_type":      task_type,
+            "model":          model or DEFAULT_MODEL,
+            "doc_id":         doc_id,
+            "scope_enforced": scope_enforced,
+            "status":         "unavailable",
+            "response_text":  None,
+            "response_json":  None,
+            "non_authoritative":              True,
+            "requires_explicit_confirmation": True,
+            "enabled":   False,
+            "disabled":  True,
+            "authoritative": False,
+            "review_state": "unavailable",
+            "error":     "Ollama integration is disabled.",
+        }
 
     # Fix 2 — clamp timeout
     timeout = max(_TIMEOUT_MIN, min(_TIMEOUT_MAX, timeout))

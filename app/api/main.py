@@ -27,7 +27,24 @@ from app.api.routes import (
     status_routes,
     llm_queue_routes,
     autoindex_routes,
+    approval_routes,   # Phase 15: explicit governance workflow
 )
+# Phase 19: PCDS Plane Card routes
+from app.api.routes.plane_routes import router as plane_router, doc_card_router
+# Phase 20: Certificate Gate + Constraint Lattice
+from app.api.routes.certificate_routes import router as certificate_router
+from app.api.routes.plane_interface_routes import router as plane_interface_router
+from app.api.routes.lattice_routes import router as lattice_router
+from app.api.routes.feedback_routes import router as feedback_router
+from app.api.routes.coherence_routes import router as coherence_router
+from app.api.routes.temporal_governor_routes import router as temporal_governor_router
+from app.api.routes.authority_routes import router as authority_router
+from app.api.routes.escalation_routes import router as escalation_router
+from app.api.routes.integrity_routes import router as integrity_router
+from app.api.routes.governance_metrics_routes import router as governance_metrics_router
+from app.api.routes.substrate_routes import router as substrate_router
+from app.api.routes.workspace_routes import router as workspace_router
+
 
 # ── Init ──────────────────────────────────────────────────────────────────────
 db.init_db()
@@ -107,6 +124,21 @@ for router in (
     status_routes.router,
     llm_queue_routes.router,
     autoindex_routes.router,
+    approval_routes.router,    # Phase 15
+    plane_router,              # Phase 19: Plane Cards
+    doc_card_router,           # Phase 19: /api/docs/{id}/card
+    certificate_router,        # Phase 20: Certificate Gate
+    plane_interface_router,    # Phase 21: Plane Interfaces
+    lattice_router,            # Phase 22: Constraint-native lattice graph
+    feedback_router,           # Phase 23: Feedback rewrite engine
+    coherence_router,          # Phase 24: Coherence decay + refresh engine
+    temporal_governor_router,    # Phase 24.2: Temporal Coherence Governor
+    authority_router,            # Phase 24.3: Authority Enforcement
+    escalation_router,           # Phase 24.3: Temporal Escalation Ladder
+    integrity_router,            # Phase 24.3: Integrity-First Surface
+    governance_metrics_router,   # Phase 25.1: Governance-native metrics
+    substrate_router,            # Phase 25: Substrate Lattice
+    workspace_router,            # Phase 26.3: Workspace reset + fixture seeding
 ):
     app.include_router(router)
 
@@ -122,7 +154,7 @@ def health():
         db_status = f"error: {e}"
     return {
         "status":  "ok",
-        "version": "2.12.0",
+        "version": "2.0.0",
         "phase":   12,
         "db":      db_status,
         "library": library_root,

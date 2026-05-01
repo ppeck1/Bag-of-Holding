@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS docs (
     topics_tokens TEXT DEFAULT '',
     title TEXT DEFAULT '',   -- Phase 9: first-class title (purpose or first heading)
     summary TEXT DEFAULT ''  -- Phase 9: first paragraph preview (≤220 chars)
-    -- v2 additions (added via ALTER TABLE): corpus_class TEXT DEFAULT 'CORPUS_CLASS:DRAFT'
+    -- v2 additions (added via ALTER TABLE): corpus_class TEXT DEFAULT 'CORPUS_CLASS:DRAFT'; app_state TEXT DEFAULT 'inbox'
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(
@@ -253,3 +253,100 @@ CREATE TABLE IF NOT EXISTS system_edges (
 CREATE INDEX IF NOT EXISTS idx_system_edges_source ON system_edges(source_type, source_id);
 CREATE INDEX IF NOT EXISTS idx_system_edges_target ON system_edges(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_system_edges_type   ON system_edges(edge_type);
+
+-- System config table for UI-controlled settings (Ollama toggle, etc.)
+CREATE TABLE IF NOT EXISTS system_config (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL,
+    updated_ts INTEGER NOT NULL
+);
+-- Default: Ollama disabled until user toggles on
+INSERT OR IGNORE INTO system_config (key, value, updated_ts) VALUES ('ollama_enabled', 'false', 0);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Phase 15: Explicit Governance Workflow
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Approval requests: every authority transfer must pass through here
+-- before execution. No approval record = no state change allowed.
+CREATE TABLE IF NOT EXISTS approval_requests (
+    approval_id     TEXT    PRIMARY KEY,  -- apr-<uuid12>
+    action_type     TEXT    NOT NULL,     -- canonical_promotion | edge_promotion |
+                                          -- review_patch | supersede_operation
+    doc_id          TEXT,                 -- primary document
+    target_doc_id   TEXT,                 -- for supersede: replacement doc
+    edge_id         INTEGER,              -- for edge_promotion
+    from_state      TEXT    NOT NULL,
+    to_state        TEXT    NOT NULL,
+    requested_by    TEXT    NOT NULL,
+    requested_ts    INTEGER NOT NULL,
+    reason          TEXT    NOT NULL,
+    diff_hash       TEXT,                 -- SHA-256 of content diff
+    impact_summary  TEXT,                 -- JSON: affected downstream docs
+    status          TEXT    NOT NULL DEFAULT 'pending',
+                                          -- pending | approved | rejected | withdrawn
+    reviewed_by     TEXT,
+    reviewed_ts     INTEGER,
+    review_note     TEXT,
+    provenance_artifact_id TEXT           -- FK → provenance_artifacts.artifact_id
+);
+CREATE INDEX IF NOT EXISTS idx_apr_doc    ON approval_requests(doc_id);
+CREATE INDEX IF NOT EXISTS idx_apr_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_apr_ts     ON approval_requests(requested_ts);
+
+-- Provenance artifacts: immutable signed records of every approved authority event
+CREATE TABLE IF NOT EXISTS provenance_artifacts (
+    artifact_id     TEXT    PRIMARY KEY,  -- prv-<uuid12>
+    approval_id     TEXT    NOT NULL,     -- FK → approval_requests
+    action_type     TEXT    NOT NULL,
+    document_id     TEXT    NOT NULL,
+    from_state      TEXT    NOT NULL,
+    to_state        TEXT    NOT NULL,
+    approved_by     TEXT    NOT NULL,
+    approved_at     INTEGER NOT NULL,     -- unix timestamp
+    reason          TEXT    NOT NULL,
+    diff_hash       TEXT,
+    supersedes_id   TEXT,                 -- document_id superseded (if applicable)
+    signature       TEXT    NOT NULL,     -- HMAC-SHA256 of canonical fields
+    artifact_json   TEXT    NOT NULL      -- full immutable JSON record
+);
+CREATE INDEX IF NOT EXISTS idx_prv_doc ON provenance_artifacts(document_id);
+CREATE INDEX IF NOT EXISTS idx_prv_apr ON provenance_artifacts(approval_id);
+
+-- Edge approval requests: suggested → governed cross-project edges
+CREATE TABLE IF NOT EXISTS edge_approval_requests (
+    edge_apr_id     TEXT    PRIMARY KEY,  -- eap-<uuid12>
+    source_doc_id   TEXT    NOT NULL,
+    target_doc_id   TEXT    NOT NULL,
+    edge_type       TEXT    NOT NULL,
+    strength        REAL,
+    proposed_authority TEXT NOT NULL DEFAULT 'suggested',
+    cross_project   INTEGER NOT NULL DEFAULT 0,
+    requested_by    TEXT    NOT NULL,
+    requested_ts    INTEGER NOT NULL,
+    reason          TEXT,
+    status          TEXT    NOT NULL DEFAULT 'pending',
+    reviewed_by     TEXT,
+    reviewed_ts     INTEGER,
+    review_note     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_eap_source ON edge_approval_requests(source_doc_id);
+CREATE INDEX IF NOT EXISTS idx_eap_status ON edge_approval_requests(status);
+
+-- Governance events: append-only constitutional record
+CREATE TABLE IF NOT EXISTS governance_events (
+    event_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_ts        INTEGER NOT NULL,
+    event_type      TEXT    NOT NULL,     -- approval_request | approval_granted |
+                                          -- approval_rejected | provenance_signed |
+                                          -- edge_promoted | supersede_executed |
+                                          -- rollback_triggered
+    actor           TEXT    NOT NULL,
+    doc_id          TEXT,
+    approval_id     TEXT,
+    artifact_id     TEXT,
+    detail          TEXT                  -- JSON
+);
+CREATE INDEX IF NOT EXISTS idx_gev_doc  ON governance_events(doc_id);
+CREATE INDEX IF NOT EXISTS idx_gev_ts   ON governance_events(event_ts);
+CREATE INDEX IF NOT EXISTS idx_gev_type ON governance_events(event_type);

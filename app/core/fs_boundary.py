@@ -72,16 +72,26 @@ def assert_write_safe(
 ) -> None:
     """Gate function — raises WriteViolation if this write should be denied.
 
-    Checks in order:
-      1. Path traversal: path must be inside library_root
-      2. Canon path protection: path must not be inside canon/ directory
+    Checks in order (Phase 16.2: permission first for correct HTTP status):
+      0. Permission: entity_type must have can_write (fast fail → 403)
+      1. Path traversal: path must be inside library_root (→ 400)
+      2. Canon path protection: path must not be inside canon/ (→ 403)
       3. DB-status canon protection: if doc_id given, doc must not be canonical
-      4. Policy: entity must have can_write on the workspace (library_root)
 
     Call this before any file.write_text() / mkdir() / unlink().
     """
     p    = Path(path)
     root = Path(library_root).resolve()
+
+    # 0. Permission check FIRST — returns meaningful 403 before filesystem ops
+    from app.core.governance import get_effective_policy
+    policy = get_effective_policy(str(root), entity_type, entity_id)
+    if not policy.get("can_write"):
+        raise WriteViolation(
+            f"Write permission denied for {entity_type}:{entity_id} "
+            f"on workspace '{root}'.",
+            reason="permission_denied",
+        )
 
     # 1. Path traversal
     if not is_within_root(p, root):
@@ -109,15 +119,7 @@ def assert_write_safe(
                 reason="canonical_doc",
             )
 
-    # 4. Policy check
-    from app.core.governance import get_effective_policy
-    policy = get_effective_policy(str(root), entity_type, entity_id)
-    if not policy.get("can_write"):
-        raise WriteViolation(
-            f"Write permission denied for {entity_type}:{entity_id} "
-            f"on workspace '{root}'.",
-            reason="permission_denied",
-        )
+    # (Permission check moved to top of function — checked before filesystem ops)
 
 
 def safe_write_text(
