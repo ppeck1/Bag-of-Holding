@@ -1,0 +1,77 @@
+/* BOH Phase A — Design tokens (parent brief Section 4) */
+:root {
+  /* Base palette */
+  --bg-app:        #0D1117;
+  --bg-sidebar:    #111823;
+  --bg-panel:      #151D29;
+  --bg-panel-raised:#1B2634;
+  --bg-input:      #0F1722;
+
+  --border-default:#2A394A;
+  --border-strong: #40546A;
+
+  --text-primary:  #E6EDF3;
+  --text-secondary:#A9B7C6;
+  --text-muted:    #728197;
+  --text-mono:     #C7D6E5;
+
+  --accent:        #62A8FF;
+  --accent-soft:   rgba(98,168,255,0.14);
+
+  /* Semantic state palette */
+  --state-current:   #63C174;
+  --state-stale:     #E4B44C;
+  --state-expired:   #B5792E;
+  --state-conflict:  #E56B6F;
+  --state-unknown:   #9B8AFB;
+  --state-review:    #59C3C3;
+  --state-blocked:   #D07EEA;
+  --state-quarantine:#E38C55;
+  --state-preserved: #8E9BAD;
+  --state-advisory:  #74A6D8;
+
+  /* Plane palette (Evidence State projection only) */
+  --plane-informational:#6F8FB0;
+  --plane-subjective:   #A98BD6;
+  --plane-evidence:     #5FA89E;
+  --plane-internal:     #7E8AA0;
+  --plane-review:       #B9933F;
+  --plane-canonical:    #D4B36A;
+  --plane-conflict:     #C56B6F;
+  --plane-archive:      #5A6675;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Geometry */
+  --topbar-h:    48px;
+  --sidebar-w:   216px;
+  --inspector-w: 320px;
+  --radius-panel:10px;
+  --radius-btn:  8px;
+  --radius-badge:999px;
+
+  /* Type */
+  --font-ui:  'Inter', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, monospace;
+
+  /* Motion */
+  --t-hover: 150ms;
+  --t-panel: 180ms;
+  --t-drawer:220ms;
+
+  /* Row height (density) */
+  --row-h: 40px;
+}
+
+[data-density="compact"] { --row-h: 32px; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-hover: 0ms; --t-panel: 0ms; --t-drawer: 0ms; }
+}

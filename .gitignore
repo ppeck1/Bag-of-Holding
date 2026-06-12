@@ -1,0 +1,80 @@
+# Python/cache artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtual environments
+.venv/
+venv/
+env/
+
+# Runtime database/state
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.db.bak-*
+*.db.FAILED-*
+*.sqlite-shm
+*.sqlite-wal
+
+# BOH local corpus/runtime data
+library/
+.boh_quarantine/
+**/.boh_quarantine/
+scratch/
+logs/
+
+# Generated reports/artifacts
+reports/
+generated_reports/
+runtime_reports/
+*.review.json
+*.review.md
+review_artifacts/
+**/review_artifacts/
+**/.reviews/
+
+# Local archives and handoff notes
+*.rar
+*.zip
+*.7z
+*.tar
+*.gz
+*.bundle
+codex.next.md
+
+# Secrets / credentials — never track
+.env
+*.env
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Loose log files (logs/ dir already excluded above)
+*.log
+
+# Public-export workflow: the export dir lives OUTSIDE the repo
+# (../Bag-of-Holding-public-export); these guard against accidental
+# in-repo export output.
+public-export/
+Bag-of-Holding-public-export/
+
+# Local export/backup scratch (source snapshots, browser-automation profiles).
+# Untracked dev scratch only — exclude the whole directory from staging.
+# Contents are intentionally NOT deleted; this rule only keeps Git from staging them.
+export/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/

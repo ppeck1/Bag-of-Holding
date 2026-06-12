@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Known-Good HTML Import Fixture</title>
+  <meta name="description" content="Reference HTML fixture for Phase 26.2 import reliability verification">
+  <style>
+    body { font-family: sans-serif; }
+    nav { display: flex; gap: 8px; }
+    .sidebar { float: right; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+  </nav>
+
+  <header>
+    <h1>Known-Good HTML Import Fixture</h1>
+    <p class="byline">Phase 26.2 Verification Document</p>
+  </header>
+
+  <main>
+    <h2>Purpose</h2>
+    <p>This document verifies that BOH correctly processes HTML files during import. The importer should:</p>
+    <ul>
+      <li>Extract the title from the <code>&lt;title&gt;</code> tag</li>
+      <li>Strip navigation, header, footer, scripts, and styles</li>
+      <li>Extract headings as Markdown-style headers for topic indexing</li>
+      <li>Preserve body text for search</li>
+      <li>Assign draft status on import</li>
+    </ul>
+
+    <h2>Content for Indexing</h2>
+    <p>This section contains body text that should be preserved and indexed. The HTML importer must normalize this into readable text without raw tag markup appearing in search results.</p>
+
+    <h3>Key Facts</h3>
+    <p>FIXTURE_ID: known_good_html_001</p>
+    <p>EXPECTED_TITLE: Known-Good HTML Import Fixture</p>
+    <p>EXPECTED_STATUS: draft</p>
+
+    <h2>Conclusion</h2>
+    <p>If the title, headings, and body text are correctly extracted and indexed, the HTML import pipeline is functioning correctly.</p>
+  </main>
+
+  <footer>
+    <p>BOH Phase 26.2 Verification Suite &copy; 2026</p>
+    <nav>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </nav>
+  </footer>
+
+  <script>
+    // This script block must be stripped by the HTML importer
+    console.log("If you see this in indexed text, the importer is broken.");
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log("Script content must not appear in search index.");
+    });
+  </script>
+</body>
+</html>

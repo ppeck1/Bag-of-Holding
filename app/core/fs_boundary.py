@@ -1,0 +1,270 @@
+"""app/core/fs_boundary.py: Filesystem write boundary enforcement for Bag of Holding v2.
+
+Phase 10 hardening (architectural tension 2).
+
+The DB is the control plane; the filesystem is the data plane.
+
+All filesystem write operations must pass through this module.
+No other module should write to the filesystem directly, except:
+  - indexer.py  (reads only — filesystem → DB)
+  - execution.py (writes to workspace only, inside _run_python / _run_shell)
+  - reviewer.py  (writes .review.json artifacts — must call assert_write_safe)
+
+This module provides:
+  - assert_write_safe(path, entity_type, entity_id) — raises if write is unsafe
+  - safe_write_text(path, content, entity_type, entity_id) — write + audit
+  - safe_mkdir(path, entity_type, entity_id) — mkdir + audit
+  - canonical_path_for(doc, library_root) — derive path without side effects
+"""
+
+from __future__ import annotations
+
+import hashlib
+import os
+import time
+from pathlib import Path
+from typing import Optional
+
+from app.core import audit
+
+
+# ── Protected path patterns ───────────────────────────────────────────────────
+
+PROTECTED_PREFIXES = ("canon/", "canon\\")
+PROTECTED_SUBSTRINGS = ("/canon/", "\\canon\\")
+
+
+def is_protected_path(path: str | Path) -> bool:
+    """Return True if the path resolves inside a protected directory.
+
+    Called before any filesystem write. Both forward and backslash are checked
+    so it works on Windows paths embedded in DB records.
+    """
+    norm = str(path).replace("\\", "/").lower()
+    if norm.startswith("canon/"):
+        return True
+    return any(s in norm for s in ("/canon/",))
+
+
+def is_within_root(path: Path, root: Path) -> bool:
+    """Return True if path is within (or equal to) root. Prevents path traversal."""
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+# ── Write gate ────────────────────────────────────────────────────────────────
+
+class WriteViolation(Exception):
+    """Raised when a filesystem write would violate a governance rule."""
+    def __init__(self, message: str, reason: str = ""):
+        super().__init__(message)
+        self.reason = reason
+
+
+class PathBoundaryViolation(Exception):
+    """Raised when a filesystem path attempts to escape an approved root."""
+    def __init__(self, message: str, reason: str = "path_boundary"):
+        super().__init__(message)
+        self.reason = reason
+
+
+def get_library_root() -> Path:
+    """Return the server-owned library root.
+
+    Request-supplied library roots are not authority. BOH_LIBRARY is the
+    runtime boundary for document reads/writes unless a separate staging root
+    is explicitly introduced by a controlled import workflow.
+    """
+    return Path(os.environ.get("BOH_LIBRARY", "./library")).expanduser().resolve()
+
+
+def _reject_windows_drive(raw: str) -> None:
+    first = raw.replace("\\", "/").split("/", 1)[0]
+    if ":" in first:
+        raise PathBoundaryViolation(f"Absolute drive path rejected: {raw!r}", "absolute_path")
+
+
+def normalize_library_relative_path(path_or_rel: str | Path) -> str:
+    """Normalize a DB/file path into a safe POSIX-style library-relative path."""
+    raw = str(path_or_rel or "").strip()
+    if not raw:
+        raise PathBoundaryViolation("Empty path rejected", "empty_path")
+    if "\x00" in raw:
+        raise PathBoundaryViolation("NUL byte rejected in path", "control_char")
+    _reject_windows_drive(raw)
+
+    p = Path(raw.replace("\\", "/"))
+    if p.is_absolute():
+        raise PathBoundaryViolation(f"Absolute path rejected: {raw!r}", "absolute_path")
+
+    parts: list[str] = []
+    for part in p.parts:
+        if part in ("", "."):
+            continue
+        if part == "..":
+            raise PathBoundaryViolation(f"Path traversal rejected: {raw!r}", "path_traversal")
+        parts.append(part)
+    if not parts:
+        raise PathBoundaryViolation("Empty path rejected", "empty_path")
+    return Path(*parts).as_posix()
+
+
+def resolve_under_root(path_or_rel: str | Path, root: str | Path) -> Path:
+    """Resolve path_or_rel under root and reject traversal/symlink escape."""
+    root_p = Path(root).expanduser().resolve()
+    rel = normalize_library_relative_path(path_or_rel)
+    target = (root_p / rel).resolve()
+    try:
+        target.relative_to(root_p)
+    except ValueError:
+        raise PathBoundaryViolation(
+            f"Path escape detected: '{target}' is outside approved root '{root_p}'",
+            "path_escape",
+        )
+    return target
+
+
+def resolve_under_library(path_or_rel: str | Path,
+                          library_root: str | Path | None = None) -> Path:
+    """Resolve a document-relative path under the server-owned library root."""
+    return resolve_under_root(path_or_rel, library_root or get_library_root())
+
+
+def ensure_request_root_allowed(request_root: str | Path | None,
+                                library_root: str | Path | None = None) -> Path:
+    """Validate optional caller roots.
+
+    A caller may omit the root or name a subdirectory of BOH_LIBRARY. They may
+    not redirect indexing/reading to an arbitrary external folder.
+    """
+    root = Path(library_root or get_library_root()).resolve()
+    if request_root is None or str(request_root).strip() == "":
+        return root
+    requested_raw = Path(str(request_root)).expanduser()
+    requested = (requested_raw if requested_raw.is_absolute() else root / requested_raw).resolve()
+    try:
+        requested.relative_to(root)
+    except ValueError:
+        raise PathBoundaryViolation(
+            f"Caller-supplied root '{requested}' is outside BOH_LIBRARY '{root}'",
+            "root_not_allowed",
+        )
+    return requested
+
+
+def assert_write_safe(
+    path: str | Path,
+    library_root: str | Path,
+    entity_type: str = "human",
+    entity_id: str = "*",
+    doc_id: Optional[str] = None,
+) -> None:
+    """Gate function — raises WriteViolation if this write should be denied.
+
+    Checks in order (Phase 16.2: permission first for correct HTTP status):
+      0. Permission: entity_type must have can_write (fast fail → 403)
+      1. Path traversal: path must be inside library_root (→ 400)
+      2. Canon path protection: path must not be inside canon/ (→ 403)
+      3. DB-status canon protection: if doc_id given, doc must not be canonical
+
+    Call this before any file.write_text() / mkdir() / unlink().
+    """
+    p    = Path(path)
+    root = Path(library_root).expanduser().resolve()
+
+    # 0. Permission check FIRST — returns meaningful 403 before filesystem ops
+    from app.core.governance import get_effective_policy
+    policy = get_effective_policy(str(root), entity_type, entity_id)
+    if not policy.get("can_write"):
+        raise WriteViolation(
+            f"Write permission denied for {entity_type}:{entity_id} "
+            f"on workspace '{root}'.",
+            reason="permission_denied",
+        )
+
+    # 1. Path traversal
+    if not is_within_root(p, root):
+        raise WriteViolation(
+            f"Path traversal denied: '{p}' is outside library root '{root}'.",
+            reason="path_traversal",
+        )
+
+    # 2. Protected directory
+    rel = str(p.resolve().relative_to(root)).replace("\\", "/")
+    if is_protected_path(rel):
+        raise WriteViolation(
+            f"Canon protection: path '{rel}' is inside a protected directory.",
+            reason="protected_path",
+        )
+
+    # 3. Doc-level canon protection
+    if doc_id:
+        from app.db import connection as db
+        row = db.fetchone("SELECT status FROM docs WHERE doc_id = ?", (doc_id,))
+        if row and row.get("status") == "canonical":
+            raise WriteViolation(
+                f"Canon protection: document '{doc_id}' has status=canonical "
+                "and cannot be overwritten.",
+                reason="canonical_doc",
+            )
+
+    # (Permission check moved to top of function — checked before filesystem ops)
+
+
+def safe_write_text(
+    path: str | Path,
+    content: str,
+    library_root: str | Path,
+    entity_type: str = "human",
+    entity_id: str = "*",
+    doc_id: Optional[str] = None,
+    encoding: str = "utf-8",
+) -> dict:
+    """Write text to a file after passing all governance checks.
+
+    Returns: {"written": True, "path": str, "hash": str}
+    Raises: WriteViolation if any check fails.
+    """
+    p = Path(path)
+    assert_write_safe(p, library_root, entity_type, entity_id, doc_id)
+
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding=encoding)
+
+    file_hash = hashlib.sha256(content.encode(encoding)).hexdigest()[:32]
+
+    audit.log_event(
+        event_type="save",
+        actor_type=entity_type,
+        actor_id=entity_id,
+        doc_id=doc_id,
+        workspace=str(Path(library_root).resolve()),
+        detail=f'{{"path": "{p}", "hash": "{file_hash}"}}',
+    )
+
+    return {"written": True, "path": str(p), "hash": file_hash}
+
+
+def safe_mkdir(
+    path: str | Path,
+    library_root: str | Path,
+    entity_type: str = "human",
+    entity_id: str = "*",
+) -> None:
+    """Create a directory after passing write governance checks."""
+    p = Path(path)
+    assert_write_safe(p, library_root, entity_type, entity_id)
+    p.mkdir(parents=True, exist_ok=True)
+
+
+def canonical_path_for(doc: dict, library_root: str | Path) -> Path:
+    """Return the expected on-disk path for a document without touching the filesystem."""
+    root = Path(library_root).resolve()
+    if doc.get("path"):
+        return root / doc["path"]
+    # Derive from doc_id
+    safe_name = (doc.get("doc_id") or "unknown").replace("/", "-").replace(" ", "-").lower()
+    return root / f"{safe_name}.md"

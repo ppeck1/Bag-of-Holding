@@ -1,0 +1,115 @@
+/* BOH Phase B — Fold Workspace styles. */
+
+.fold {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* control bar */
+.fold-bar {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-panel);
+  flex-wrap: wrap;
+}
+.fold-bar .spacer { flex: 1; }
+.fold-bar .bar-label { color: var(--text-muted); }
+
+/* projection switcher — distinct rounded segmented w/ lead channel */
+.proj-switch { display: inline-flex; gap: 4px; padding: 3px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 10px; flex-wrap: wrap; }
+.proj-seg {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 5px 11px; border-radius: 7px; cursor: pointer;
+  background: transparent; border: 0; font-family: inherit; text-align: left;
+  color: var(--text-secondary); transition: background var(--t-hover), color var(--t-hover);
+}
+.proj-seg:hover { color: var(--text-primary); }
+.proj-seg .ps-name { font-size: 12.5px; font-weight: 600; }
+.proj-seg .ps-lead { font-size: 10px; color: var(--text-muted); letter-spacing: 0.02em; }
+.proj-seg.active { background: var(--bg-panel-raised); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.proj-seg.active .ps-lead { color: var(--accent); }
+
+/* overlay-none: reserved placeholder in control bar (FOLD-04) */
+.overlay-none { display: inline-flex; align-items: center; gap: 6px; }
+
+/* breadcrumb */
+.fold-crumbs { display: flex; align-items: center; gap: 8px; padding: 8px var(--space-4); border-bottom: 1px solid var(--border-default); background: var(--bg-app); }
+.fold-crumbs .crumb { color: var(--text-muted); font-size: 12px; cursor: pointer; }
+.fold-crumbs .crumb:hover { color: var(--text-secondary); }
+.fold-crumbs .crumb.last { color: var(--text-primary); cursor: default; }
+.fold-crumbs .sep { color: var(--text-muted); font-size: 11px; }
+
+/* canvas area */
+.fold-stage { position: relative; overflow: hidden; background:
+  radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0) 0 0 / 28px 28px,
+  var(--bg-app); }
+.fold-svg { width: 100%; height: 100%; display: block; cursor: grab; }
+.fold-svg.panning { cursor: grabbing; }
+
+/* nodes */
+.fnode { cursor: pointer; }
+.fnode .nshape { transition: transform 250ms cubic-bezier(0.2,0.7,0.2,1), opacity var(--t-panel), fill var(--t-panel), stroke-width var(--t-panel); }
+.fnode .nlabel { font-family: var(--font-ui); font-size: 11px; fill: var(--text-secondary); paint-order: stroke; stroke: var(--bg-app); stroke-width: 3px; pointer-events: none; }
+.fnode.faded { opacity: 0.35; }
+.fnode .nglyph { font-family: var(--font-mono); font-size: 10px; fill: var(--bg-app); font-weight: 600; pointer-events: none; text-anchor: middle; }
+.fnode .corner-badge { font-family: var(--font-ui); font-size: 9px; }
+
+/* selection / focus rings */
+.sel-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+/* focus-ring: hidden by default; CSS :focus-visible shows it (dashed = keyboard only) */
+.focus-ring { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 3; display: none; }
+.fnode:focus-visible .focus-ring { display: block; }
+.hover-glow { fill: var(--accent); opacity: 0.18; filter: blur(2px); }
+/* hover: glow + 8 % scale on the shape only (per spec §4) */
+.fnode:hover .nshape { transform: scale(1.08); }
+
+/* edges */
+.fedge { transition: opacity var(--t-panel); }
+.fedge.faded { opacity: 0.12; }
+
+/* scalar axes */
+.axis-line { stroke: var(--border-default); stroke-width: 1; }
+.axis-label { fill: var(--text-muted); font-family: var(--font-ui); font-size: 11px; }
+.quad-label { fill: var(--text-muted); font-family: var(--font-ui); font-size: 10px; opacity: 0.6; letter-spacing: 0.03em; }
+
+/* on-canvas legend */
+.fold-legend {
+  position: absolute; left: var(--space-4); bottom: var(--space-4); z-index: 5;
+  width: 300px; background: color-mix(in oklab, var(--bg-panel) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-panel);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4); overflow: hidden;
+}
+.fold-legend .fl-head { display: flex; align-items: center; gap: 8px; padding: 9px var(--space-3); border-bottom: 1px solid var(--border-default); cursor: pointer; }
+.fold-legend .fl-head .fl-lead { color: var(--text-primary); font-weight: 600; font-size: 12px; }
+.fold-legend .fl-head .fl-chan { color: var(--accent); font-size: 11px; }
+.fold-legend .fl-head .spacer { flex: 1; }
+.fold-legend .fl-body { padding: var(--space-3); display: flex; flex-direction: column; gap: 9px; }
+.fl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fl-row .fl-key { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; width: 64px; flex: none; }
+.fl-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+.fl-chip .g { font-size: 11px; }
+
+/* legend mini status / counts */
+.fold-meta { position: absolute; right: var(--space-4); top: var(--space-4); z-index: 5; display: flex; gap: 8px; }
+
+/* list view */
+.fold-list { overflow: auto; padding: var(--space-4); }
+
+/* zoom controls */
+.fold-zoom { position: absolute; right: var(--space-4); bottom: var(--space-4); z-index: 5; display: flex; flex-direction: column; gap: 6px; }
+.fold-zoom .icon-btn { background: var(--bg-panel-raised); border: 1px solid var(--border-strong); width: 32px; height: 32px; }
+
+/* hover tooltip */
+.fold-tooltip {
+  background: var(--bg-panel-raised); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-btn); padding: 8px 11px; min-width: 160px; max-width: 240px;
+  font-size: 12px; color: var(--text-secondary);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+}
+.fold-tooltip .tt-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 5px; }
+.fold-tooltip .tt-row { display: flex; justify-content: space-between; gap: 8px; line-height: 1.7; }
+.fold-tooltip .tt-row .k { color: var(--text-muted); font-size: 11px; }

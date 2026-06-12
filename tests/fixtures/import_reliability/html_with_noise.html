@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HTML With Noise — Importer Stress Test</title>
+  <style type="text/css">
+    /* This entire CSS block must be stripped */
+    body { margin: 0; padding: 0; background: #fff; }
+    .ad-banner { display: block; width: 728px; height: 90px; }
+    .nav-menu { list-style: none; }
+    .hidden-tracking { visibility: hidden; position: absolute; }
+    @media (max-width: 768px) { .sidebar { display: none; } }
+  </style>
+  <script>
+    // Analytics and tracking — must be stripped completely
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'GA-XXXXXXXXXX');
+    var _paq = _paq || [];
+    _paq.push(['trackPageView']);
+  </script>
+</head>
+<body>
+  <!-- Navigation noise -->
+  <nav id="main-nav">
+    <ul class="nav-menu">
+      <li><a href="/">Home</a></li>
+      <li><a href="/category/news">News</a></li>
+      <li><a href="/category/opinion">Opinion</a></li>
+      <li><a href="/subscribe">Subscribe Now — $9.99/month</a></li>
+    </ul>
+    <div class="search-bar"><input type="search" placeholder="Search..."></div>
+  </nav>
+
+  <!-- Ad banner — must be stripped -->
+  <div class="ad-banner" data-ad-slot="7654321">
+    <script>googletag.cmd.push(function() { googletag.display('div-gpt-ad-123'); });</script>
+  </div>
+
+  <!-- Actual article content — must be preserved -->
+  <article>
+    <h1>The Readable Article Content</h1>
+    <p class="byline">By Test Author | April 29, 2026</p>
+
+    <h2>Introduction</h2>
+    <p>This is the first paragraph of meaningful content. The HTML importer should extract this text and make it searchable, while stripping all the surrounding noise.</p>
+
+    <h2>Main Body</h2>
+    <p>This is the second paragraph. It contains the actual information that a user would want to read and search for. FIXTURE_ID: html_with_noise_001.</p>
+
+    <h3>Key Detail</h3>
+    <p>EXPECTED_BEHAVIOR: Script, style, nav, header, and footer content stripped. Article body text preserved. Title extracted correctly.</p>
+
+    <h2>Conclusion</h2>
+    <p>If this conclusion text appears in search results but script/CSS content does not, the importer is working correctly.</p>
+  </article>
+
+  <!-- Sidebar noise -->
+  <aside class="sidebar">
+    <h3>Related Stories</h3>
+    <ul>
+      <li><a href="/story/1">Click here for more stories</a></li>
+      <li><a href="/story/2">Another promoted article</a></li>
+    </ul>
+    <div class="ad-banner"><!-- Ad slot --></div>
+  </aside>
+
+  <!-- Footer noise -->
+  <footer>
+    <p>Copyright 2026 Test Publisher. All rights reserved.</p>
+    <ul>
+      <li><a href="/privacy">Privacy Policy</a></li>
+      <li><a href="/terms">Terms of Service</a></li>
+      <li><a href="/cookies">Cookie Settings</a></li>
+    </ul>
+    <script>
+      // Footer tracking pixel — must not appear in indexed content
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    </script>
+  </footer>
+</body>
+</html>

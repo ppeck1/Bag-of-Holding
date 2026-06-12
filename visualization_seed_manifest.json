@@ -1,0 +1,23 @@
+{
+  "fabricated": true,
+  "purpose": "BOH visualization rendering test corpus",
+  "doc_count": 16,
+  "edge_count": 12,
+  "modes_exercised": [
+    "web",
+    "variable",
+    "constraint",
+    "constitutional"
+  ],
+  "lane_targets": [
+    "raw_imported",
+    "expired",
+    "canceled",
+    "contained",
+    "under_review",
+    "approved",
+    "canonical",
+    "archived"
+  ],
+  "notes": "The included boh.db is already seeded. Run seed_visualization_demo.py only if rebuilding the database."
+}
