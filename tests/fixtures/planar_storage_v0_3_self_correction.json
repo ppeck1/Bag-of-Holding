@@ -1,0 +1,3862 @@
+{
+  "actors": [
+    {
+      "id": "reader_01",
+      "role": "reader",
+      "scope": "workflow_policy"
+    },
+    {
+      "id": "contrib_01",
+      "role": "contributor",
+      "scope": "workflow_policy"
+    },
+    {
+      "id": "reviewer_01",
+      "role": "reviewer",
+      "scope": "workflow_policy"
+    },
+    {
+      "id": "approver_01",
+      "role": "approver",
+      "scope": "workflow_policy"
+    },
+    {
+      "id": "domain_owner_01",
+      "role": "domain_owner",
+      "scope": "workflow_policy"
+    },
+    {
+      "id": "schema_owner_01",
+      "role": "schema_owner",
+      "scope": "schema"
+    },
+    {
+      "id": "authority_owner_01",
+      "role": "authority_owner",
+      "scope": "authority_registry"
+    },
+    {
+      "id": "actor_a",
+      "role": "domain_owner",
+      "scope": "workflow_policy"
+    },
+    {
+      "id": "llm_01",
+      "role": "LLM",
+      "scope": "language_only"
+    },
+    {
+      "id": "system_service_01",
+      "role": "system_service",
+      "scope": "gate_evaluator_only"
+    }
+  ],
+  "authority_states": [
+    {
+      "approved_by": "approver_01",
+      "bootstrap_state": "approved",
+      "created_by": "contrib_01",
+      "id": "auth_approved_sod_valid",
+      "override_basis": null,
+      "owner_role": "domain_owner",
+      "reviewed_by": "reviewer_01",
+      "separation_of_duties_valid": true,
+      "small_team_override": false
+    },
+    {
+      "approved_by": null,
+      "bootstrap_state": "unknown",
+      "created_by": "contrib_01",
+      "id": "auth_unknown_import",
+      "override_basis": null,
+      "owner_role": null,
+      "reviewed_by": null,
+      "separation_of_duties_valid": null,
+      "small_team_override": false
+    },
+    {
+      "approved_by": null,
+      "bootstrap_state": "reviewed",
+      "created_by": "contrib_01",
+      "id": "auth_provisional_reviewed",
+      "override_basis": null,
+      "owner_role": "domain_owner",
+      "reviewed_by": "reviewer_01",
+      "separation_of_duties_valid": true,
+      "small_team_override": false
+    },
+    {
+      "approved_by": "actor_a",
+      "bootstrap_state": "approved",
+      "created_by": "actor_a",
+      "id": "auth_self_promotion_failed",
+      "override_basis": null,
+      "owner_role": "domain_owner",
+      "reviewed_by": "actor_a",
+      "separation_of_duties_valid": false,
+      "small_team_override": false
+    }
+  ],
+  "canon_change_records": [
+    {
+      "approved_at": "2026-05-27T16:28:00-04:00",
+      "approved_by": "authority_owner_01",
+      "changed_objects": [
+        "GateRule.source_trust",
+        "PlaneCard.pc_unknown_source_quarantine.use_policy_ref",
+        "FixtureCase.source_poisoning_quarantine",
+        "FixtureCase.source_quarantine_explain_limits_answerable"
+      ],
+      "id": "canon_change_source_trust_quarantine_001",
+      "migration_note": "Unknown-trust imported sources are now explicitly quarantined and cannot serve as evidence for approval or promotion. The current canonical rule lives in the source_trust gate rule and is regression-covered by source_poisoning_quarantine.",
+      "new_location_refs": [
+        "GateRule.source_trust.quarantine_unknown",
+        "PlaneCard.pc_unknown_source_quarantine",
+        "FixtureCase.source_poisoning_quarantine"
+      ],
+      "old_location_refs": [
+        "legacy:unknown_trust_imports_unclassified",
+        "GateRule.source_trust.prepatch"
+      ],
+      "patch_proposal_ref": "patch_source_trust_quarantine_001",
+      "regression_fixture_refs": [
+        "source_poisoning_quarantine",
+        "source_quarantine_explain_limits_answerable"
+      ],
+      "supersedes_refs": [
+        "legacy:unknown_trust_imports_unclassified"
+      ],
+      "trace_event_ref": "trace_canon_change_source_trust_001"
+    }
+  ],
+  "canon_context": "v1.10.5.3 audited self-correction capstone over v1.10.5.2; no ontology expansion; no autonomous canon mutation",
+  "conflict_sets": [
+    {
+      "card_refs": [
+        "pc_canon_old",
+        "pc_canon_new"
+      ],
+      "conflict_type": "canon_vs_canon",
+      "dominance_policy_ref": null,
+      "id": "conflict_open_001",
+      "opened_at": "2026-05-27T15:30:00-04:00",
+      "opened_by": "reviewer_01",
+      "resolution": null,
+      "status": "open"
+    },
+    {
+      "card_refs": [
+        "pc_canon_old",
+        "pc_canon_new"
+      ],
+      "conflict_type": "policy_date_conflict",
+      "dominance_policy_ref": "dom_workflow_policy_current_001",
+      "id": "conflict_governed_001",
+      "opened_at": "2026-05-27T15:30:00-04:00",
+      "opened_by": "reviewer_01",
+      "resolution": "dominance_policy_may_select_pc_canon_new_if_all_gates_pass",
+      "status": "open"
+    },
+    {
+      "card_refs": [
+        "pc_canon_old",
+        "pc_canon_new"
+      ],
+      "conflict_type": "policy_date_conflict",
+      "dominance_policy_ref": "dom_workflow_policy_stale_or_out_of_scope_001",
+      "id": "conflict_stale_or_out_of_scope_dominance_001",
+      "opened_at": "2026-05-27T15:55:00-04:00",
+      "opened_by": "reviewer_01",
+      "resolution": "dominance_policy_must_be_rejected_because_scope_or_validity_fails",
+      "status": "open"
+    }
+  ],
+  "correction_trace_events": [
+    {
+      "created_at": "2026-05-27T16:25:00-04:00",
+      "event_type": "mistake_detected",
+      "id": "trace_mistake_source_poisoning_001",
+      "source": "fixture_expected_vs_actual",
+      "summary": "Evaluator would have allowed unknown-trust imported evidence into an approval path; expected posture is blocked with source_trust_unknown_quarantine."
+    },
+    {
+      "created_at": "2026-05-27T16:26:00-04:00",
+      "event_type": "patch_proposed",
+      "id": "trace_patch_source_trust_001",
+      "source": "MistakeEvent.mistake_source_poisoning_false_allow_001",
+      "summary": "Proposed source trust gate patch requiring quarantine for unknown-trust imported sources."
+    },
+    {
+      "created_at": "2026-05-27T16:28:00-04:00",
+      "event_type": "canon_change_recorded",
+      "id": "trace_canon_change_source_trust_001",
+      "source": "PatchProposal.patch_source_trust_quarantine_001",
+      "summary": "Approved source-trust gate behavior and regression fixture coverage recorded."
+    }
+  ],
+  "cost_assumption_basis_records": [
+    {
+      "basis_status": "placeholder_until_pilot",
+      "confidence_band": [
+        3,
+        12
+      ],
+      "display_rule": "must_render_placeholder_badge_and_confidence_band",
+      "field": "metadata_minutes_per_card",
+      "id": "cost_metadata_minutes_per_card_006",
+      "valid_scope": "planning only",
+      "value": 6
+    },
+    {
+      "basis_status": "placeholder_until_pilot",
+      "confidence_band": [
+        0.08,
+        0.35
+      ],
+      "display_rule": "must_render_placeholder_badge_and_confidence_band",
+      "field": "correction_rate",
+      "id": "cost_correction_rate_018",
+      "valid_scope": "planning only",
+      "value": 0.18
+    }
+  ],
+  "coverage_summary": {
+    "blocked_count": 14,
+    "correction_object_count": 6,
+    "coverage_notes": [
+      "C07 resolved by adding positive edge cases: stale_low_risk_explain_bounded, provisional_draft_bounded, sod_valid_approve_path, trace_only_history_bounded, governed_compare_disclosed_conflict.",
+      "C08 resolved by adding role mismatch cases for reader, contributor, reviewer, LLM, and system_service.",
+      "C03 resolved by adding dominance_policy_stale_or_out_of_scope regression.",
+      "C09 resolved by adding context_allowed_basis to complete_passing_context_pack.",
+      "C12 addressed by source_poisoning_quarantine threat/control fixture.",
+      "C07 acceptance threshold met by raising non-blocked fixture coverage above 40% with bounded, answerable, and review_required positive edge cases.",
+      "v0.3 adds audited self-correction objects without introducing new planes, roles, zero modes, or active L6 mutation.",
+      "InformationResidenceMap provides the capstone locator for superseded, moved, quarantined, or active correction-related knowledge.",
+      "PatchProposal remains forbidden_auto_apply; reviewer/owner approval and CanonChangeRecord are mandatory before canon read paths change."
+    ],
+    "family_counts": {
+      "authority_gate": 1,
+      "baseline_pass": 1,
+      "conflict_gate": 2,
+      "dominance_policy_regression": 1,
+      "governance_health_gate": 1,
+      "positive_edge": 8,
+      "role_mismatch": 5,
+      "scalar_theater": 1,
+      "schema_gate": 1,
+      "source_trust_gate": 2,
+      "temporal_gate": 1,
+      "verification_gate": 1
+    },
+    "fixture_count": 25,
+    "plane_card_count": 13,
+    "positive_or_nonblocked_count": 11,
+    "positive_or_nonblocked_ratio": 0.44,
+    "posture_counts": {
+      "answerable": 5,
+      "blocked": 14,
+      "bounded": 5,
+      "review_required": 1
+    }
+  },
+  "created_at": "2026-05-27T16:25:00-04:00",
+  "deterministic_evaluator_contract": {
+    "comparison_required": [
+      "posture_exact_match",
+      "blocking_reason_class_match",
+      "warning_reason_class_match",
+      "allowed_context_refs_match",
+      "withheld_context_refs_match",
+      "required_route_match",
+      "trace_event_type_match",
+      "l6_proposal_allowed_match",
+      "context_allowed_basis_match_when_present",
+      "mistake_event_emitted_on_expected_actual_mismatch",
+      "patchproposal_forbidden_auto_apply_true",
+      "canon_change_record_required_for_approved_patch",
+      "information_residence_map_updated_for_supersession",
+      "regression_fixture_refs_present_for_approved_patch"
+    ],
+    "derive_gate_result_from": [
+      "blocked_use",
+      "governance_health",
+      "AuthorityState",
+      "TemporalState",
+      "ConflictSet",
+      "DominancePolicy",
+      "ScalarBasis",
+      "SemanticStateVector",
+      "object_status",
+      "base_plane_operation_permission",
+      "RCT expected planes",
+      "source_trust"
+    ],
+    "input": "planar_storage_fixture_pack_v0_3_self_correction.json",
+    "report_required_before": [
+      "pilot_corpus",
+      "active_l6_behavior",
+      "new_ontology",
+      "correction_ledger_report",
+      "supersession_map_report"
+    ]
+  },
+  "dominance_policies": [
+    {
+      "applies_to_conflict_types": [
+        "canon_vs_canon"
+      ],
+      "authority": {
+        "approved_by": null,
+        "created_by": "contrib_01",
+        "separation_of_duties_valid": false
+      },
+      "id": "dom_missing",
+      "precedence_order": [],
+      "scope": "workflow_policy",
+      "status": "draft",
+      "trace": {
+        "basis": "intentionally ungoverned fixture object",
+        "evidence_refs": [],
+        "valid_until": "2026-08-31"
+      }
+    },
+    {
+      "applies_to_conflict_types": [
+        "canon_vs_canon",
+        "policy_date_conflict"
+      ],
+      "authority": {
+        "approved_by": "authority_owner_01",
+        "created_by": "contrib_01",
+        "separation_of_duties_valid": true
+      },
+      "id": "dom_workflow_policy_current_001",
+      "precedence_order": [
+        "source_version_current",
+        "domain_owner_approved_policy",
+        "training_excerpt"
+      ],
+      "scope": "workflow_policy",
+      "status": "canonical_approved",
+      "trace": {
+        "basis": "Current source version supersedes older training excerpt in this fixture.",
+        "evidence_refs": [
+          "trace_dom_001"
+        ],
+        "valid_until": "2026-08-31"
+      }
+    },
+    {
+      "applies_to_conflict_types": [
+        "canon_vs_canon",
+        "policy_date_conflict"
+      ],
+      "authority": {
+        "approved_by": "authority_owner_01",
+        "created_by": "contrib_01",
+        "separation_of_duties_valid": true
+      },
+      "id": "dom_workflow_policy_stale_or_out_of_scope_001",
+      "precedence_order": [
+        "source_version_current",
+        "training_excerpt"
+      ],
+      "scope": "billing_policy",
+      "status": "canonical_approved",
+      "trace": {
+        "basis": "Intentionally stale/out-of-scope policy for regression coverage.",
+        "evidence_refs": [
+          "trace_dom_stale_001"
+        ],
+        "valid_until": "2026-02-01"
+      }
+    }
+  ],
+  "execution_lock_guard": {
+    "allowed_patch_classes": [
+      "fixture_repair",
+      "evaluator_work",
+      "pilot_path",
+      "wording_clarification",
+      "report_export",
+      "lock_guard",
+      "audited_correction_ledger",
+      "correction_fixture_repair"
+    ],
+    "blocked_patch_classes": [
+      "ontology_expansion",
+      "new_plane",
+      "new_zero_mode",
+      "new_role_alias",
+      "active_l6_behavior",
+      "visualization_requirement_expansion"
+    ],
+    "reject_when": [
+      "ontology_delta != none and pilot_report_ref is null",
+      "l6_behavior_delta == active and BaselineGateSignoff is absent",
+      "patch_class in blocked_patch_classes",
+      "PatchProposal.forbidden_auto_apply != true",
+      "approved correction lacks CanonChangeRecord",
+      "approved correction lacks InformationResidenceMap update",
+      "approved correction lacks regression_fixture_refs and no fixture waiver is recorded"
+    ],
+    "required_fields": [
+      "patch_class",
+      "changed_objects",
+      "ontology_delta",
+      "l6_behavior_delta",
+      "pilot_report_ref",
+      "lock_verdict",
+      "mistake_event_ref",
+      "patch_proposal_ref",
+      "canon_change_record_ref",
+      "information_residence_map_ref",
+      "regression_fixture_refs"
+    ],
+    "required_header": "ExecutionLockCheck"
+  },
+  "execution_rule": "Expected GateResults are declared before execution; actual results must be compared by posture, reason class, allowed/withheld context, route, trace event, RCT adequacy, L6 proposal permission, and context_allowed_basis. On expected-vs-actual mismatch or reviewer-validated correction, emit MistakeEvent and allow PatchProposal creation only; no patch may auto-apply without reviewer/owner approval, CanonChangeRecord, InformationResidenceMap update, and regression fixture coverage.",
+  "fixture_cases": [
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "context_allowed_basis": {
+          "actor_role_allows_operation": true,
+          "all_candidate_cards_allow_operation": true,
+          "authority_state_allows_operation": true,
+          "conflict_state_allows_operation": true,
+          "governance_health_allows_operation": true,
+          "no_explicit_blocked_use_conflict": true,
+          "rct_required_planes_present": true,
+          "scalar_basis_complete_if_displayed": true,
+          "temporal_state_allows_operation": true
+        },
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_complete_passing_context_pack",
+        "missing_planes": [],
+        "operation": "explain",
+        "query": "Explain current workflow approval rule with canon, evidence, and trace present.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "context_allowed_basis": {
+          "actor_role_allows_operation": true,
+          "all_candidate_cards_allow_operation": true,
+          "authority_state_allows_operation": true,
+          "conflict_state_allows_operation": true,
+          "governance_health_allows_operation": true,
+          "no_explicit_blocked_use_conflict": true,
+          "rct_required_planes_present": true,
+          "scalar_basis_complete_if_displayed": true,
+          "temporal_state_allows_operation": true
+        },
+        "l6_proposal_allowed": false,
+        "l6_proposal_types": [],
+        "posture": "answerable",
+        "required_route": null,
+        "trace_event_type": "gate_passed",
+        "warning_reasons": [],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "evidence"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "baseline_pass",
+      "id": "complete_passing_context_pack",
+      "input_refs": {
+        "context_pack": "ctx_complete_passing_context_pack",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "explain",
+      "purpose": "Explain current workflow approval rule with canon, evidence, and trace present."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_score_missing_basis",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_missing_scalar_basis_gate_bearing_score",
+        "missing_planes": [
+          "canon",
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Approve a gate-bearing score when the evidence card has no ScalarBasis.",
+        "retrieved_planes": [
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "scalar_basis_missing",
+          "blocked_use_approve"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "scalar_recalibration",
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "domain_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_score_missing_basis"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "insufficient",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "canon",
+          "decision"
+        ],
+        "posture_effect": "blocked",
+        "reason_codes": [
+          "approval_requires_current_canon",
+          "decision_basis_missing",
+          "scalar_basis_missing"
+        ],
+        "retrieved_planes": [
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "scalar_theater",
+      "id": "missing_scalar_basis_gate_bearing_score",
+      "input_refs": {
+        "context_pack": "ctx_missing_scalar_basis_gate_bearing_score",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_score_missing_basis",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Approve a gate-bearing score when the evidence card has no ScalarBasis."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_stale_card_high_risk_approval",
+        "missing_planes": [
+          "evidence",
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Approve a stale canon card in a high-risk approval operation.",
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "temporal_stale_high_risk",
+          "blocked_use_approve"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "retrieval_patch",
+          "threshold_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "domain_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [
+          "staleness_must_be_disclosed"
+        ],
+        "withheld_context_refs": [
+          "pc_stale_approval"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "insufficient",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "evidence",
+          "decision"
+        ],
+        "posture_effect": "blocked",
+        "reason_codes": [
+          "stale_canon_not_approvable",
+          "evidence_missing",
+          "decision_basis_missing"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "family": "temporal_gate",
+      "id": "stale_card_high_risk_approval",
+      "input_refs": {
+        "context_pack": "ctx_stale_card_high_risk_approval",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Approve a stale canon card in a high-risk approval operation."
+    },
+    {
+      "actor_id": "actor_a",
+      "context_pack": {
+        "actor": "actor_a",
+        "candidate_cards": [
+          "pc_self_promote_candidate",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_self_promotion_sod_failure",
+        "missing_planes": [],
+        "operation": "promote",
+        "query": "Promote a candidate canon object created, reviewed, and approved by the same actor.",
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "separation_of_duties_failed",
+          "self_promotion_attempt",
+          "blocked_use_promote"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_self_promote_candidate"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "family": "authority_gate",
+      "id": "self_promotion_sod_failure",
+      "input_refs": {
+        "context_pack": "ctx_self_promotion_sod_failure",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_self_promote_candidate",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "promote",
+      "purpose": "Promote a candidate canon object created, reviewed, and approved by the same actor."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": "conflict_open_001",
+        "dominance_policy": "dom_missing",
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_canon_conflict_ungoverned_dominance_policy",
+        "missing_planes": [
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Approve one of two conflicting canon cards with no governed dominance policy.",
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "canon_conflict_unresolved",
+          "dominance_policy_not_governed"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "dominance_policy_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "domain_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [
+          "conflict_may_be_explained_only"
+        ],
+        "withheld_context_refs": [
+          "pc_canon_old",
+          "pc_canon_new"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "insufficient",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "decision"
+        ],
+        "posture_effect": "blocked",
+        "reason_codes": [
+          "decision_basis_missing",
+          "dominance_policy_not_governed"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "conflict_gate",
+      "id": "canon_conflict_ungoverned_dominance_policy",
+      "input_refs": {
+        "conflict_set": "conflict_open_001",
+        "context_pack": "ctx_canon_conflict_ungoverned_dominance_policy",
+        "dominance_policy": "dom_missing",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Approve one of two conflicting canon cards with no governed dominance policy."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": "conflict_governed_001",
+        "dominance_policy": "dom_workflow_policy_current_001",
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_canon_conflict_governed_dominance_policy",
+        "missing_planes": [
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Approve using a current scoped dominance policy that resolves a policy-date conflict.",
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": false,
+        "l6_proposal_types": [],
+        "posture": "answerable",
+        "required_route": null,
+        "trace_event_type": "dominance_policy_applied",
+        "warning_reasons": [
+          "dominance_policy_applied"
+        ],
+        "withheld_context_refs": [
+          "pc_canon_old"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "partial",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "decision"
+        ],
+        "posture_effect": "none",
+        "reason_codes": [
+          "dominance_policy_supplies_conflict_resolution_basis"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "conflict_gate",
+      "id": "canon_conflict_governed_dominance_policy",
+      "input_refs": {
+        "conflict_set": "conflict_governed_001",
+        "context_pack": "ctx_canon_conflict_governed_dominance_policy",
+        "dominance_policy": "dom_workflow_policy_current_001",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Approve using a current scoped dominance policy that resolves a policy-date conflict."
+    },
+    {
+      "actor_id": "reviewer_01",
+      "context_pack": {
+        "actor": "reviewer_01",
+        "candidate_cards": [
+          "pc_verification_self_attested",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "governance_health": "gov_failed_verification",
+        "id": "ctx_self_attested_verification_attempt",
+        "missing_planes": [],
+        "operation": "promote",
+        "query": "Promote a validity reset based only on self-attested no-change verification.",
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "verification_materiality_missing",
+          "valid_until_reset_denied",
+          "governance_failed_verification_block"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch",
+          "threshold_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "domain_owner",
+        "trace_event_type": "verification_failed",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_verification_self_attested"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "family": "verification_gate",
+      "id": "self_attested_verification_attempt",
+      "input_refs": {
+        "context_pack": "ctx_self_attested_verification_attempt",
+        "governance_health": "gov_failed_verification",
+        "plane_cards": [
+          "pc_verification_self_attested",
+          "pc_trace_current"
+        ],
+        "verification_event": "verify_self_attested_bad_001"
+      },
+      "operation": "promote",
+      "purpose": "Promote a validity reset based only on self-attested no-change verification."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_schema_misfit_001",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_schema_breach",
+        "id": "ctx_schema_misfit_queue_breach",
+        "missing_planes": [
+          "canon",
+          "evidence",
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Approve classification-dependent high-risk use while schema_misfit queue exceeds block threshold.",
+        "retrieved_planes": [
+          "schema_misfit",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "schema_misfit_queue_breach",
+          "schema_review_required"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "schema_patch",
+          "threshold_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "schema_owner",
+        "trace_event_type": "schema_review_requested",
+        "warning_reasons": [
+          "schema_misfit_max_age_breached"
+        ],
+        "withheld_context_refs": [
+          "pc_schema_misfit_001"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "insufficient",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "canon",
+          "evidence",
+          "decision"
+        ],
+        "posture_effect": "blocked",
+        "reason_codes": [
+          "schema_misfit_not_approvable",
+          "approval_requires_current_canon",
+          "evidence_missing",
+          "decision_basis_missing"
+        ],
+        "retrieved_planes": [
+          "schema_misfit",
+          "trace"
+        ]
+      },
+      "family": "schema_gate",
+      "id": "schema_misfit_queue_breach",
+      "input_refs": {
+        "context_pack": "ctx_schema_misfit_queue_breach",
+        "governance_health": "gov_schema_breach",
+        "plane_cards": [
+          "pc_schema_misfit_001",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Approve classification-dependent high-risk use while schema_misfit queue exceeds block threshold."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_sla_breach",
+        "id": "ctx_governance_health_sla_breach",
+        "missing_planes": [
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Approve high-risk use while review queue age exceeds high-risk block threshold.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [],
+        "blocking_reasons": [
+          "governance_health_sla_breach",
+          "review_queue_stale"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "threshold_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "insufficient",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "decision"
+        ],
+        "posture_effect": "blocked",
+        "reason_codes": [
+          "governance_health_blocks_before_rct_completion",
+          "decision_basis_missing"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "governance_health_gate",
+      "id": "governance_health_sla_breach",
+      "input_refs": {
+        "context_pack": "ctx_governance_health_sla_breach",
+        "governance_health": "gov_sla_breach",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Approve high-risk use while review queue age exceeds high-risk block threshold."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": "conflict_stale_or_out_of_scope_dominance_001",
+        "dominance_policy": "dom_workflow_policy_stale_or_out_of_scope_001",
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_dominance_policy_stale_or_out_of_scope",
+        "missing_planes": [
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Reject a canonical_approved dominance policy when it is stale or outside the workflow_policy scope.",
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "canon_conflict_unresolved",
+          "dominance_policy_not_current_or_scope_mismatch"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "dominance_policy_patch",
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "domain_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [
+          "stale_or_out_of_scope_dominance_policy_treated_as_absent"
+        ],
+        "withheld_context_refs": [
+          "pc_canon_old",
+          "pc_canon_new"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "insufficient",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "decision"
+        ],
+        "posture_effect": "blocked",
+        "reason_codes": [
+          "decision_basis_missing",
+          "dominance_policy_not_current_or_scope_mismatch"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "dominance_policy_regression",
+      "id": "dominance_policy_stale_or_out_of_scope",
+      "input_refs": {
+        "conflict_set": "conflict_stale_or_out_of_scope_dominance_001",
+        "context_pack": "ctx_dominance_policy_stale_or_out_of_scope",
+        "dominance_policy": "dom_workflow_policy_stale_or_out_of_scope_001",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Reject a canonical_approved dominance policy when it is stale or outside the workflow_policy scope."
+    },
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_stale_low_risk_explain_bounded",
+        "missing_planes": [],
+        "operation": "explain",
+        "query": "Allow a stale canon card for low-risk explanation only, with explicit staleness disclosure.",
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "retrieval_patch"
+        ],
+        "posture": "bounded",
+        "required_route": null,
+        "trace_event_type": "gate_degraded",
+        "warning_reasons": [
+          "staleness_must_be_disclosed",
+          "low_risk_explain_only"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon"
+        ],
+        "missing_planes": [],
+        "posture_effect": "bounded",
+        "reason_codes": [
+          "temporal_stale_bounded_explain_allowed"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "stale_low_risk_explain_bounded",
+      "input_refs": {
+        "context_pack": "ctx_stale_low_risk_explain_bounded",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "explain",
+      "purpose": "Allow a stale canon card for low-risk explanation only, with explicit staleness disclosure."
+    },
+    {
+      "actor_id": "contrib_01",
+      "context_pack": {
+        "actor": "contrib_01",
+        "candidate_cards": [
+          "pc_provisional_draft_note",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "interpretation",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_provisional_draft_bounded",
+        "missing_planes": [],
+        "operation": "draft",
+        "query": "Allow a provisional draft for reviewer review while blocking approval and promotion semantics.",
+        "retrieved_planes": [
+          "interpretation",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_provisional_draft_note",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": false,
+        "l6_proposal_types": [],
+        "posture": "bounded",
+        "required_route": "reviewer",
+        "trace_event_type": "gate_degraded",
+        "warning_reasons": [
+          "provisional_authority",
+          "draft_not_approved_policy",
+          "placeholder_scalar_not_displayable_as_calibrated"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "interpretation",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "bounded",
+        "reason_codes": [
+          "draft_allowed_as_provisional_only"
+        ],
+        "retrieved_planes": [
+          "interpretation",
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "provisional_draft_bounded",
+      "input_refs": {
+        "context_pack": "ctx_provisional_draft_bounded",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_provisional_draft_note",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "draft",
+      "purpose": "Allow a provisional draft for reviewer review while blocking approval and promotion semantics."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_sod_valid_approve_path",
+        "missing_planes": [],
+        "operation": "approve",
+        "query": "Approve current workflow policy when canon, evidence, decision, trace, current temporal state, and SoD-valid authority all pass.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": false,
+        "l6_proposal_types": [],
+        "posture": "answerable",
+        "required_route": null,
+        "trace_event_type": "gate_passed",
+        "warning_reasons": [],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "sod_valid_approve_path",
+      "input_refs": {
+        "context_pack": "ctx_sod_valid_approve_path",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Approve current workflow policy when canon, evidence, decision, trace, current temporal state, and SoD-valid authority all pass."
+    },
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_trace_only_history_bounded",
+        "missing_planes": [],
+        "operation": "history",
+        "query": "Allow trace-only history while explicitly preventing it from being represented as current canon.",
+        "retrieved_planes": [
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": false,
+        "l6_proposal_types": [],
+        "posture": "bounded",
+        "required_route": null,
+        "trace_event_type": "gate_passed",
+        "warning_reasons": [
+          "trace_only_history_not_current_canon"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "bounded",
+        "reason_codes": [
+          "history_allowed_not_current_canon"
+        ],
+        "retrieved_planes": [
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "trace_only_history_bounded",
+      "input_refs": {
+        "context_pack": "ctx_trace_only_history_bounded",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_trace_current"
+        ]
+      },
+      "operation": "history",
+      "purpose": "Allow trace-only history while explicitly preventing it from being represented as current canon."
+    },
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": "conflict_open_001",
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "evidence",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_governed_compare_disclosed_conflict",
+        "missing_planes": [],
+        "operation": "compare",
+        "query": "Allow descriptive comparison of conflicting canon cards only with conflict disclosure and no approval semantics.",
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "dominance_policy_patch"
+        ],
+        "posture": "bounded",
+        "required_route": null,
+        "trace_event_type": "gate_degraded",
+        "warning_reasons": [
+          "conflict_disclosed",
+          "comparison_only_no_approval"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "evidence",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "bounded",
+        "reason_codes": [
+          "compare_allowed_with_conflict_disclosure"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "governed_compare_disclosed_conflict",
+      "input_refs": {
+        "conflict_set": "conflict_open_001",
+        "context_pack": "ctx_governed_compare_disclosed_conflict",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_old",
+          "pc_canon_new",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "compare",
+      "purpose": "Allow descriptive comparison of conflicting canon cards only with conflict disclosure and no approval semantics."
+    },
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_reader_attempts_approve",
+        "missing_planes": [],
+        "operation": "approve",
+        "query": "Block a reader attempting an approval operation even when current canon and evidence are retrieved.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [],
+        "blocking_reasons": [
+          "actor_role_not_authorized_for_approve"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "family": "role_mismatch",
+      "id": "reader_attempts_approve",
+      "input_refs": {
+        "context_pack": "ctx_reader_attempts_approve",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Block a reader attempting an approval operation even when current canon and evidence are retrieved."
+    },
+    {
+      "actor_id": "contrib_01",
+      "context_pack": {
+        "actor": "contrib_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_contributor_attempts_promote",
+        "missing_planes": [],
+        "operation": "promote",
+        "query": "Block a contributor attempting promotion to canon.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [],
+        "blocking_reasons": [
+          "actor_role_not_authorized_for_promote"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "family": "role_mismatch",
+      "id": "contributor_attempts_promote",
+      "input_refs": {
+        "context_pack": "ctx_contributor_attempts_promote",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "promote",
+      "purpose": "Block a contributor attempting promotion to canon."
+    },
+    {
+      "actor_id": "reviewer_01",
+      "context_pack": {
+        "actor": "reviewer_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_reviewer_attempts_approve_without_scope",
+        "missing_planes": [],
+        "operation": "approve",
+        "query": "Block a reviewer attempting approval without approver scope.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [],
+        "blocking_reasons": [
+          "reviewer_lacks_approver_scope",
+          "actor_role_not_authorized_for_approve"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "decision",
+          "trace"
+        ]
+      },
+      "family": "role_mismatch",
+      "id": "reviewer_attempts_approve_without_scope",
+      "input_refs": {
+        "context_pack": "ctx_reviewer_attempts_approve_without_scope",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_decision_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Block a reviewer attempting approval without approver scope."
+    },
+    {
+      "actor_id": "llm_01",
+      "context_pack": {
+        "actor": "llm_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_llm_attempts_promote",
+        "missing_planes": [],
+        "operation": "promote",
+        "query": "Block an LLM actor attempting approval or promotion semantics.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [],
+        "blocking_reasons": [
+          "llm_cannot_approve_or_promote",
+          "actor_role_not_authorized_for_promote"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "role_mismatch",
+      "id": "llm_attempts_promote",
+      "input_refs": {
+        "context_pack": "ctx_llm_attempts_promote",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "promote",
+      "purpose": "Block an LLM actor attempting approval or promotion semantics."
+    },
+    {
+      "actor_id": "system_service_01",
+      "context_pack": {
+        "actor": "system_service_01",
+        "candidate_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_system_service_attempts_final_review",
+        "missing_planes": [],
+        "operation": "review",
+        "query": "Block a system_service actor from completing final human review.",
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [],
+        "blocking_reasons": [
+          "system_service_cannot_final_review",
+          "human_review_required"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "reviewer",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [],
+        "withheld_context_refs": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "role_mismatch",
+      "id": "system_service_attempts_final_review",
+      "input_refs": {
+        "context_pack": "ctx_system_service_attempts_final_review",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_canon_current",
+          "pc_evidence_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "review",
+      "purpose": "Block a system_service actor from completing final human review."
+    },
+    {
+      "actor_id": "approver_01",
+      "context_pack": {
+        "actor": "approver_01",
+        "candidate_cards": [
+          "pc_unknown_source_quarantine",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_source_poisoning_quarantine",
+        "missing_planes": [
+          "canon",
+          "decision"
+        ],
+        "operation": "approve",
+        "query": "Quarantine an unknown-trust imported source so it cannot satisfy approval or promotion gates.",
+        "retrieved_planes": [
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [
+          "source_trust_unknown_quarantine",
+          "authority_unknown",
+          "approval_requires_current_canon"
+        ],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "fixture_patch"
+        ],
+        "posture": "blocked",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_blocked",
+        "warning_reasons": [
+          "source_poisoning_threat_control_applied"
+        ],
+        "withheld_context_refs": [
+          "pc_unknown_source_quarantine"
+        ]
+      },
+      "expected_rct": {
+        "adequacy": "insufficient",
+        "expected_planes": [
+          "canon",
+          "evidence",
+          "trace",
+          "decision"
+        ],
+        "missing_planes": [
+          "canon",
+          "decision"
+        ],
+        "posture_effect": "blocked",
+        "reason_codes": [
+          "source_trust_unknown_quarantine",
+          "canon_missing",
+          "decision_basis_missing"
+        ],
+        "retrieved_planes": [
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "source_trust_gate",
+      "id": "source_poisoning_quarantine",
+      "input_refs": {
+        "context_pack": "ctx_source_poisoning_quarantine",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_unknown_source_quarantine",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "approve",
+      "purpose": "Quarantine an unknown-trust imported source so it cannot satisfy approval or promotion gates."
+    },
+    {
+      "actor_id": "contrib_01",
+      "context_pack": {
+        "actor": "contrib_01",
+        "candidate_cards": [
+          "pc_schema_misfit_001",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "schema_misfit",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_schema_misfit_review_request_routes",
+        "missing_planes": [],
+        "operation": "review_request",
+        "query": "Route schema_misfit material for review without forcing it into a nearest plane.",
+        "retrieved_planes": [
+          "schema_misfit",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_schema_misfit_001",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "schema_patch"
+        ],
+        "posture": "review_required",
+        "required_route": "schema_owner",
+        "trace_event_type": "schema_review_requested",
+        "warning_reasons": [
+          "schema_misfit_requires_schema_review",
+          "do_not_force_classification"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "schema_misfit",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "review_required",
+        "reason_codes": [
+          "schema_review_route_allowed"
+        ],
+        "retrieved_planes": [
+          "schema_misfit",
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "schema_misfit_review_request_routes",
+      "input_refs": {
+        "context_pack": "ctx_schema_misfit_review_request_routes",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_schema_misfit_001",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "review_request",
+      "purpose": "Route schema_misfit material for review without forcing it into a nearest plane."
+    },
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_explain_limits_for_blocked_approval_answerable",
+        "missing_planes": [],
+        "operation": "explain_limits",
+        "query": "Explain why a stale approval request would be blocked without exposing it as usable approval context.",
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": false,
+        "l6_proposal_types": [],
+        "posture": "answerable",
+        "required_route": null,
+        "trace_event_type": "gate_passed",
+        "warning_reasons": [
+          "explains_blocker_only",
+          "not_approval_context"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "canon",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "canon",
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "explain_limits_for_blocked_approval_answerable",
+      "input_refs": {
+        "context_pack": "ctx_explain_limits_for_blocked_approval_answerable",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_stale_approval",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "explain_limits",
+      "purpose": "Explain why a stale approval request would be blocked without exposing it as usable approval context."
+    },
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_stale_approval",
+          "pc_canon_current",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_low_risk_compare_stale_vs_current_bounded",
+        "missing_planes": [],
+        "operation": "compare",
+        "query": "Allow low-risk comparison between stale and current policy material with stale/current labels preserved.",
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_stale_approval",
+          "pc_canon_current",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": true,
+        "l6_proposal_types": [
+          "retrieval_patch"
+        ],
+        "posture": "bounded",
+        "required_route": null,
+        "trace_event_type": "gate_degraded",
+        "warning_reasons": [
+          "stale_material_labeled_historical",
+          "comparison_only_no_approval"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "bounded",
+        "reason_codes": [
+          "compare_allowed_with_temporal_labels"
+        ],
+        "retrieved_planes": [
+          "canon",
+          "canon",
+          "trace"
+        ]
+      },
+      "family": "positive_edge",
+      "id": "low_risk_compare_stale_vs_current_bounded",
+      "input_refs": {
+        "context_pack": "ctx_low_risk_compare_stale_vs_current_bounded",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_stale_approval",
+          "pc_canon_current",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "compare",
+      "purpose": "Allow low-risk comparison between stale and current policy material with stale/current labels preserved."
+    },
+    {
+      "actor_id": "reader_01",
+      "context_pack": {
+        "actor": "reader_01",
+        "candidate_cards": [
+          "pc_unknown_source_quarantine",
+          "pc_trace_current"
+        ],
+        "conflict_set": null,
+        "dominance_policy": null,
+        "enforcement_level_by_field": {
+          "authority_state": "blocking",
+          "blocked_use": "blocking",
+          "conflict_set": "blocking",
+          "governance_health": "blocking",
+          "plane_permission": "blocking",
+          "rct_expected_planes": "blocking",
+          "scalar_basis": "blocking",
+          "source_trust": "blocking",
+          "temporal_status": "blocking",
+          "zero_state": "blocking"
+        },
+        "expected_planes": [
+          "evidence",
+          "trace"
+        ],
+        "governance_health": "gov_ok",
+        "id": "ctx_source_quarantine_explain_limits_answerable",
+        "missing_planes": [],
+        "operation": "explain_limits",
+        "query": "Explain source-trust limitations for an unknown-trust import without treating it as evidence for approval.",
+        "retrieved_planes": [
+          "evidence",
+          "trace"
+        ]
+      },
+      "expected_gate_result": {
+        "allowed_context_refs": [
+          "pc_unknown_source_quarantine",
+          "pc_trace_current"
+        ],
+        "blocking_reasons": [],
+        "l6_proposal_allowed": false,
+        "l6_proposal_types": [],
+        "posture": "answerable",
+        "required_route": "authority_owner",
+        "trace_event_type": "gate_passed",
+        "warning_reasons": [
+          "source_trust_unknown_quarantine",
+          "explain_limits_only"
+        ],
+        "withheld_context_refs": []
+      },
+      "expected_rct": {
+        "adequacy": "complete",
+        "expected_planes": [
+          "evidence",
+          "trace"
+        ],
+        "missing_planes": [],
+        "posture_effect": "none",
+        "reason_codes": [],
+        "retrieved_planes": [
+          "evidence",
+          "trace"
+        ]
+      },
+      "family": "source_trust_gate",
+      "id": "source_quarantine_explain_limits_answerable",
+      "input_refs": {
+        "context_pack": "ctx_source_quarantine_explain_limits_answerable",
+        "governance_health": "gov_ok",
+        "plane_cards": [
+          "pc_unknown_source_quarantine",
+          "pc_trace_current"
+        ]
+      },
+      "operation": "explain_limits",
+      "purpose": "Explain source-trust limitations for an unknown-trust import without treating it as evidence for approval."
+    }
+  ],
+  "fixture_pack_id": "planar_storage_fixture_pack_v0_3_self_correction",
+  "governance_health_snapshots": [
+    {
+      "failed_verification_count": 0,
+      "id": "gov_ok",
+      "oldest_review_queue_age_hours": 12,
+      "open_conflict_set_count": 0,
+      "posture_effect": "none",
+      "schema_misfit_count": 1,
+      "schema_misfit_max_age_days": 3,
+      "stale_card_count": 2,
+      "unresolved_zero_count": 1
+    },
+    {
+      "failed_verification_count": 0,
+      "id": "gov_schema_breach",
+      "oldest_review_queue_age_hours": 20,
+      "open_conflict_set_count": 1,
+      "posture_effect": "block_high_risk",
+      "schema_misfit_count": 9,
+      "schema_misfit_max_age_days": 22,
+      "stale_card_count": 3,
+      "unresolved_zero_count": 4
+    },
+    {
+      "failed_verification_count": 0,
+      "id": "gov_sla_breach",
+      "oldest_review_queue_age_hours": 80,
+      "open_conflict_set_count": 1,
+      "posture_effect": "block_high_risk",
+      "schema_misfit_count": 3,
+      "schema_misfit_max_age_days": 7,
+      "stale_card_count": 6,
+      "unresolved_zero_count": 4
+    },
+    {
+      "failed_verification_count": 1,
+      "id": "gov_failed_verification",
+      "oldest_review_queue_age_hours": 14,
+      "open_conflict_set_count": 0,
+      "posture_effect": "block_validity_reset_and_high_risk_use",
+      "schema_misfit_count": 2,
+      "schema_misfit_max_age_days": 4,
+      "stale_card_count": 4,
+      "unresolved_zero_count": 2
+    }
+  ],
+  "information_residence_map": [
+    {
+      "current_location": "GateRule",
+      "current_ref": "GateRule.source_trust.quarantine_unknown",
+      "human_readable_locator": "Current source-trust rule: unknown-trust imported material is quarantined; approval/promote blocked; review and explain_limits only.",
+      "id": "irm_source_trust_unknown_rule_001",
+      "moved_by_event_ref": "trace_canon_change_source_trust_001",
+      "original_ref": "legacy:unknown_trust_imports_unclassified",
+      "reason": "A fixture-level source-poisoning mistake demonstrated that unknown-trust imports must not conduct into approval paths.",
+      "status": "superseded",
+      "superseded_by": "GateRule.source_trust.quarantine_unknown"
+    },
+    {
+      "current_location": "FixtureCase",
+      "current_ref": "FixtureCase.source_poisoning_quarantine",
+      "human_readable_locator": "Fixture pack \u2192 source_trust_gate \u2192 source_poisoning_quarantine.",
+      "id": "irm_source_poisoning_fixture_001",
+      "moved_by_event_ref": "trace_canon_change_source_trust_001",
+      "original_ref": "mistake_source_poisoning_false_allow_001",
+      "reason": "Regression fixture prevents recurrence of the false-allow pathway.",
+      "status": "active",
+      "superseded_by": null
+    },
+    {
+      "current_location": "CanonChangeRecord",
+      "current_ref": "canon_change_source_trust_quarantine_001",
+      "human_readable_locator": "CanonChangeRecord canon_change_source_trust_quarantine_001 links MistakeEvent, PatchProposal, GateRule, and regression fixtures.",
+      "id": "irm_source_trust_canon_change_001",
+      "moved_by_event_ref": "trace_canon_change_source_trust_001",
+      "original_ref": "patch_source_trust_quarantine_001",
+      "reason": "Approved patch movement into canon required a durable change record.",
+      "status": "active",
+      "superseded_by": null
+    }
+  ],
+  "l6_loop_registry": [
+    {
+      "loop": "retrieval_outcome_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "consolidation_learning_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "gate_failure_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "schema_misfit_evolution_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "scalar_calibration_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "authority_dominance_policy_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "human_load_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "plane_assignment_learning_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "loop": "post_answer_audit_loop",
+      "status": "inactive_until_pilot_data"
+    },
+    {
+      "forbidden_auto_apply": true,
+      "loop": "audited_self_correction_loop",
+      "required_objects": [
+        "MistakeEvent",
+        "PatchProposal",
+        "CanonChangeRecord",
+        "InformationResidenceMap",
+        "regression_fixture_refs"
+      ],
+      "status": "proposal_only_after_fixture_or_review_signal"
+    }
+  ],
+  "matrix_resolution_metadata": {
+    "forbidden_deltas": [
+      "new_planes",
+      "new_zero_modes",
+      "new_authority_roles",
+      "active_l6_behavior",
+      "threshold_canonization_without_pilot",
+      "autonomous_self_mutation",
+      "silent_canon_update",
+      "patchproposal_auto_apply"
+    ],
+    "next_required_artifact": "deterministic_fixture_evaluator_expected_vs_actual_report_with_mistake_event_emission",
+    "normative_status": "execution_repair_and_correction_ledger_not_ontology_expansion",
+    "patch_id": "v1.10.5.3_audited_self_correction_capstone",
+    "resolved_items": [
+      "C01 execution lock guard",
+      "C02/C13 L6 inactive until pilot signoff",
+      "C03 dominance policy stale/out-of-scope regression",
+      "C04 MetricTargetBasis records",
+      "C05 cost/placeholder rendering guard",
+      "C06/C15 fixture-vs-pilot claim boundary",
+      "C07 positive edge fixtures",
+      "C08 actor-role mismatch fixtures",
+      "C09 explicit context_allowed_basis",
+      "C10 release classification guard",
+      "C11 visualization non-canonical front matter",
+      "C12 compromised-source/source-poisoning threat row",
+      "C14 deterministic evaluator contract",
+      "C16 audited MistakeEvent \u2192 PatchProposal \u2192 CanonChangeRecord correction loop",
+      "C17 InformationResidenceMap answers where superseded information now lives",
+      "C18 regression fixture requirement for approved correction patches"
+    ],
+    "source_matrix": "planar_storage_claude_evaluation_crosswalk_matrix_v1_10_5_1.html"
+  },
+  "metric_target_basis_records": [
+    {
+      "basis_status": "placeholder_until_pilot",
+      "id": "mtb_plane_assignment_kappa_070",
+      "metric": "plane_assignment_cohen_kappa",
+      "rationale": "Initial acceptability target for pilot reviewer agreement; not a validated production threshold.",
+      "recalibrate_after_pilot": true,
+      "reviewer": "governance_reviewer",
+      "scope": "pilot corpus classification pass only",
+      "target": ">=0.70"
+    },
+    {
+      "basis_status": "placeholder_until_pilot",
+      "id": "mtb_zero_mode_kappa_060",
+      "metric": "zero_mode_cohen_kappa",
+      "rationale": "Lower initial agreement target because zero-mode distinctions are expected to be harder than plane labels.",
+      "recalibrate_after_pilot": true,
+      "reviewer": "governance_reviewer",
+      "scope": "pilot corpus zero-state classification only",
+      "target": ">=0.60"
+    },
+    {
+      "basis_status": "no_threshold_until_pilot",
+      "id": "mtb_false_allow_rate",
+      "metric": "false_allow_rate",
+      "rationale": "False allow requires adjudicated pilot examples before threshold selection.",
+      "recalibrate_after_pilot": true,
+      "reviewer": "governance_reviewer",
+      "scope": "fixture + pilot query set",
+      "target": "report_only_first_pilot"
+    },
+    {
+      "basis_status": "no_threshold_until_pilot",
+      "id": "mtb_false_block_rate",
+      "metric": "false_block_rate",
+      "rationale": "False block must be measured after positive edge fixtures and real pilot queries expose overblocking.",
+      "recalibrate_after_pilot": true,
+      "reviewer": "governance_reviewer",
+      "scope": "fixture + pilot query set",
+      "target": "report_only_first_pilot"
+    }
+  ],
+  "mistake_events": [
+    {
+      "actor_ref": "approver_01",
+      "actual_gate_result_ref": "actual_gate_result:evaluator_run_source_trust_prepatch_001",
+      "context_pack_ref": "ctx_source_poisoning_quarantine",
+      "detected_from": "fixture",
+      "expected_gate_result_ref": "expected_gate_result:source_poisoning_quarantine",
+      "id": "mistake_source_poisoning_false_allow_001",
+      "impacted_refs": [
+        "pc_unknown_source_quarantine",
+        "GateRule.source_trust",
+        "FixtureCase.source_poisoning_quarantine"
+      ],
+      "mistake_class": "source_poisoning",
+      "operation": "approve",
+      "query_ref": "ctx_source_poisoning_quarantine",
+      "severity": "high",
+      "trace_event_ref": "trace_mistake_source_poisoning_001"
+    }
+  ],
+  "patch_proposals": [
+    {
+      "blast_radius": "domain",
+      "evidence_refs": [
+        "trace_mistake_source_poisoning_001",
+        "pc_unknown_source_quarantine",
+        "FixtureCase.source_poisoning_quarantine",
+        "FixtureCase.source_quarantine_explain_limits_answerable"
+      ],
+      "forbidden_auto_apply": true,
+      "id": "patch_source_trust_quarantine_001",
+      "proposal_type": "source_trust_patch",
+      "proposed_change": "Unknown-trust imported sources must be quarantined. They cannot satisfy approve/promote gates and may conduct only to review_request/review/explain_limits routes with explicit source-trust warning.",
+      "proposed_from": "mistake_source_poisoning_false_allow_001",
+      "requires_review_by": "authority_owner",
+      "status": "approved"
+    }
+  ],
+  "plane_cards": [
+    {
+      "allowed_use": [
+        "explain",
+        "draft",
+        "summarize",
+        "compare",
+        "review_request",
+        "review",
+        "approve",
+        "promote",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "clinical_decision",
+        "unbounded_answer"
+      ],
+      "claim_text": "Current workflow policy requires reviewer trace before approval.",
+      "conflict_set_ref": null,
+      "id": "pc_canon_current",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "canonical_approved",
+      "plane": "canon",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "source_hash": "sha256:fixture-canon-current",
+      "source_ref": "policy_alpha",
+      "source_version_ref": "sv_policy_alpha_2026_05",
+      "state_vector_ref": "state_support_current",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_pc_canon_current"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "draft",
+        "summarize",
+        "compare",
+        "review_request",
+        "review",
+        "approve",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "promote",
+        "clinical_decision",
+        "unbounded_answer"
+      ],
+      "claim_text": "Audit sample shows approvals with reviewer trace had fewer correction events.",
+      "conflict_set_ref": null,
+      "id": "pc_evidence_current",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "human_reviewed",
+      "plane": "evidence",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "source_hash": "sha256:fixture-evidence-current",
+      "source_ref": "audit_note_alpha",
+      "source_version_ref": "sv_audit_note_alpha_2026_05",
+      "state_vector_ref": "state_support_current",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_pc_evidence_current"
+      ],
+      "use_policy_ref": "use_workflow_medium",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "summarize",
+        "compare",
+        "review_request",
+        "review",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "draft",
+        "approve",
+        "promote",
+        "clinical_decision",
+        "unbounded_answer"
+      ],
+      "claim_text": "Reviewer trace: contrib_01 created, reviewer_01 reviewed, approver_01 approved.",
+      "conflict_set_ref": null,
+      "id": "pc_trace_current",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "human_reviewed",
+      "plane": "trace",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "source_hash": "sha256:fixture-trace-current",
+      "source_ref": "trace_log_alpha",
+      "source_version_ref": "sv_trace_log_alpha_2026_05",
+      "state_vector_ref": "state_support_current",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_pc_trace_current"
+      ],
+      "use_policy_ref": "use_trace_audit",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "review_request",
+        "review"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "approve",
+        "promote",
+        "unbounded_answer"
+      ],
+      "claim_text": "A confidence score is present but no ScalarBasis record exists.",
+      "conflict_set_ref": null,
+      "id": "pc_score_missing_basis",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "human_reviewed",
+      "plane": "evidence",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": null,
+      "source_hash": "sha256:fixture-score-missing-basis",
+      "source_ref": "score_note_beta",
+      "source_version_ref": "sv_score_note_beta_2026_05",
+      "state_vector_ref": "state_unknown_basis",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_score_missing_basis"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "summarize",
+        "compare",
+        "review_request",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "approve",
+        "promote",
+        "clinical_decision",
+        "unbounded_answer"
+      ],
+      "claim_text": "Older policy excerpt appears relevant but has exceeded refresh window.",
+      "conflict_set_ref": null,
+      "id": "pc_stale_approval",
+      "last_verified_at": "2025-10-15",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "canonical_approved",
+      "plane": "canon",
+      "refresh_due_at": "2026-01-15",
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "source_hash": "sha256:fixture-stale",
+      "source_ref": "policy_gamma_older",
+      "source_version_ref": "sv_policy_gamma_2025_10",
+      "state_vector_ref": "state_stale_risk",
+      "temporal_status": "stale",
+      "trace_refs": [
+        "trace_stale_approval"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-01-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "review_request",
+        "review",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_self_promotion_failed",
+      "blocked_use": [
+        "approve",
+        "promote",
+        "unbounded_answer"
+      ],
+      "claim_text": "Candidate canon created, reviewed, and approved by same actor.",
+      "conflict_set_ref": null,
+      "id": "pc_self_promote_candidate",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "canonical_approved",
+      "plane": "canon",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "source_hash": "sha256:fixture-self-promotion",
+      "source_ref": "policy_delta_candidate",
+      "source_version_ref": "sv_policy_delta_2026_05",
+      "state_vector_ref": "state_support_current",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_self_promotion"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "summarize",
+        "compare",
+        "review_request",
+        "review",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "approve",
+        "promote",
+        "unbounded_answer"
+      ],
+      "claim_text": "Old training excerpt says contributor trace alone is sufficient for approval.",
+      "conflict_set_ref": "conflict_open_001",
+      "id": "pc_canon_old",
+      "last_verified_at": "2026-05-10",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "canonical_approved",
+      "plane": "canon",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "source_hash": "sha256:fixture-canon-old",
+      "source_ref": "training_excerpt_old",
+      "source_version_ref": "sv_training_2025_12",
+      "state_vector_ref": "state_conflict_cancel",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_canon_old"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "summarize",
+        "compare",
+        "review_request",
+        "review",
+        "approve",
+        "promote",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "clinical_decision",
+        "unbounded_answer"
+      ],
+      "claim_text": "Current source says reviewer trace is required before approval.",
+      "conflict_set_ref": "conflict_governed_001",
+      "id": "pc_canon_new",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "canonical_approved",
+      "plane": "canon",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "source_hash": "sha256:fixture-canon-new",
+      "source_ref": "policy_alpha",
+      "source_version_ref": "sv_policy_alpha_2026_05",
+      "state_vector_ref": "state_support_current",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_canon_new"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "review_request",
+        "review",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_provisional_reviewed",
+      "blocked_use": [
+        "approve",
+        "promote",
+        "unbounded_answer"
+      ],
+      "claim_text": "Validity extension requested from no-change attestation without material evidence.",
+      "conflict_set_ref": null,
+      "id": "pc_verification_self_attested",
+      "last_verified_at": "2026-02-01",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "human_reviewed",
+      "plane": "canon",
+      "refresh_due_at": "2026-04-15",
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "source_hash": "sha256:fixture-verification-bad",
+      "source_ref": "policy_epsilon",
+      "source_version_ref": "sv_policy_epsilon_2026_05",
+      "state_vector_ref": "state_stale_risk",
+      "temporal_status": "stale",
+      "trace_refs": [
+        "trace_verification_bad"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-05-01"
+    },
+    {
+      "allowed_use": [
+        "review_request",
+        "review",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_unknown_import",
+      "blocked_use": [
+        "summarize",
+        "draft",
+        "compare",
+        "approve",
+        "promote",
+        "unbounded_answer"
+      ],
+      "claim_text": "Ambiguous material cannot be honestly classified into existing planes.",
+      "conflict_set_ref": null,
+      "id": "pc_schema_misfit_001",
+      "last_verified_at": null,
+      "load_profile_ref": "load_schema_queue",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "imported",
+      "plane": "schema_misfit",
+      "refresh_due_at": null,
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "source_hash": "sha256:fixture-schema-misfit",
+      "source_ref": "ambiguous_note_zeta",
+      "source_version_ref": "sv_ambiguous_zeta_2026_05",
+      "state_vector_ref": "state_schema_misfit",
+      "temporal_status": "unknown",
+      "trace_refs": [
+        "trace_schema_misfit"
+      ],
+      "use_policy_ref": "use_schema_review",
+      "valid_until": null
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "draft",
+        "summarize",
+        "compare",
+        "review_request",
+        "review",
+        "approve",
+        "history",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_approved_sod_valid",
+      "blocked_use": [
+        "promote",
+        "clinical_decision",
+        "unbounded_answer"
+      ],
+      "claim_text": "Approver decision record accepts the current workflow policy within workflow_policy scope.",
+      "conflict_set_ref": null,
+      "id": "pc_decision_current",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "canonical_approved",
+      "plane": "decision",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "source_hash": "sha256:fixture-decision-current",
+      "source_ref": "approval_record_alpha",
+      "source_version_ref": "sv_approval_record_alpha_2026_05",
+      "state_vector_ref": "state_support_current",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_pc_decision_current"
+      ],
+      "use_policy_ref": "use_workflow_high",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "explain",
+        "draft",
+        "summarize",
+        "compare",
+        "review_request",
+        "review",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_provisional_reviewed",
+      "blocked_use": [
+        "approve",
+        "promote",
+        "clinical_decision",
+        "unbounded_answer"
+      ],
+      "claim_text": "Provisional workflow interpretation may be drafted for reviewer review but not approved or promoted.",
+      "conflict_set_ref": null,
+      "id": "pc_provisional_draft_note",
+      "last_verified_at": "2026-05-20",
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "human_reviewed",
+      "plane": "interpretation",
+      "refresh_due_at": "2026-08-01",
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "source_hash": "sha256:fixture-provisional-draft",
+      "source_ref": "draft_note_eta",
+      "source_version_ref": "sv_draft_note_eta_2026_05",
+      "state_vector_ref": "state_provisional_bounded",
+      "temporal_status": "current",
+      "trace_refs": [
+        "trace_pc_provisional_draft_note"
+      ],
+      "use_policy_ref": "use_workflow_medium",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "allowed_use": [
+        "review_request",
+        "review",
+        "explain_limits"
+      ],
+      "authority_ref": "auth_unknown_import",
+      "blocked_use": [
+        "explain",
+        "summarize",
+        "draft",
+        "compare",
+        "approve",
+        "promote",
+        "unbounded_answer"
+      ],
+      "claim_text": "Untrusted imported source claims an approval rule but lacks source trust verification.",
+      "conflict_set_ref": null,
+      "id": "pc_unknown_source_quarantine",
+      "last_verified_at": null,
+      "load_profile_ref": "load_normal",
+      "namespace_or_vessel": "workflow_policy",
+      "object_status": "imported",
+      "plane": "evidence",
+      "refresh_due_at": null,
+      "scalar_basis_ref": null,
+      "source_hash": "sha256:fixture-source-poisoning",
+      "source_ref": "untrusted_import_theta",
+      "source_version_ref": "sv_untrusted_import_theta_2026_05",
+      "state_vector_ref": "state_source_trust_unknown",
+      "temporal_status": "unknown",
+      "trace_refs": [
+        "trace_source_poisoning"
+      ],
+      "use_policy_ref": "use_source_quarantine",
+      "valid_until": null
+    }
+  ],
+  "purpose": "Concrete adversarial and positive-edge objects for validating gate behavior before pilot ontology work. v0.2 resolves Claude crosswalk gaps C03, C07, C08, and C09 by adding dominance-policy regression, positive edge cases, actor-role mismatch cases, and explicit context_allowed_basis. v0.3 adds an audited self-correction architecture: MistakeEvent \u2192 PatchProposal \u2192 reviewer adjudication \u2192 fixture/regression update \u2192 CanonChangeRecord \u2192 InformationResidenceMap. This is correction governance, not vague learning.",
+  "scalar_basis_records": [
+    {
+      "basis_status": "pilot_ready",
+      "calibration_dataset": "fixture_pack_v0_1_only_not_empirical",
+      "confidence_band": [
+        0.72,
+        0.86
+      ],
+      "formula_version": "pilot_v0_trace_confidence",
+      "id": "scalar_complete_confidence_001",
+      "inputs": [
+        "source_recency",
+        "trace_completeness",
+        "reviewer_agreement"
+      ],
+      "last_calibrated_at": null,
+      "missing_inputs": [],
+      "reviewer": "reviewer_01",
+      "valid_scope": "fixture validation only"
+    },
+    {
+      "basis_status": "placeholder_until_pilot",
+      "calibration_dataset": null,
+      "confidence_band": [
+        0.3,
+        0.7
+      ],
+      "formula_version": "placeholder_v0",
+      "id": "scalar_placeholder_001",
+      "inputs": [
+        "heuristic_source_quality"
+      ],
+      "last_calibrated_at": null,
+      "missing_inputs": [
+        "pilot_agreement",
+        "false_allow_rate",
+        "false_block_rate"
+      ],
+      "reviewer": null,
+      "valid_scope": "internal pilot logging only; not displayable as calibrated"
+    }
+  ],
+  "self_correction_architecture": {
+    "controlled_loop": [
+      "Mistake detected",
+      "MistakeEvent recorded",
+      "Expected vs actual compared",
+      "Gate family identified",
+      "PatchProposal created",
+      "Reviewer adjudicates",
+      "Fixture added or updated",
+      "Rule/schema/routing patch approved",
+      "CanonChangeRecord emitted",
+      "InformationResidenceMap / SupersessionMap updates where information now lives",
+      "Regression test prevents repeat failure"
+    ],
+    "core_objects": {
+      "CanonChangeRecord": {
+        "approved_at": "datetime",
+        "approved_by": "actor_id",
+        "changed_objects": [
+          "string"
+        ],
+        "id": "string",
+        "migration_note": "string",
+        "new_location_refs": [
+          "string"
+        ],
+        "old_location_refs": [
+          "string"
+        ],
+        "patch_proposal_ref": "PatchProposal.id",
+        "regression_fixture_refs": [
+          "FixtureCase.id"
+        ],
+        "supersedes_refs": [
+          "string"
+        ],
+        "trace_event_ref": "TraceEvent.id"
+      },
+      "InformationResidenceMap": {
+        "current_location": [
+          "PlaneCard",
+          "SourceVersion",
+          "ContextPack",
+          "GateRule",
+          "FixtureCase",
+          "TraceEvent",
+          "CanonChangeRecord",
+          "PatchProposal"
+        ],
+        "current_ref": "string",
+        "human_readable_locator": "string",
+        "id": "string",
+        "moved_by_event_ref": "TraceEvent.id",
+        "original_ref": "string",
+        "reason": "string",
+        "status": [
+          "active",
+          "superseded",
+          "deprecated",
+          "quarantined",
+          "merged",
+          "split"
+        ],
+        "superseded_by": "string?"
+      },
+      "MistakeEvent": {
+        "actor_ref": "Actor.id",
+        "actual_gate_result_ref": "GateResult.id?",
+        "context_pack_ref": "ContextPack.id",
+        "detected_from": [
+          "fixture",
+          "pilot",
+          "user_correction",
+          "reviewer_disagreement",
+          "post_answer_audit"
+        ],
+        "expected_gate_result_ref": "GateResult.id?",
+        "id": "string",
+        "impacted_refs": [
+          "PlaneCard.id",
+          "SourceVersion.id",
+          "GateRule.id",
+          "FixtureCase.id"
+        ],
+        "mistake_class": [
+          "false_allow",
+          "false_block",
+          "wrong_plane",
+          "missing_plane",
+          "stale_source_allowed",
+          "authority_laundering",
+          "scalar_theater",
+          "zero_laundering",
+          "conflict_laundering",
+          "source_poisoning",
+          "overconfident_answer"
+        ],
+        "operation": [
+          "explain",
+          "summarize",
+          "draft",
+          "compare",
+          "approve",
+          "promote",
+          "review"
+        ],
+        "query_ref": "string?",
+        "severity": [
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ],
+        "trace_event_ref": "TraceEvent.id"
+      },
+      "PatchProposal": {
+        "blast_radius": [
+          "local",
+          "domain",
+          "global"
+        ],
+        "evidence_refs": [
+          "TraceEvent.id",
+          "PlaneCard.id",
+          "FixtureCase.id"
+        ],
+        "forbidden_auto_apply": true,
+        "id": "string",
+        "proposal_type": [
+          "retrieval_route_patch",
+          "rct_expected_plane_patch",
+          "gate_rule_patch",
+          "fixture_case_patch",
+          "schema_patch",
+          "scalar_threshold_patch",
+          "dominance_policy_patch",
+          "source_trust_patch"
+        ],
+        "proposed_change": "string",
+        "proposed_from": "MistakeEvent.id",
+        "requires_review_by": [
+          "reviewer",
+          "schema_owner",
+          "authority_owner",
+          "domain_owner"
+        ],
+        "status": [
+          "proposed",
+          "approved",
+          "rejected",
+          "deferred",
+          "superseded"
+        ]
+      }
+    },
+    "gate_family_map": {
+      "authority_laundering": [
+        "authority_state",
+        "separation_of_duties",
+        "actor_role_scope"
+      ],
+      "conflict_laundering": [
+        "conflict_set",
+        "dominance_policy"
+      ],
+      "false_allow": [
+        "blocked_use",
+        "authority_state",
+        "temporal_status",
+        "source_trust",
+        "conflict_set",
+        "scalar_basis",
+        "rct_expected_planes"
+      ],
+      "false_block": [
+        "blocked_use",
+        "base_plane_operation_permission",
+        "rct_expected_planes",
+        "governance_health"
+      ],
+      "missing_plane": [
+        "rct_expected_planes",
+        "retrieval_route"
+      ],
+      "overconfident_answer": [
+        "posture",
+        "warning_reasons",
+        "confidence_rendering",
+        "explain_limits"
+      ],
+      "scalar_theater": [
+        "scalar_basis",
+        "metric_target_basis",
+        "cost_assumption_basis"
+      ],
+      "source_poisoning": [
+        "source_trust",
+        "provenance_trust_registry",
+        "quarantine"
+      ],
+      "stale_source_allowed": [
+        "temporal_status",
+        "source_version",
+        "valid_until"
+      ],
+      "wrong_plane": [
+        "base_plane_operation_permission",
+        "rct_expected_planes",
+        "schema_misfit"
+      ],
+      "zero_laundering": [
+        "semantic_state_vector",
+        "zero_state"
+      ]
+    },
+    "hard_guards": [
+      "PatchProposal.forbidden_auto_apply must be true for every correction proposal.",
+      "Approved corrections require reviewer/owner adjudication based on proposal_type and blast_radius.",
+      "Canon changes require CanonChangeRecord before any canonical read path changes.",
+      "InformationResidenceMap must answer where superseded information now lives.",
+      "Every approved correction must link to at least one regression FixtureCase or explicitly declare why no fixture is possible.",
+      "L6 remains proposal-only; it may generate repair candidates but cannot apply them."
+    ],
+    "id": "audited_self_correction_architecture_v0_3",
+    "normative_rule": "Self-correction is audited correction, not autonomous learning. The system may detect mismatches and propose repairs, but it cannot silently mutate canon, authority, schema, routing, scalar thresholds, dominance policy, source trust, or validity windows."
+  },
+  "semantic_state_vectors": [
+    {
+      "c": 0.79,
+      "context_ref": "workflow_policy_fixture",
+      "d": 1,
+      "id": "state_support_current",
+      "m": "resolve",
+      "q": 0.82,
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "c": null,
+      "context_ref": "score_missing_basis_fixture",
+      "d": 1,
+      "id": "state_unknown_basis",
+      "m": "resolve",
+      "q": null,
+      "scalar_basis_ref": null,
+      "valid_until": "2026-08-31"
+    },
+    {
+      "c": 0.41,
+      "context_ref": "stale_approval_fixture",
+      "d": -1,
+      "id": "state_stale_risk",
+      "m": "route",
+      "q": 0.54,
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "valid_until": "2026-01-31"
+    },
+    {
+      "c": 0.5,
+      "context_ref": "canon_conflict_fixture",
+      "d": 0,
+      "id": "state_conflict_cancel",
+      "m": "cancel",
+      "q": 0.6,
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "c": 0.3,
+      "context_ref": "schema_misfit_fixture",
+      "d": 0,
+      "id": "state_schema_misfit",
+      "m": "schema_misfit",
+      "q": 0.4,
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "c": 0.48,
+      "context_ref": "provisional_draft_fixture",
+      "d": 0,
+      "id": "state_provisional_bounded",
+      "m": "contain",
+      "q": 0.55,
+      "scalar_basis_ref": "scalar_placeholder_001",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "c": 0.62,
+      "context_ref": "trace_history_fixture",
+      "d": 0,
+      "id": "state_trace_history",
+      "m": "route",
+      "q": 0.72,
+      "scalar_basis_ref": "scalar_complete_confidence_001",
+      "valid_until": "2026-08-31"
+    },
+    {
+      "c": null,
+      "context_ref": "source_poisoning_threat_fixture",
+      "d": -1,
+      "id": "state_source_trust_unknown",
+      "m": "route",
+      "q": null,
+      "scalar_basis_ref": null,
+      "valid_until": null
+    }
+  ],
+  "threat_model_extensions": [
+    {
+      "attack_pattern": "A malicious, compromised, or bad-faith source enters the corpus with apparently valid metadata and later satisfies internal gates.",
+      "gate_effect": "unknown_or_low_trust_source cannot approve/promote and must route to domain_owner or authority_owner",
+      "id": "threat_source_poisoning_001",
+      "required_defense": [
+        "source_trust_tier",
+        "provenance_trust_registry",
+        "quarantine_for_unknown_or_low_trust_sources",
+        "manual_verification_before_canon_or_approval",
+        "source_hash_and_version_trace"
+      ],
+      "scope_status": "minimal_control_added_not_full_security_model",
+      "threat": "compromised_source_authority_or_source_poisoning"
+    }
+  ],
+  "validation_boundary": {
+    "fixture_success_claim": "deterministic gate validation only",
+    "fixture_success_does_not_prove": [
+      "raw_document_classification_accuracy",
+      "reviewer_agreement",
+      "labor_cost",
+      "stable_calibration",
+      "production_readiness",
+      "self_improvement_effectiveness_without_pilot_or_review_data"
+    ],
+    "pilot_required_for": [
+      "classification validity",
+      "IAA",
+      "false_allow_rate",
+      "false_block_rate",
+      "labor burden",
+      "threshold calibration",
+      "correction efficacy",
+      "reviewer adjudication reliability",
+      "information residence map completeness"
+    ]
+  },
+  "verification_events": [
+    {
+      "id": "verify_self_attested_bad_001",
+      "materiality_check": {
+        "changed_sections_reviewed": false,
+        "evidence_sample": null,
+        "no_change_attestation": true,
+        "source_date_checked": false,
+        "source_diff_attached": false
+      },
+      "method": "audited_no_change",
+      "reviewer_basis": "Reviewer checked a box but did not attach substantive source evidence.",
+      "valid_until_reset_allowed": false
+    },
+    {
+      "id": "verify_material_good_001",
+      "materiality_check": {
+        "changed_sections_reviewed": true,
+        "evidence_sample": "diff_sample_001",
+        "no_change_attestation": false,
+        "source_date_checked": true,
+        "source_diff_attached": true
+      },
+      "method": "source_diff_review",
+      "reviewer_basis": "Changed sections and source date reviewed.",
+      "valid_until_reset_allowed": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+annotated-types==0.7.0
+anyio==4.12.1
+click==8.3.1
+colorama==0.4.6
+fastapi==0.115.5
+h11==0.16.0
+httptools==0.7.1
+httpx>=0.23.0
+idna==3.11
+mcp[cli]==1.12.4
+pydantic==2.10.3
+pydantic_core==2.27.1
+python-dotenv==1.2.1
+python-multipart>=0.0.7
+PyYAML>=6.0
+starlette==0.41.3
+typing_extensions==4.15.0
+uvicorn==0.32.1
+watchfiles==1.1.1
+websockets==16.0
+pytest>=7.0.0
+# Packaging (optional, for building executable)
+# pyinstaller>=5.0

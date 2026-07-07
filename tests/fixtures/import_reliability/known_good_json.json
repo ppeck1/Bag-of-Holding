@@ -1,0 +1,20 @@
+{
+  "title": "Known-Good JSON Import Fixture",
+  "id": "fixture-known-good-json-001",
+  "description": "Reference JSON fixture for Phase 26.2 import reliability verification",
+  "version": "1.0.0",
+  "project": "BOH Import Verification",
+  "status": "draft",
+  "topics": ["import reliability", "json parsing", "schema inference"],
+  "fields": {
+    "FIXTURE_ID": "known_good_json_001",
+    "EXPECTED_TITLE": "Known-Good JSON Import Fixture",
+    "EXPECTED_TYPE": "reference",
+    "NOTE": "This should index cleanly with title extracted from top-level title key"
+  },
+  "metadata": {
+    "author": "BOH Phase 26.2 Verification",
+    "created": "2026-04-29",
+    "purpose": "Verify JSON intake pipeline"
+  }
+}
