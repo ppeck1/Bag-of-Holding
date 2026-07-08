@@ -55,6 +55,11 @@ class TestShellSimplification:
         assert "Manage libraries" in src
         assert "onManageLibraries" in src
 
+    def test_search_nav_present(self):
+        src = _src(SHELL_JS)
+        assert 'id: "search"' in src
+        assert 'label: "Search"' in src
+
     def test_library_selector_scope_copy(self):
         assert "Browsing filter for Library and Fold Workspace." in _src(SHELL_JS)
 

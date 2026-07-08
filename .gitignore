@@ -52,6 +52,11 @@ codex.next.md
 # Local one-off task evidence / scratch helpers
 /boh_pilot_ingest.py
 /gate_check3.py
+/boh_canon_dataroot/
+/docs/*/BOH_CANON_KNOWLEDGE_VALIDATION_*.md
+/docs/*/BOH_CONTEXTUAL_*.md
+/docs/*/BOH_CONTEXT_SEARCH_*.md
+/docs/*/canon_intake_manual_review_queue_*.md
 
 # Project Ops Capsule raw evidence stays local-only for this public repo.
 .project/runs/

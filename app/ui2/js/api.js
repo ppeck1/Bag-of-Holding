@@ -25,6 +25,19 @@ export function getToken() {
   return sessionStorage.getItem("boh_operator_token") || "";
 }
 
+export function getRetrievalToken() {
+  return sessionStorage.getItem("boh_retrieval_token") || "";
+}
+
+export function retrievalHeaders(extra = {}) {
+  const tok = getRetrievalToken();
+  return {
+    "Content-Type": "application/json",
+    ...(tok ? { "X-BOH-Retrieval-Token": tok } : {}),
+    ...extra,
+  };
+}
+
 /** Build request headers including the operator token when set. */
 export function tokenHeaders(extra = {}) {
   const tok = getToken();

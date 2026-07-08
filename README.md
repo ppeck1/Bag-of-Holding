@@ -30,7 +30,7 @@ A build-free vanilla ES module SPA. No build step, no framework, no external JS 
 |---------|-----------|
 | `▦ Library: All libraries` | Interactive logical-library selector with Manage libraries controls for display labels, dropdown visibility, order, and reset. Scopes Library Documents/Search/PlaneCards and Fold Workspace browsing by stable `library_id`; retrieval, intake, authority, and governance context are unchanged. |
 | `◈ Planes: All / N / None` | Interactive plane-visibility popover — toggles 8 planes (Informational, Subjective, Evidence, Internal, Review, Canonical, Conflict, Archive). Affects Library PlaneCards tab and Fold Workspace node visibility only. Retrieval, authority, and intake are unchanged. |
-| Global search | Deep-links to Library → Search tab with query pre-filled |
+| Global search | Deep-links to the Search screen with Current Context pre-filled |
 | Mode toggle | Simple / Advanced — gates `adv-only` columns |
 
 #### Screens
@@ -40,6 +40,7 @@ A build-free vanilla ES module SPA. No build step, no framework, no external JS 
 | **Current State** | Currentness tiles (current/stale/expired/conflict/unknown), recent-changes table, system status; tile or row click opens Inspector |
 | **Fold Workspace** | SVG fold explorer; distinct coordinate semantics for Web, Risk Map, Authority Path, Currentness Map, Evidence State, and Timeline; measured-coordinate cluster expansion; view toolkit for labels, edges, folds, and focus; Action Queue/List review workflows; keyboard nav; hover non-destructive; zoom 240-700%; project cluster labels show filtered vs total when Planes filter is active |
 | **Library** | Paginated Documents tab, full-text Search tab, PlaneCards tab; logical-library selector scopes browsing across all three tabs, while the Planes selector filters PlaneCards only. Row/card click opens the shared Inspector. |
+| **Search** | First-class search surface with two read-only modes: keyword search via `/api/search`, and retrieval-token-gated `CurrentContextBrief v0.1` via `/api/current-context-brief`. |
 | **Review Center** | Conflicts (clickable → inspector), LLM proposals (governed admit/reject with operator token, clickable → inspector), approvals (clickable → inspector), review queue (clickable → inspector) |
 | **Authority & Audit** | Integrity dashboard (drift risk / authority violations clickable → inspector), authority ledger (promotions / resolutions clickable → inspector), trace events (accordion, click → inspector), residence map (clickable → inspector) |
 | **Capture & Intake** | Recent activity (clickable → inspector), capabilities (clickable → inspector), quarantine with hold/release/replay actions (clickable → inspector), duplicates with canonical/duplicate/ignore/quarantine decisions (clickable → inspector) |
@@ -84,6 +85,7 @@ Shared right-side panel across all major screens (Current State, Library, Review
 - **CANON scalar bridge** (complete): six derived policy variables (`drift_rate`, `entropy`, `delta_c_star`, `gamma`, `omega_viability`, `mismatch_gradient`) bridged into the Fold contract; graph/fold numeric parity enforced.
 - **Metis retrieval contract v0.1**: citation URIs (`boh://{doc_id}#{chunk_id}`), source spans, top-level warnings on `/api/retrieve`.
 - **Retrieval roadmap L1–L6** (complete 2026-06-11): provenance/state blocks (`review_state`, `freshness`, `intake_provenance`) on `/api/retrieve` context packs (L2); governed intake→retrieval promotion bridge (WO-2, migration `0002`); read-only `/api/context-object` assembler with grounded blockers (L3), question-type dispatch (L4), context-object assembly (L5), and node-scope fold-neighborhood traversal (L6). See "Read-Only Retrieval Connector" below.
+- **CurrentContextBrief v0.1**: read-only `/api/current-context-brief` contract and Search UI surface that split newest evidence from best evidence, expose conflicts/unknowns/withheld material, and include LLM instructions for bounded use.
 - **Versioned migration architecture**: `init_db()` schema is the immutable `0000_baseline`; `schema_migrations` ledger governs all forward changes (transactional, interrupted-safe, WAL-safe `VACUUM INTO` backup).
 - **Planar Gate** metadata and correction-ledger core.
 
@@ -93,7 +95,7 @@ Shared right-side panel across all major screens (Current State, Library, Review
 
 - `BOH_LIBRARY` is the server-owned document authority; caller roots are rejected.
 - Protected routes (reset, seed, admin, governance mutations) require `BOH_OPERATOR_TOKEN`.
-- Retrieval connectors use a separate `BOH_RETRIEVAL_TOKEN`; they never receive the operator token.
+- Retrieval connectors and the Current Context UI use a separate `BOH_RETRIEVAL_TOKEN`; they never receive the operator token.
 - Dev-open mode when `BOH_OPERATOR_TOKEN` is unset (one-time warning; DEV-OPEN badge in UI).
 - Actor identity and operator authorization are separate concepts.
 
@@ -138,6 +140,12 @@ The capture surface: add documents or notes, inspect intake capabilities, quaran
 
 The indexed document registry with Documents, Search, and PlaneCards tabs. Each row shows status, authority, and update time; the Inspector pane enriches the selected document.
 
+#### Search
+
+![Search](screenshots/boh_v2_search.png)
+
+The first-class search surface separates raw candidate discovery from bounded context. Keyword Search uses `/api/search`; Current Context builds `CurrentContextBrief v0.1` through the read-only retrieval-token boundary and shows best evidence, newest evidence, warnings, unknowns, withheld material, and the raw contract.
+
 #### Review Center
 
 ![Review Center](screenshots/boh_v2_review.png)
@@ -160,7 +168,7 @@ The Fold Workspace renders six resolver-backed projections over project clusters
 
 ![Context Pack Builder](screenshots/boh_v2_contextpack.png)
 
-Read-only assembly surface for governed context packs: search the corpus, select candidates, and build a cited pack. The same capability is exposed to LLM consumers via `/api/retrieve` and `/api/context-object`.
+Read-only assembly surface for governed context packs: search the corpus, select candidates, and build a cited pack. Related LLM-facing context surfaces are exposed via `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief`.
 
 #### Status
 
@@ -243,7 +251,7 @@ Opens at `http://127.0.0.1:8000` automatically.
 BOH_LIBRARY=./library          # path to your document library
 BOH_DB=boh.db                  # SQLite database path
 BOH_OPERATOR_TOKEN=change-me-local  # required for protected local actions
-BOH_RETRIEVAL_TOKEN=change-me-readonly # read-only token for /api/retrieve and /api/context-object connectors
+BOH_RETRIEVAL_TOKEN=change-me-readonly # read-only token for /api/retrieve, /api/context-object, and /api/current-context-brief
 BOH_RETRIEVAL_INCLUDE_PROMOTED=false   # server half of the dual gate exposing promoted intake docs to retrieval
 BOH_AUTO_INDEX=true            # scan and index on startup (default: false)
 BOH_AUTO_INDEX_MAX_FILES=5000  # startup scan cap
@@ -320,7 +328,7 @@ export BOH_RETRIEVAL_TOKEN="change-me-readonly"
 python launcher.py
 ```
 
-Retrieval clients send the token as `X-BOH-Retrieval-Token`. The retrieval API returns ranked context packs with chunk IDs, document IDs, title, relative path, snippet, byte/token span, lifecycle state, authority state, provenance, conflicts, lineage, citation metadata, selection reasons, and `do_not_treat_as_canonical` warnings where applicable.
+Retrieval clients send the token as `X-BOH-Retrieval-Token`. The retrieval API returns ranked context packs with chunk IDs, document IDs, title, relative path, snippet, byte/token span, lifecycle state, authority state, provenance, conflicts, lineage, citation metadata, selection reasons, and `do_not_treat_as_canonical` warnings where applicable. The browser stores the retrieval token only in per-tab `sessionStorage` for the Search screen; the value is never displayed in the UI.
 
 The LLM review queue is different from retrieval. `POST /api/llm/queue` creates a persistent advisory proposal and ledger/attribution records, so it requires `X-BOH-Operator-Token`. Queue reads remain inspectable, and approval/rejection remain protected mutations. There is no separate write-capable connector role yet.
 
@@ -332,7 +340,7 @@ Current retrieval implementation:
 - Applies the same metadata filters to chunk results and appended PlaneCard packs, including `authority_state`, `status`, `canonical_layer`, `project`, and `chunk_type`.
 - Adds experimental Planar Gate metadata: `planar_context_pack` and `gate_result`, including posture, allowed/withheld refs, reasons, required route, trace event type, and context allowed basis.
 - Is read-only and separate from operator/admin authority.
-- Does not yet use a neural embedding service or expose a dedicated retrieval UI.
+- Does not yet use a neural embedding service.
 
 #### Context objects — `/api/context-object` (retrieval roadmap L1–L6, complete)
 
@@ -346,6 +354,12 @@ The same retrieval token also guards a governed context-object assembler — det
 - **L6 — fold-neighborhood retrieval**: `scope=node:{id}` traverses **stored** edges only (`doc_edges` + `lineage`, normalized to a verified vocabulary) with `radius` 1–2 and an optional `edge_types` filter; the neighborhood state includes edges, pressure contributors, and authority paths.
 
 Promoted intake documents (WO-2 bridge) are excluded from retrieval by default. Exposure requires a **dual gate**: the server env gate `BOH_RETRIEVAL_INCLUDE_PROMOTED=true` AND the per-request `include_promoted` flag — fail-closed when either is missing. Mutation isolation of promoted docs is gate-independent: only the governed promote/demote/supersession paths may change them.
+
+#### Current context brief — `/api/current-context-brief`
+
+`CurrentContextBrief v0.1` is the UI-facing and LLM-facing context-search contract. It composes existing `/api/retrieve` and `/api/context-object` evidence without changing ranking, schema, intake, Canon state, or review state. The response shape is intentionally explicit: `topic`, `answerable_now`, `current_context_summary`, `newest_evidence`, `best_evidence`, `superseded_or_conflicted`, `withheld`, `unknowns`, `warnings`, and `llm_instructions`.
+
+The `llm_instructions` block tells future LLM consumers to treat the packet as bounded context and not infer canon status, freshness, or authority that BOH did not return. `GET` and `POST /api/current-context-brief` both require `X-BOH-Retrieval-Token`.
 
 ### Planar Gate + Correction Ledger Fork
 
@@ -418,7 +432,7 @@ For a capability demo, use **Load Demo Project** from the Inbox after setting th
 | **Proposed Changes** | Non-authoritative LLM proposal queue; Trusted Source status cannot be granted from here |
 | **Domains / PlaneCards** | Phase 19 PCDS layer: every indexed document wrapped as a PlaneCard with full epistemic metadata |
 | **Planar Storage Bridge** | Passive source wrapping, plane registry, storage trace events, subjective LLM cards, and fail-closed authority decisions |
-| **Search** | Full-text search with explainable composite scoring and Daenary semantic filters |
+| **Search** | Full-text candidate discovery plus bounded Current Context briefs for LLM-safe topic answers |
 | **Planar Math** | Directional fact storage and scoring across named planes, fields, and nodes |
 | **Daenary** | Epistemic state encoding: d-state (−1/0/+1), quality, confidence, mode, temporal validity |
 | **Lineage** | Derivation tracking, supersession chains, content duplicate detection |
@@ -429,6 +443,7 @@ For a capability demo, use **Load Demo Project** from the Inbox after setting th
 | **Bulk Import** | Folder picker, server-path indexing, file upload, snapshot ingest with canon guard |
 | **LLM Retrieval API** | Read-only `/api/retrieve` context packs with stable chunks, citations, provenance, authority flags, conflicts, lineage expansion, and local embeddings |
 | **Context Object API** | Read-only `/api/context-object` governed assembly: scope resolution, state, evidence, conflicts, unknowns, advisory actions, grounded blockers, question-type dispatch, fold-neighborhood traversal |
+| **Current Context Brief API** | Read-only `/api/current-context-brief` topic contract with newest evidence, best evidence, conflicts, unknowns, withheld material, warnings, and bounded-use LLM instructions |
 | **Promotion Bridge** | Governed, reversible promote/demote of completed intake revisions into the retrieval corpus (operator-gated; promoted docs mutation-isolated and excluded from retrieval unless the dual exposure gate is open) |
 | **Events** | Extract and export calendar events from documents as ICS data |
 | **CA Explorer** | Companion substrate lattice application with CANON integration for belief-state analysis |
@@ -560,6 +575,8 @@ GET  /api/retrieve?q=...                  Ranked cited context packs
 POST /api/retrieve                        Ranked cited context packs with filters and context budget
 GET  /api/context-object?scope=...        Governed context object (doc: | project: | plane: | node: scopes)
 POST /api/context-object                  Governed context object (query scopes via JSON body)
+GET  /api/current-context-brief?topic=... CurrentContextBrief v0.1 for a topic
+POST /api/current-context-brief           CurrentContextBrief v0.1 with mode/limit/promoted options
 GET  /api/canon?topic=...                 Canon resolution for a topic
 GET  /api/conflicts                       All active conflicts
 PATCH /api/conflicts/{id}/acknowledge     Acknowledge (not resolve) a conflict

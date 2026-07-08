@@ -9,7 +9,7 @@ This map records the current source-level wiring for Bag of Holding. It focuses 
 | `BOH_LIBRARY` | `./library` | `app.core.fs_boundary`, `app.core.autoindex`, routes, launcher | Server-owned document library root. Filesystem reads/writes are expected to resolve under this root. | Yes |
 | `BOH_DB` | `boh.db` | `app.db.connection`, launcher | SQLite database file path. | Yes |
 | `BOH_OPERATOR_TOKEN` | unset | `app.core.auth` | Local privileged mutation/admin/execution boundary. Sent as `X-BOH-Operator-Token`. | Yes |
-| `BOH_RETRIEVAL_TOKEN` | unset | `app.core.retrieval` | Separate read-only connector boundary for `/api/retrieve` and `/api/context-object`. Sent as `X-BOH-Retrieval-Token`. Fail-closed: routes return 403 when the variable is unset. | Yes |
+| `BOH_RETRIEVAL_TOKEN` | unset | `app.core.retrieval` | Separate read-only connector boundary for `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief`. Sent as `X-BOH-Retrieval-Token`. Fail-closed: routes return 403 when the variable is unset. | Yes |
 | `BOH_RETRIEVAL_INCLUDE_PROMOTED` | `false` | `app.core.promoted_exposure` | Server half of the WO-2 dual exposure gate for promoted intake docs (`corpus_class = 'CORPUS_CLASS:PROMOTED_INTAKE'`). Only the literal value `true` (case-insensitive) opens the gate. Retrieval surfaces (`/api/retrieve`, `/api/context-object`) additionally require the per-request `include_promoted` flag — env AND request, fail-closed. Other read surfaces are env-gate-only. Mutation isolation of promoted docs is gate-independent. | Yes |
 | `BOH_DEFAULT_ACTOR` | `local_operator` fallback | `app.core.actor_ledger` | Default actor identity when `X-BOH-Actor-ID` is not supplied. | Yes |
 | `BOH_CORS_ORIGINS` | localhost allowlist | `app.api.main` | Comma-separated CORS origin override. | Yes |
@@ -34,7 +34,7 @@ Notes:
 | --- | --- | --- | --- |
 | `X-BOH-Operator-Token` | `app.core.auth.require_operator` | Privileged local authorization. | Admin, reset, seed, execution, governance mutation, approvals, destructive/workflow mutations. |
 | `X-BOH-Actor-ID` | Actor-aware routes and ledger helpers | Attribution identity recorded in the actor authority ledger. | Actor-scoped mutation attribution; defaults to `local_operator` in many paths. |
-| `X-BOH-Retrieval-Token` | `app.core.retrieval.require_retrieval_token` | Read-only retrieval connector authorization. | `GET/POST /api/retrieve`, `GET/POST /api/context-object`. |
+| `X-BOH-Retrieval-Token` | `app.core.retrieval.require_retrieval_token` | Read-only retrieval connector authorization. | `GET/POST /api/retrieve`, `GET/POST /api/context-object`, `GET/POST /api/current-context-brief`. |
 | `Content-Type: application/json` | FastAPI/Pydantic request models | JSON body parsing. | JSON POST/PATCH endpoints. |
 
 CORS currently allows `Content-Type`, `Authorization`, `X-Request-ID`, `X-BOH-Operator-Token`, `X-BOH-Actor-ID`, and `X-BOH-Retrieval-Token`.
@@ -56,6 +56,7 @@ CORS currently allows `Content-Type`, `Authorization`, `X-Request-ID`, `X-BOH-Op
 | --- | --- | --- | --- |
 | `BOH_VERSION` | JS constant | UI build/debug marker. Current value: `phase28.4-acceptance-repro-ui-hardening`. | Yes |
 | `boh_operator_token` | `sessionStorage` | Per-tab operator token used by protected UI calls. | Yes |
+| `boh_retrieval_token` | `sessionStorage` | Per-tab read-only retrieval token used by Search -> Current Context. The UI never displays the saved value and sends it only as `X-BOH-Retrieval-Token`. | Yes |
 | `boh_actor_id` | `sessionStorage` | Per-tab actor ID, usually `local_operator`. | Yes |
 | `boh_active_library_root` | `sessionStorage` | UI-visible active library root hint. Server still owns the actual boundary. | Yes |
 | `boh_ui_mode` | `localStorage` | Simple/advanced UI mode. | Yes |
@@ -84,15 +85,13 @@ These are not persisted to storage; they reset on page load.
 | `overview` | `{ status: "idle" }` | Cached overview fetch state |
 | `statusData` | `{ status: "idle" }` | Cached status fetch state |
 | `fold` | `{ status: "idle" }` | Cached fold-graph fetch state |
-| `pendingSearch` | `null` | Query pre-filled from TopBar global search (deep-link to Library) |
+| `pendingSearch` | `null` | Query pre-filled from TopBar global search (deep-link to the Search screen) |
 
 `state.scope` was **removed** (2026-06-09, commit `15219ef`). The prototype global "Scope: Project Atlas" selector and its fixture tree (`FX.scopeTree`) are gone. The TopBar now exposes a logical-library selector whose default is `Library: All libraries` plus the `Planes:` filter. The logical-library selector is browsing-only for Library and Fold Workspace views; internal/backend scope concepts (authority, retrieval ranking, intake, promotion, status, governance context) are unaffected. `Manage libraries` edits presentation metadata only: display label, hidden-from-dropdown state, order, and reset.
 
 `normalizePlaneKey(p)` is exported from `app/ui2/js/ns.js` and used by `app.js`, `screens/library.js`, and `screens/fold.js` to compare `c.plane` / `node.plane` against `visiblePlanes` case-insensitively.
 
 Not wired:
-- There is no browser-side retrieval token field yet.
-- There is no dedicated retrieval UI panel yet. Retrieval is API-first.
 - `inspectorOpen`, `inspectorWidth`, `visiblePlanes`, and `libraries` are session-only (in-memory); they reset to defaults on page load.
 
 ## Filesystem Boundary Variables
@@ -120,6 +119,7 @@ Routers are registered in `app.api.main` before the static UI mount. Current rou
 | `index.router` | `/api` | Library indexing. | Boundary protected; arbitrary external roots rejected. |
 | `search.router` | `/api` | Document-level search. | Read-only. |
 | `retrieval_router` | `/api` | Read-only LLM context packs. | Uses retrieval token, not operator token. |
+| `current_context_brief_router` | `/api` | `CurrentContextBrief v0.1` topic packets over existing retrieval and context-object evidence. | Uses retrieval token, not operator token. |
 | `library.router` | `/api` | List/read docs; patch metadata. | Metadata patch protected. |
 | `libraries.router` | `/api/libraries` | Logical-library list derived from indexed `docs.path` values inside `BOH_LIBRARY`, plus operator-gated presentation overrides for dropdown label, visibility, order, and reset. | Mutations require operator token. |
 | `reader.router` | `/api` | Document content, related docs, graph data, folded-node packets. | Read-only content path is boundary resolved; folded packets do not mutate PlaneCards. |
@@ -220,7 +220,7 @@ Ranking components:
 
 Not wired yet:
 - Neural embeddings or vector database.
-- Retrieval UI panel.
+- Low-level `/api/retrieve` tuning UI; the Search screen exposes `CurrentContextBrief v0.1`, not every retrieval parameter.
 - External MCP/plugin connector package.
 - Automatic backfill job for chunks on old databases; reindexing documents populates chunks.
 
@@ -503,9 +503,9 @@ LLM proposal path:
 - No narrower write-capable LLM connector role exists yet.
 
 LLM retrieval path:
-- `/api/retrieve` is read-only.
+- `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief` are read-only retrieval-token surfaces.
 - It requires `BOH_RETRIEVAL_TOKEN`, not `BOH_OPERATOR_TOKEN`.
-- It returns bounded context with citations and authority/canon warnings.
+- It returns bounded context with citations, authority/canon warnings, context-object state, or `CurrentContextBrief v0.1` topic packets depending on route.
 
 Not wired:
 - Retrieval does not mutate lifecycle, authority, canon, files, or DB governance state.
@@ -527,7 +527,6 @@ Planar Storage bridge path:
 Retrieval:
 - Local hashed embeddings are implemented; neural embeddings are not.
 - No vector database or ANN index exists yet.
-- No dedicated browser retrieval UI exists yet.
 - No connector package exists yet for another program; the HTTP API is ready for one.
 - Planar Storage retrieval modes are wired. Card promotion endpoints and enforced interface receipts are not fully wired yet.
 

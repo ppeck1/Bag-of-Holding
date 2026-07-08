@@ -11,6 +11,7 @@ import { StatusScreen } from "./screens/status.js";
 import { ComponentSheet } from "./screens/component-sheet.js";
 import { FoldWorkspace } from "./screens/fold.js";
 import { LibraryScreen } from "./screens/library.js";
+import { SearchContextScreen } from "./screens/search-context.js";
 import { ReviewScreen } from "./screens/review.js";
 import { AuthorityScreen } from "./screens/authority.js";
 import { CaptureScreen } from "./screens/capture.js";
@@ -374,6 +375,38 @@ function currentScreen() {
       }),
     });
   }
+  if (r === "search") {
+    const ps = state.pendingSearch; state.pendingSearch = null;
+    const curSelId = state.selection && state.selection.type === "doc" ? state.selection.doc.id : null;
+    const onSelectDoc = (doc) => {
+      if (curSelId === doc.id) { setState({ selection: null }); return; }
+      setState({ selection: { type: "doc", doc: { ...doc, _loading: true } }, inspectorOpen: true });
+      api(`/api/docs/${encodeURIComponent(doc.id)}`).then(payload => {
+        if (!payload || payload.error || !payload.doc) return;
+        if (!(state.selection && state.selection.type === "doc" && state.selection.doc.id === doc.id)) return;
+        const full = payload.doc;
+        setState({ selection: { type: "doc", doc: {
+          ...state.selection.doc,
+          _loading: false,
+          path: full.path || null,
+          summary: full.summary || null,
+          definitionCount: (payload.definitions || []).length,
+          eventCount: (payload.events || []).length,
+          authority: full.authority_state || full.authority || state.selection.doc.authority,
+          lifecycle: full.lifecycle || full.status || state.selection.doc.lifecycle,
+        } } });
+      });
+    };
+    return SearchContextScreen({
+      pendingSearch: ps,
+      onNavigate: navigate,
+      onToast: pushToast,
+      selectedId: curSelId,
+      activeLibrary: state.libraries.items.find(l => l.id === state.activeLibraryId) || state.libraries.items[0],
+      activeLibraryId: state.activeLibraryId,
+      onSelectDoc,
+    });
+  }
   if (r === "review") {
     const curConflictId = state.selection && state.selection.type === "review_conflict" ? state.selection.conflict.conflict_id : null;
     const curProposalId = state.selection && state.selection.type === "review_proposal" ? state.selection.proposal.queue_id : null;
@@ -546,6 +579,7 @@ function render() {
   const showInspector = state.inspectorOpen && (
     (state.route === "current" && ["populated", "partial"].includes(overviewProtoState())) ||
     state.route === "library" ||
+    state.route === "search" ||
     (state.route === "intake" && state.selection) ||
     (state.route === "review" && state.selection) ||
     (state.route === "authority" && state.selection)
@@ -567,7 +601,7 @@ function render() {
       onManageLibraries: openLibraryManager,
       onOpenAlerts: () => setState({ alertsOpen: true }), alertCount: unresolvedAlerts, jobCount: runningJobs,
       lastIndexed, diagnostics: state.settings.diagnostics,
-      onSearch: (q) => { state.pendingSearch = q; navigate("library"); } }),
+      onSearch: (q) => { state.pendingSearch = q; navigate("search"); } }),
     Sidebar({ route: state.route, onNavigate: navigate }),
     h("div", {
       className: `main ${showInspector ? "with-inspector" : ""}`.trim(),

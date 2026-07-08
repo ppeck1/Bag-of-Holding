@@ -13,6 +13,7 @@ const NAV_GROUPS = [
   { label: "Workspace", items: [
     { id: "current", glyph: "◈", label: "Current State" },
     { id: "intake",  glyph: "+", label: "Capture & Intake" },
+    { id: "search",  glyph: "?", label: "Search" },
     { id: "library", glyph: "▦", label: "Library" },
     { id: "review",  glyph: "✓", label: "Review Center", pip: 11 },
   ] },

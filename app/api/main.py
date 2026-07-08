@@ -57,6 +57,7 @@ from app.api.routes.review_queue_routes import router as review_queue_router
 from app.api.routes.residence_routes import router as residence_router
 from app.api.routes.context_pack_routes import router as context_pack_router
 from app.api.routes.context_object_routes import router as context_object_router
+from app.api.routes.current_context_brief_routes import router as current_context_brief_router
 
 
 # ── Init ──────────────────────────────────────────────────────────────────────
@@ -201,6 +202,7 @@ for router in (
     residence_router,            # Phase 7: Residence Map surface (read-only information residence)
     context_pack_router,         # Phase 7: Context Pack Builder surface (read-only assembler)
     context_object_router,       # WO-R2: /api/context-object (Levels 5+3, retrieval-token gated)
+    current_context_brief_router,  # CurrentContextBrief v0.1: retrieval-token gated context search
 ):
     app.include_router(router)
 

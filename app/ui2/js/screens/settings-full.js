@@ -2,7 +2,7 @@
    General (localStorage), Library & Indexing, Intake Automation, AI & Analysis,
    Visualization, Security & Advanced — all display/read-only except General. */
 import { h } from "../dom.js";
-import { api, escHtml, getToken, tokenHeaders } from "../api.js";
+import { api, escHtml, getRetrievalToken, getToken, tokenHeaders } from "../api.js";
 import { Card, Tabs, Segmented, Select, Toggle, Button, AlertBanner, Badge, Skeleton } from "../primitives.js";
 
 let _tab = "general";
@@ -272,7 +272,8 @@ function SecurityTab({ onConfirm, onToast }) {
       settingRow("Default actor", "BOH_DEFAULT_ACTOR", "Actor used for unauthenticated local requests.", "RESTART REQUIRED", "READ-ONLY ENV", h("span", { class: "t-small muted" }, st.default_actor || "dev_operator")),
       settingRow("Operator token", "BOH_OPERATOR_TOKEN", "Governs all mutation routes.", "RESTART REQUIRED", "SESSION LOCAL", opTokenControl),
       SessionTokenRow({ onToast }),
-      settingRow("Retrieval token", "BOH_RETRIEVAL_TOKEN", "Governs /api/retrieve read access.", "RESTART REQUIRED", "SESSION LOCAL", retrievalTokenControl),
+      settingRow("Retrieval token", "BOH_RETRIEVAL_TOKEN", "Governs /api/retrieve and context brief read access.", "RESTART REQUIRED", "READ-ONLY ENV", retrievalTokenControl),
+      RetrievalSessionTokenRow({ onToast }),
       h("div", { class: "setting-row" }, h("div", { class: "s-main" }, h("div", { class: "s-name" }, "Maintenance actions")),
         h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
           Button({ variant: "secondary", className: "sm", glyph: "↺", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Discards derived index data and re-scans. Source files are untouched.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
@@ -328,6 +329,53 @@ function SessionTokenRow({ onToast }) {
       h("div", { class: "flex items-center gap-2" },
         stateSpan,
         h("span", { class: "badge", style: { fontSize: "10px", padding: "2px 8px", borderRadius: "999px", color: "var(--state-advisory)", background: "color-mix(in oklab, var(--state-advisory) 14%, transparent)", border: "1px solid color-mix(in oklab, var(--state-advisory) 30%, transparent)" } }, "session-only (cleared on tab close)"))));
+}
+
+function RetrievalSessionTokenRow({ onToast }) {
+  let _input;
+  function sessionState() {
+    return getRetrievalToken() ? "set for this session" : "not set for this session";
+  }
+  function sessionColor() {
+    return getRetrievalToken() ? "var(--state-current)" : "var(--text-muted)";
+  }
+  const stateSpan = h("span", { style: { color: sessionColor() } }, sessionState());
+
+  function save() {
+    const val = (_input && _input.value) ? _input.value.trim() : "";
+    if (!val) { onToast && onToast("Enter a retrieval token value before saving.", "stale"); return; }
+    sessionStorage.setItem("boh_retrieval_token", val);
+    if (_input) _input.value = "";
+    stateSpan.textContent = sessionState();
+    stateSpan.style.color = sessionColor();
+    onToast && onToast("Retrieval token saved for this session.", "current");
+  }
+  function clear() {
+    sessionStorage.removeItem("boh_retrieval_token");
+    if (_input) _input.value = "";
+    stateSpan.textContent = sessionState();
+    stateSpan.style.color = sessionColor();
+    onToast && onToast("Retrieval token cleared.", "stale");
+  }
+
+  return h("div", { class: "setting-row" },
+    h("div", { class: "s-main" },
+      h("div", { class: "s-name" }, "Retrieval token entry"),
+      h("div", { class: "s-desc" }, "Enter the read-only retrieval token for this browser tab. Used by Search -> Current Context."),
+      h("div", { class: "s-annos" },
+        h("span", { class: "anno", style: { color: "var(--state-advisory)" } }, "TAB-LOCAL ONLY"))),
+    h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
+      h("div", { class: "flex gap-2" },
+        (_input = h("input", { type: "password", placeholder: "Enter retrieval token...",
+          style: { fontFamily: "var(--font-mono)", fontSize: "12px", padding: "4px 8px",
+                   background: "var(--bg-input)", border: "1px solid var(--border-default)",
+                   borderRadius: "6px", color: "var(--text-primary)", width: "200px" },
+          onKeydown: e => { if (e.key === "Enter") save(); } })),
+        Button({ variant: "secondary", className: "sm", onClick: save, children: ["Save for session"] }),
+        Button({ variant: "ghost", className: "sm", onClick: clear, children: ["Clear"] })),
+      h("div", { class: "flex items-center gap-2" },
+        stateSpan,
+        h("span", { class: "badge", style: { fontSize: "10px", padding: "2px 8px", borderRadius: "999px", color: "var(--state-advisory)", background: "color-mix(in oklab, var(--state-advisory) 14%, transparent)", border: "1px solid color-mix(in oklab, var(--state-advisory) 30%, transparent)" } }, "read-only"))));
 }
 
 function settingRow(name, desc, live, impl, control) {

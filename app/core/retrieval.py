@@ -556,7 +556,7 @@ def _attach_card_authority(packs: list[dict], mode: str) -> list[dict]:
         if pack.get("card_id"):
             out.append(pack)
             continue
-        card = get_card_for_doc(pack.get("doc_id")) if pack.get("doc_id") else None
+        card = get_card_for_doc(pack.get("doc_id"), auto_wrap=False) if pack.get("doc_id") else None
         if card:
             c = card.to_dict()
             decision = planar_authority.can_use("retrieval_connector", c, "answer_context", mode)

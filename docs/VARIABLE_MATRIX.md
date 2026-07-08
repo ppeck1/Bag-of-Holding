@@ -15,7 +15,9 @@ Secret policy: names only. Secret values must never be recorded.
 | BOH_LIBRARY | environment variable | runtime environment | `./library` | no | no | BOH app | Server-owned document library boundary. Runtime corpus data stays out of commits. | 2026-06-30 |
 | BOH_DB | environment variable | runtime environment | `boh.db` | no | no | BOH app | SQLite path. Database files are ignored. | 2026-06-30 |
 | BOH_OPERATOR_TOKEN | environment variable | runtime environment | unset | production/local ops only | yes | BOH protected routes | Secret value must never be recorded. | 2026-06-30 |
-| BOH_RETRIEVAL_TOKEN | environment variable | runtime environment | unset | connector use only | yes | BOH retrieval routes | Secret value must never be recorded. | 2026-06-30 |
+| BOH_RETRIEVAL_TOKEN | environment variable | runtime environment | unset | connector/current-context use only | yes | BOH retrieval routes and Search -> Current Context | Sent as `X-BOH-Retrieval-Token` for `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief`. Secret value must never be recorded. | 2026-07-08 |
+| BOH_RETRIEVAL_INCLUDE_PROMOTED | environment variable | runtime environment | `false` | no | no | retrieval/context surfaces | Server half of the promoted-intake exposure gate. Request-level `include_promoted` must also be true. | 2026-07-08 |
+| boh_retrieval_token | browser session key | `sessionStorage` | unset | current-context UI only | yes | Search -> Current Context | Per-tab browser copy of `BOH_RETRIEVAL_TOKEN`; never displayed after save and never sent as the operator token. | 2026-07-08 |
 
 ## Maintenance Rule
 

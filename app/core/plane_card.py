@@ -394,10 +394,11 @@ def get_card(card_id: str) -> PlaneCard | None:
     return _row_to_card(row) if row else None
 
 
-def get_card_for_doc(doc_id: str) -> PlaneCard | None:
+def get_card_for_doc(doc_id: str, *, auto_wrap: bool = True) -> PlaneCard | None:
     """Retrieve the PlaneCard wrapping a document."""
     row = db.fetchone("SELECT * FROM cards WHERE doc_id = ?", (doc_id,))
     if row: return _row_to_card(row)
+    if not auto_wrap: return None
     # Auto-wrap if missing
     doc = db.fetchone("SELECT * FROM docs WHERE doc_id = ?", (doc_id,))
     if not doc: return None

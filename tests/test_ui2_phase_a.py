@@ -45,7 +45,7 @@ class TestModulesPresent:
                     "js/screens/overview.js", "js/screens/settings.js",
                     "js/screens/settings-full.js", "js/screens/status.js",
                     "js/screens/component-sheet.js", "js/screens/fold.js",
-                    "js/screens/library.js", "js/screens/review.js",
+                    "js/screens/library.js", "js/screens/search-context.js", "js/screens/review.js",
                     "js/screens/authority.js", "js/screens/capture.js",
                     "js/screens/activity.js"):
             assert (UI2 / rel).exists(), f"missing {rel}"
@@ -220,6 +220,32 @@ class TestInspectorFilePreview:
         assert 'from "./file-preview.js"' in src
         assert "AssociatedFilePreview" in src
         assert "docId: d.id" in src
+
+
+class TestSearchContextScreen:
+    def test_search_context_screen_present_and_guarded_by_retrieval_token(self):
+        src = _read(UI2 / "js" / "screens" / "search-context.js")
+        assert "export function SearchContextScreen" in src
+        assert "/api/search?q=" in src
+        assert "/api/current-context-brief" in src
+        assert "retrievalHeaders()" in src
+        assert "getRetrievalToken()" in src
+        assert "X-BOH-Operator-Token" not in src
+
+    def test_app_routes_global_search_to_context_screen(self):
+        src = _read(UI2 / "js" / "app.js")
+        assert 'from "./screens/search-context.js"' in src
+        assert 'navigate("search")' in src
+        assert 'r === "search"' in src
+
+    def test_settings_has_separate_retrieval_session_token(self):
+        api_src = _read(UI2 / "js" / "api.js")
+        settings_src = _read(UI2 / "js" / "screens" / "settings-full.js")
+        assert "getRetrievalToken" in api_src
+        assert "retrievalHeaders" in api_src
+        assert "boh_retrieval_token" in api_src
+        assert "RetrievalSessionTokenRow" in settings_src
+        assert "boh_retrieval_token" in settings_src
 
     def test_preview_styles_are_bounded_and_scrollable(self):
         css = _read(UI2 / "app.css")
