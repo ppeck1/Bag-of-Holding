@@ -11,7 +11,7 @@ WHAT THIS IS
         - Current Fold View resolver + dual-channel cluster/corpus aggregation
           (project / plane / domain / batch axes)
         - CANON scalar bridge variables on the fold contract
-        - Metis retrieval contract (citation_uri / source_spans / warnings)
+        - external retrieval contract (citation_uri / source_spans / warnings)
         - SC3 plane inference, lattice, certificate workflow surfaces
         - authority ledger, residence, governance policies, audit
 
@@ -343,7 +343,7 @@ def tour_authority_advanced(t: Tour) -> None:
 
 
 def tour_retrieval(t: Tour) -> None:
-    fam = "Metis Retrieval Contract"
+    fam = "External Retrieval Contract"
     rs = t.get("/api/retrieve/status")
     if rs.get("status") == 200:
         body = rs.get("body") or {}

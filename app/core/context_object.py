@@ -317,7 +317,8 @@ def _actions_for(conflicts: list[dict], node_unknowns: list[dict]) -> list[dict]
 def assemble(scope_type: str, value: str, *, only: str | None = None,
              evidence_limit: int = 8, include_promoted: bool = False,
              question_type: str | None = None, radius: int = 1,
-             edge_types: list[str] | None = None) -> dict:
+             edge_types: list[str] | None = None,
+             governed_result: Any | None = None) -> dict:
     warnings: list[str] = []
     show_promoted = promoted_exposure.visible(include_promoted)
     requested = {"type": scope_type, "value": value}
@@ -351,18 +352,44 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
     else:
         query, filters = value, {}
     packs = []
+    governed_wire: dict[str, Any] | None = None
+    normalized_result: Any | None = None
     if (members or scope_type == "query") and only != "blocking":
         # FTS5 treats '-', ':' etc. in barewords as operators (pre-existing retrieval
         # fragility, surfaced by the WO-R2 audit); sanitize the DERIVED query so scope ids
         # like 'promoted-ghost' cannot raise an FTS syntax error.
-        safe_query = re.sub(r"[^A-Za-z0-9_ ]+", " ", query).strip() or "document"
-        base = retrieval.retrieve(safe_query, limit=evidence_limit, filters=filters,
-                                  show_promoted=show_promoted)
-        packs = base.get("context_packs", [])
+        safe_query = (
+            query if scope_type == "query"
+            else (re.sub(r"[^A-Za-z0-9_ ]+", " ", query).strip() or "document")
+        )
+        if scope_type == "query":
+            normalized_result = (
+                governed_result
+                if governed_result is not None
+                else retrieval.retrieve_governed_result(
+                    safe_query,
+                    mode="exploration",
+                    limit=evidence_limit,
+                    filters=filters,
+                    include_promoted=include_promoted,
+                    emit_audit_event=False,
+                )
+            )
+            governed_wire = (
+                normalized_result.to_dict()
+                if hasattr(normalized_result, "to_dict")
+                else dict(normalized_result)
+            )
+            packs = governed_wire.get("context_packs", [])
+        else:
+            base = retrieval.retrieve(safe_query, limit=evidence_limit, filters=filters,
+                                      show_promoted=show_promoted)
+            packs = base.get("context_packs", [])
         if scope_type in ("plane", "node"):
             packs = [p for p in packs if p.get("doc_id") in set(members)]
-        packs.sort(key=lambda p: (-(p.get("score") or 0.0),
-                                  str(p.get("chunk_id") or p.get("card_id") or "")))
+        if scope_type != "query":
+            packs.sort(key=lambda p: (-(p.get("score") or 0.0),
+                                      str(p.get("chunk_id") or p.get("card_id") or "")))
     if scope_type == "query":
         members = sorted({p.get("doc_id") for p in packs if p.get("doc_id")})
 
@@ -371,7 +398,21 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
     resolved = ({"type": scope_type, "value": value, "member_count": len(members)}
                 if members or scope_type == "query" else None)
 
-    conflicts = _conflicts_for_members(members)
+    if scope_type == "query" and governed_wire is not None:
+        internal_conflicts = getattr(normalized_result, "context_conflicts", None)
+        if internal_conflicts is not None:
+            conflicts = [dict(conflict) for conflict in internal_conflicts]
+        else:
+            conflict_map: dict[str, dict] = {}
+            for pack in packs:
+                for conflict in pack.get("conflicts") or []:
+                    key = str(conflict.get("rowid") or conflict.get("conflict_id") or conflict)
+                    conflict_map.setdefault(key, dict(conflict))
+            conflicts = list(conflict_map.values())
+            conflicts.sort(key=lambda c: (c.get("resolution_status") != "open",
+                                          -(c.get("detected_ts") or 0), -(c.get("rowid") or 0)))
+    else:
+        conflicts = _conflicts_for_members(members)
     if len(conflicts) > SECTION_CAP:
         conflicts = conflicts[:SECTION_CAP]
         warnings.append("conflicts_truncated")
@@ -418,7 +459,26 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
         state = {"kind": "membership", "members": len(members),
                  "open_conflicts": sum(1 for c in conflicts
                                        if c["resolution_status"] == "open")}
-    unknowns = node_unknowns if node_unknowns else _light_unknowns(members)
+    if node_unknowns:
+        unknowns = node_unknowns
+    elif scope_type == "query" and governed_wire is not None:
+        unknowns = []
+        seen_unknown_docs: set[str] = set()
+        for pack in packs:
+            doc_id = pack.get("doc_id")
+            if not doc_id or doc_id in seen_unknown_docs:
+                continue
+            seen_unknown_docs.add(doc_id)
+            if not pack.get("authority_state"):
+                unknowns.append({"field": "authority_state", "doc_id": doc_id,
+                                 "severity": "medium", "meaning": "authority state is unset",
+                                 "provenance": "direct"})
+            if not (pack.get("freshness") or {}).get("source"):
+                unknowns.append({"field": "epistemic_last_evaluated", "doc_id": doc_id,
+                                 "severity": "low", "meaning": "no epistemic evaluation timestamp",
+                                 "provenance": "direct"})
+    else:
+        unknowns = _light_unknowns(members)
     if len(unknowns) > SECTION_CAP:
         unknowns = unknowns[:SECTION_CAP]
         warnings.append("unknowns_truncated")
@@ -442,6 +502,12 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
         "unknowns": unknowns,
         "actions": actions,
     }
+    if scope_type == "query" and governed_wire is not None:
+        result["excluded_summary"] = governed_wire.get("excluded_summary", [])
+        result["gate_result"] = governed_wire.get("gate_result", {})
+        result["warnings"] = list(dict.fromkeys(
+            list(governed_wire.get("warnings", [])) + list(warnings)
+        ))
     if question_context is not None:
         result["question_context"] = question_context
     if only == "blocking":

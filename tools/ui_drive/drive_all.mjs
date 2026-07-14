@@ -8,16 +8,131 @@ function clickByText(root, txt) {
   (function w(e) { if (!e || typeof e !== 'object') return; if (e._handlers && e._handlers.click) { const t = text(e); if (t.includes(txt)) els.push(e); } (e.children || []).forEach(w); })(root);
   if (els.length) { els[0]._handlers.click.forEach(f => f(ev(els[0]))); return true; } return false;
 }
+function clickButtonExact(root, txt) {
+  const els = [];
+  (function w(e) {
+    if (!e || typeof e !== 'object') return;
+    if (e.tagName === 'button' && e._handlers && e._handlers.click && text(e).trim() === txt) els.push(e);
+    (e.children || []).forEach(w);
+  })(root);
+  if (els.length) { els[els.length - 1]._handlers.click.forEach(f => f(ev(els[els.length - 1]))); return true; }
+  return false;
+}
 async function tab(root, label) { const ok = clickByText(root, label); await sleep(400); return ok; }
 const active = (tree) => byClass(tree, 'proj-seg').filter(b => [b.className, b._attr_class].filter(Boolean).join(' ').includes('active')).map(b => text(b));
 // interactive table rows = <tr> with a click handler
 function rows(root) { const o = []; (function w(e) { if (!e || typeof e !== 'object') return; if (e.tagName === 'tr' && e._handlers && e._handlers.click) o.push(e); (e.children || []).forEach(w); })(root); return o; }
 function byAria(root, label) { const o = []; (function w(e) { if (!e || typeof e !== 'object') return; if (e.getAttribute && e.getAttribute('aria-label') === label) o.push(e); (e.children || []).forEach(w); })(root); return o; }
+function findInput(root, placeholderPart) {
+  let found = null;
+  (function w(e) {
+    if (!e || typeof e !== 'object') return;
+    const ph = e.placeholder || e._attr_placeholder || '';
+    if (!found && e.tagName === 'input' && (!placeholderPart || ph.includes(placeholderPart))) found = e;
+    (e.children || []).forEach(w);
+  })(root);
+  return found;
+}
 // request-trace helpers (dom.mjs records {method,path} per fetch)
 const reqMark = () => globalThis.__reqlog.length;
 const reqsSince = (n) => globalThis.__reqlog.slice(n);
 const hasMutation = (entries) => entries.some(r => /^(POST|PUT|PATCH|DELETE)$/.test(r.method));
 const hitPath = (entries, re) => entries.some(r => re.test(r.path));
+
+// 0. First-class Search screen: keyword discovery + CurrentContextBrief token boundary.
+try {
+  const { SearchContextScreen } = await import('../../app/ui2/js/screens/search-context.js');
+  const query = 'context search validation newest evidence bounded llm instructions';
+  const noTokenToasts = [];
+  let selectedDoc = null;
+  let navTarget = null;
+
+  sessionStorage.removeItem('boh_retrieval_token');
+  let c = mount(SearchContextScreen({
+    onSelectDoc: (doc) => { selectedDoc = doc; },
+    onNavigate: (route) => { navTarget = route; },
+    onToast: (msg) => noTokenToasts.push(msg),
+    activeLibrary: { name: 'All libraries' },
+    activeLibraryId: 'all',
+  }));
+  await sleep(100);
+  let inp = findInput(c, 'Ask for current context');
+  if (inp) {
+    inp.value = query;
+    inp._handlers.input && inp._handlers.input.forEach(f => f({ target: inp }));
+  }
+  let m0 = reqMark();
+  const noTokenButton = clickButtonExact(c, 'Brief');
+  await sleep(300);
+  const noTokenText = text(c);
+  rec('SearchContext/no-token-local-open',
+    noTokenButton && /Local BOH search works without one/i.test(noTokenText),
+    noTokenText.slice(0, 120));
+  rec('SearchContext/no-token-fetches-local-brief',
+    hitPath(reqsSince(m0), /\/api\/current-context-brief/),
+    reqsSince(m0).map(r => r.method + r.path).join(' '));
+
+  rec('SearchContext/nav-to-pack-builder', clickByText(c, 'Open pack builder') && navTarget === 'context-pack', 'nav=' + navTarget);
+  navTarget = null;
+  rec('SearchContext/nav-to-settings', clickByText(c, 'Settings') && navTarget === 'settings', 'nav=' + navTarget);
+
+  // Keyword Search path: no retrieval token needed; row selection remains read-only.
+  const switchedKeyword = clickByText(c, 'Keyword Search');
+  await sleep(100);
+  inp = findInput(c, 'Search titles');
+  if (inp) {
+    inp.value = query;
+    inp._handlers.input && inp._handlers.input.forEach(f => f({ target: inp }));
+  }
+  m0 = reqMark();
+  const keywordButton = clickButtonExact(c, 'Search');
+  await sleep(700);
+  const keywordReqs = reqsSince(m0);
+  const keywordRows = rows(c);
+  rec('SearchContext/keyword-hits-api',
+    switchedKeyword && keywordButton && hitPath(keywordReqs, /\/api\/search\?/),
+    keywordReqs.map(r => r.method + r.path).join(' '));
+  rec('SearchContext/keyword-renders-results',
+    /keyword result/i.test(text(c)) && /Context Search UI Validation Fixture/i.test(text(c)),
+    text(c).slice(0, 160));
+  if (keywordRows.length) {
+    selectedDoc = null;
+    m0 = reqMark();
+    keywordRows[0]._handlers.click.forEach(f => f(ev(keywordRows[0])));
+    await sleep(150);
+    rec('SearchContext/keyword-selects-doc', !!selectedDoc && selectedDoc.id === 'boh-uidrive-context-search', 'id=' + (selectedDoc && selectedDoc.id));
+    rec('SearchContext/keyword-select-no-mutation', !hasMutation(reqsSince(m0)), 'verbs=' + reqsSince(m0).map(r => r.method).join(','));
+  }
+
+  // Current Context path: retrieval-token-gated POST returns the explicit contract.
+  sessionStorage.setItem('boh_retrieval_token', 'uidrive-retrieve-token');
+  clickByText(c, 'Current Context');
+  await sleep(100);
+  inp = findInput(c, 'Ask for current context');
+  if (inp) {
+    inp.value = query;
+    inp._handlers.input && inp._handlers.input.forEach(f => f({ target: inp }));
+  }
+  m0 = reqMark();
+  clickButtonExact(c, 'Brief');
+  await sleep(1000);
+  const briefReqs = reqsSince(m0);
+  const briefText = text(c);
+  rec('SearchContext/brief-hits-api',
+    hitPath(briefReqs, /\/api\/current-context-brief/),
+    briefReqs.map(r => r.method + r.path).join(' '));
+  rec('SearchContext/brief-renders-contract',
+    /CurrentContextBrief v0\.1|bounded_context|Do not infer|Best Evidence|Newest Evidence/i.test(briefText),
+    briefText.slice(0, 220));
+  rec('SearchContext/brief-shows-citation',
+    /boh:\/\/boh-uidrive-context-search#/i.test(briefText),
+    briefText.match(/boh:\/\/boh-uidrive-context-search#[^\s]+/)?.[0] || 'no citation');
+  rec('SearchContext/brief-no-mutation',
+    !hasMutation(briefReqs.filter(r => !/\/api\/current-context-brief/.test(r.path))),
+    briefReqs.map(r => r.method).join(','));
+} catch (e) {
+  rec('SearchContext', false, 'THREW ' + (e.stack || e).split('\n').slice(0, 2).join(' | '));
+}
 
 // 1. Current State
 try {
@@ -214,7 +329,113 @@ try { const { ContextPackScreen } = await import('../../app/ui2/js/screens/conte
 catch (e) { rec('ContextPack', false, 'THREW ' + (e.stack || e).split('\n')[0]); }
 
 // 8. Settings
-try { const { SettingsFullScreen } = await import('../../app/ui2/js/screens/settings-full.js'); const c = mount(SettingsFullScreen({ settings: {}, onSet: () => {}, onConfirm: () => {}, onToast: () => {} })); await sleep(300); await tab(c, 'Security'); rec('Settings/Security-tab', /token|operator|Security/i.test(text(c)), 'len=' + text(c).length); }
+try {
+  const { SettingsFullScreen, ServerTokenRow, RetrievalSessionTokenRow } = await import('../../app/ui2/js/screens/settings-full.js');
+  const c = mount(SettingsFullScreen({ settings: {}, onSet: () => {}, onConfirm: () => {}, onToast: () => {} }));
+  await sleep(300);
+  await tab(c, 'Security');
+  rec('Settings/Security-tab', /token|operator|Security/i.test(text(c)), 'len=' + text(c).length);
+
+  // A failed server save must not place plaintext into sessionStorage. Only a
+  // successful verifier response may load the same value into this tab.
+  const originalFetch = globalThis.fetch;
+  let saveSucceeds = false;
+  let retrievalSaveSucceeds = false;
+  const tokenCalls = [];
+  const retrievalCalls = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    if (String(url).includes('/api/security/tokens/operator')) {
+      tokenCalls.push({ method: opts.method, body: opts.body });
+      return {
+        ok: saveSucceeds,
+        status: saveSucceeds ? 200 : 403,
+        headers: { get: () => 'application/json' },
+        json: async () => saveSucceeds
+          ? ({ ok: true, token: { configured: true, source: 'ui' } })
+          : ({ detail: 'injected refusal' }),
+        text: async () => '',
+      };
+    }
+    if (String(url).includes('/api/security/tokens/retrieval')) {
+      retrievalCalls.push({ method: opts.method, body: opts.body });
+      return {
+        ok: retrievalSaveSucceeds,
+        status: retrievalSaveSucceeds ? 200 : 403,
+        headers: { get: () => 'application/json' },
+        json: async () => retrievalSaveSucceeds
+          ? ({ ok: true, token: { configured: true, source: 'ui' } })
+          : ({ detail: 'injected retrieval refusal' }),
+        text: async () => '',
+      };
+    }
+    return originalFetch(url, opts);
+  };
+  try {
+    sessionStorage.removeItem('boh_operator_token');
+    const row = mount(ServerTokenRow({
+      kind: 'operator',
+      serverState: { configured: false, source: 'none' },
+      operatorState: { configured: false, source: 'none' },
+      onToast: () => {},
+      onRefresh: () => {},
+      onConfirm: () => {},
+    }));
+    const inputs = [];
+    (function collect(e) { if (!e || typeof e !== 'object') return; if (e.tagName === 'input') inputs.push(e); (e.children || []).forEach(collect); })(row);
+    const input = inputs[0];
+    input.value = 'ui-drive-operator-token-1234';
+    clickButtonExact(row, 'Save + load operator');
+    await sleep(30);
+    rec('Settings/token-failure-keeps-tab-empty', !sessionStorage.getItem('boh_operator_token'), 'calls=' + tokenCalls.length);
+    saveSucceeds = true;
+    input.value = 'ui-drive-operator-token-1234';
+    clickButtonExact(row, 'Save + load operator');
+    await sleep(30);
+    rec('Settings/token-success-loads-tab', sessionStorage.getItem('boh_operator_token') === 'ui-drive-operator-token-1234', 'calls=' + tokenCalls.length);
+
+    const retrievalToasts = [];
+    sessionStorage.removeItem('boh_operator_token');
+    sessionStorage.removeItem('boh_retrieval_token');
+    const retrievalRow = mount(ServerTokenRow({
+      kind: 'retrieval',
+      serverState: { configured: false, source: 'none' },
+      operatorState: { configured: true, source: 'ui', record_valid: true },
+      onToast: (msg) => retrievalToasts.push(msg),
+      onRefresh: () => {},
+      onConfirm: () => {},
+    }));
+    const retrievalInputs = [];
+    (function collect(e) { if (!e || typeof e !== 'object') return; if (e.tagName === 'input') retrievalInputs.push(e); (e.children || []).forEach(collect); })(retrievalRow);
+    const retrievalInput = retrievalInputs[0];
+    retrievalInput.value = 'ui-drive-retrieval-token-1234';
+    const beforeRetrievalCalls = retrievalCalls.length;
+    clickButtonExact(retrievalRow, 'Save + load retrieval');
+    await sleep(30);
+    rec('Settings/retrieval-server-save-needs-operator-tab',
+      retrievalCalls.length === beforeRetrievalCalls && retrievalToasts.some(m => /Load the operator token/i.test(m)),
+      'calls=' + retrievalCalls.length + ' toast=' + retrievalToasts.join('|'));
+    const retrievalSessionRow = mount(RetrievalSessionTokenRow({ onToast: (msg) => retrievalToasts.push(msg) }));
+    const retrievalSessionInput = findInput(retrievalSessionRow, 'Enter retrieval token');
+    retrievalSessionInput.value = 'ui-drive-retrieval-token-1234';
+    clickButtonExact(retrievalSessionRow, 'Load into this tab');
+    await sleep(30);
+    rec('Settings/retrieval-tab-only-loads-without-server',
+      sessionStorage.getItem('boh_retrieval_token') === 'ui-drive-retrieval-token-1234' && retrievalCalls.length === beforeRetrievalCalls,
+      'calls=' + retrievalCalls.length);
+    sessionStorage.setItem('boh_operator_token', 'ui-drive-operator-token-1234');
+    retrievalSaveSucceeds = true;
+    retrievalInput.value = 'ui-drive-retrieval-token-5678';
+    clickButtonExact(retrievalRow, 'Save + load retrieval');
+    await sleep(30);
+    rec('Settings/retrieval-server-save-loads-tab',
+      sessionStorage.getItem('boh_retrieval_token') === 'ui-drive-retrieval-token-5678' && retrievalCalls.length === beforeRetrievalCalls + 1,
+      'calls=' + retrievalCalls.length);
+  } finally {
+    globalThis.fetch = originalFetch;
+    sessionStorage.removeItem('boh_operator_token');
+    sessionStorage.removeItem('boh_retrieval_token');
+  }
+}
 catch (e) { rec('Settings', false, 'THREW ' + (e.stack || e).split('\n')[0]); }
 
 // 9. Activity

@@ -131,7 +131,7 @@ export function TopBar({ mode, onMode, visiblePlanes, onTogglePlane, onShowAllPl
     Popover({ align: "left", width: 260,
       trigger: ({ toggle }) => h("button", { className: "chip", onClick: toggle,
         "aria-label": `Library: ${libraryLabel(activeLibrary, libraries)}`, "aria-haspopup": "true" },
-        h("span", { className: "glyph", style: { color: "var(--accent)" } }, "â–¦"),
+        h("span", { className: "glyph", style: { color: "var(--accent)" } }, "▦"),
         `Library: ${libraryLabel(activeLibrary, libraries)}`,
         Icon({ name: "chevDown", size: 13 })),
       children: ({ close }) => LibraryPopover({

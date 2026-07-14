@@ -103,9 +103,9 @@ class TestFixturesCleanup:
 
 
 class TestAppStateCleanup:
-    def test_scope_removed_from_state(self):
+    def test_legacy_scope_fixture_not_reintroduced(self):
         src = _src(APP_JS)
-        assert 'scope: "Project Atlas"' not in src
+        assert "scopeTree" not in src
 
     def test_state_scope_not_referenced(self):
         assert "state.scope" not in _src(APP_JS)

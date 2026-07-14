@@ -20,12 +20,9 @@ The public repository contains source code, tests, design docs, and screenshots.
 It must not contain local runtime data, SQLite databases, secrets, private
 operator handoffs, generated review artifacts, or machine-specific paths.
 
-The public release is built through the allowlist-based export tools:
-
-```bash
-python tools/build_public_export.py --force
-python tools/audit_public_export.py
-```
+Public releases are maintainer-produced from an explicit allowlist and pass an
+independent fail-closed privacy audit before publication. Runtime and private
+governance files are not part of the exported repository.
 
 ## Reporting
 

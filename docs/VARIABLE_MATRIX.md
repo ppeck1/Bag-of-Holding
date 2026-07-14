@@ -1,23 +1,40 @@
 # Variable Matrix
 
+> **MCP publication boundary:** the sanitized public export retains app-side
+> configuration and lifecycle code, but excludes the operational adapter,
+> gateway, startup helper, tunnel profiles, and smoke tooling. MCP rows below
+> describe the complete operator deployment, not a runnable public-checkout
+> feature.
+
 Project: Bag of Holding
 
 Secret policy: names only. Secret values must never be recorded.
 
 | Name | Type | Location | Default | Required | Secret | Used By | Notes | Last Verified |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| project_root | path | `.project/launchpad.json` | repository root | yes | no | Dev Launchpad | Folder containing `.project/launchpad.json`. | 2026-06-30 |
-| runtime_path | path | `.project/launchpad.json` | `.` | yes | no | Dev Launchpad | Command working directory is the repository root. | 2026-06-30 |
-| start_command | command | `.project/launchpad.json` | `python launcher.py` | yes | no | Dev Launchpad | Starts the local BOH launcher. | 2026-06-30 |
-| test_command | command | `.project/launchpad.json` | `python -m pytest tests/ -q` | yes | no | Dev Launchpad | Runs the project test suite. | 2026-06-30 |
-| port | integer | `.project/launchpad.json` | `8000` | yes | no | Dev Launchpad / BOH | Local BOH server port. | 2026-06-30 |
-| health_url | URL | `.project/launchpad.json` | `http://127.0.0.1:8000/api/health` | yes | no | Dev Launchpad / BOH | Local health probe. | 2026-06-30 |
+| project_root | path | `.project/launchpad.json` | repository root | yes | no | local runtime manifest | Folder containing `.project/launchpad.json`. | 2026-07-14 |
+| runtime_path | path | `.project/launchpad.json` | `.` | yes | no | local runtime manifest | Command working directory is the repository root. | 2026-07-14 |
+| start_command | command | `.project/launchpad.json` | `python launcher.py` | yes | no | BOH launcher | Starts BOH and starts/reuses MCP only when ignored local MCP autostart config is enabled. Use `--no-mcp` for a one-run skip. | 2026-07-14 |
+| test_command | command | `.project/launchpad.json` | `python -m pytest tests/ -q` | yes | no | local test runner | Runs the project test suite. | 2026-07-14 |
+| port | integer | `.project/launchpad.json` | `8000` | yes | no | BOH runtime | Local BOH server port. | 2026-07-14 |
+| health_url | URL | `.project/launchpad.json` | `http://127.0.0.1:8000/api/health` | yes | no | BOH runtime | Local health probe. | 2026-07-14 |
 | BOH_LIBRARY | environment variable | runtime environment | `./library` | no | no | BOH app | Server-owned document library boundary. Runtime corpus data stays out of commits. | 2026-06-30 |
 | BOH_DB | environment variable | runtime environment | `boh.db` | no | no | BOH app | SQLite path. Database files are ignored. | 2026-06-30 |
 | BOH_OPERATOR_TOKEN | environment variable | runtime environment | unset | production/local ops only | yes | BOH protected routes | Secret value must never be recorded. | 2026-06-30 |
 | BOH_RETRIEVAL_TOKEN | environment variable | runtime environment | unset | connector/current-context use only | yes | BOH retrieval routes and Search -> Current Context | Sent as `X-BOH-Retrieval-Token` for `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief`. Secret value must never be recorded. | 2026-07-08 |
 | BOH_RETRIEVAL_INCLUDE_PROMOTED | environment variable | runtime environment | `false` | no | no | retrieval/context surfaces | Server half of the promoted-intake exposure gate. Request-level `include_promoted` must also be true. | 2026-07-08 |
+| BOH_MCP_OAUTH_ISSUER | environment variable | runtime environment / launcher helper | unset | OAuth gateway mode only | no | BOH MCP OAuth gateway setup | Provider-canonical HTTPS issuer used only for `oauth_gateway`; not required for `stdio_no_auth`. | 2026-07-13 |
 | boh_retrieval_token | browser session key | `sessionStorage` | unset | current-context UI only | yes | Search -> Current Context | Per-tab browser copy of `BOH_RETRIEVAL_TOKEN`; never displayed after save and never sent as the operator token. | 2026-07-08 |
+| boh_mcp_connector_autostart | ignored local JSON | `.local/boh_mcp_connector_autostart.json` | absent / disabled | no | no | BOH launcher MCP autostart | Opt-in connector coordinates. Supports `auth_mode=oauth_gateway` and `auth_mode=stdio_no_auth`; normal `python launcher.py` consumes this file unless `--no-mcp` is passed. | 2026-07-13 |
+| boh_mcp_auth_mode | config enum | `.local/boh_mcp_connector_autostart.json` | `oauth_gateway` | no | no | BOH launcher, ChatGPT MCP setup | `oauth_gateway` starts/reuses the localhost OAuth/JWKS gateway; `stdio_no_auth` writes/reuses `boh-stdio-noauth` and launches the ChatGPT-safe stdio adapter directly. | 2026-07-13 |
+| boh_mcp_tunnel_id | config string | `.local/boh_mcp_connector_autostart.json` | operator supplied | yes for MCP | no | OpenAI tunnel client | Operator-owned OpenAI tunnel identifier. Public source does not ship a tunnel ID or hosted MCP endpoint. | 2026-07-13 |
+| openai_tunnel_runtime_key | ignored local secret file | `.local/secrets/openai_tunnel_runtime_key.txt` | absent | yes for MCP | yes | OpenAI tunnel client | Operator-owned runtime key read by `tunnel-client` through `file:` profile references. Secret value must never be committed, logged, pasted into ChatGPT connector settings, or returned by APIs. | 2026-07-13 |
+| boh_mcp_stdio_profile | ignored local YAML | `.local/tunnel-client/profiles/boh-stdio-noauth.yaml` | generated by helper | yes for no-auth MCP | mixed path metadata, no secret values | OpenAI tunnel client | Direct stdio no-auth tunnel profile using `mcp.commands` and `tools.boh_mcp_adapter.server`; API key is a `file:` reference to the ignored runtime key. | 2026-07-13 |
+| boh_mcp_oauth_profile | ignored local YAML | `.local/tunnel-client/profiles/boh.yaml` | generated by launcher/helper | yes for OAuth MCP | mixed path metadata, no secret values | OpenAI tunnel client | OAuth gateway tunnel profile using `mcp.server_urls` pointed at local BOH gateway; API key is a `file:` reference to the ignored runtime key. | 2026-07-13 |
+| boh_mcp_oauth_run_files | ignored local runtime files | `.local/runs/boh-tunnel-client*`, `.local/runs/boh-mcp-gateway*` | generated at runtime | yes for OAuth MCP | may contain local metadata | BOH launcher, OpenAI tunnel client, gateway | Separate OAuth gateway/tunnel health, pid, and log files. Gateway responses/logs are redacted, but runtime files remain local-only. | 2026-07-13 |
+| boh_mcp_stdio_run_files | ignored local runtime files | `.local/runs/boh-stdio-noauth-tunnel-client*` | generated at runtime | yes for no-auth MCP | may contain local metadata | BOH launcher, OpenAI tunnel client | Separate direct stdio no-auth health, pid, and log files. Runtime files remain local-only. | 2026-07-13 |
+| BOH_MCP_EXPOSURE_MODE | child environment variable | connector child process | `chatgpt_safe` | yes for ChatGPT MCP | no | BOH MCP adapter | Forces the accepted eight-tool read-only ChatGPT tuple. Do not expose the default full local stdio profile to ChatGPT. | 2026-07-13 |
+| boh_mcp_hosting_boundary | public setup boundary | README and MCP docs | self-hosted/operator-owned | yes for MCP users | mixed local config | ChatGPT MCP setup | This repo provides source and local helpers only. Each operator supplies their own runtime key, OpenAI tunnel, ChatGPT connector registration, OAuth tenant if used, local database, and ignored `.local` config. | 2026-07-13 |
 
 ## Maintenance Rule
 

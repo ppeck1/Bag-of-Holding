@@ -78,9 +78,12 @@ def search(
     """
     if not query:
         return []
+    from app.core import promoted_exposure
     from app.core.logical_libraries import docs_where_clause
 
-    library_clause, library_params, _library = docs_where_clause(library_id)
+    library_clause, library_params, _library = docs_where_clause(library_id, alias="d")
+    show_promoted = promoted_exposure.env_gate_open()
+    promoted_clause = promoted_exposure.exclusion_sql("d", show_promoted=show_promoted)
 
     # FTS5 BM25 search. The raw query is never passed to MATCH: terms are tokenized and quoted
     # as FTS5 string literals so operator characters ('-', ':', parentheses) cannot raise a
@@ -93,15 +96,16 @@ def search(
     match_expr = " OR ".join(f'"{t}"' for t in terms)
     try:
         fts_rows = db.fetchall(
-            """
+            f"""
             SELECT docs_fts.path, docs_fts.title,
                    bm25(docs_fts) as bm25_score
             FROM docs_fts
-            WHERE docs_fts MATCH ?
+            JOIN docs d ON d.path = docs_fts.path
+            WHERE docs_fts MATCH ?{library_clause}{promoted_clause}
             ORDER BY bm25_score
             LIMIT ?
             """,
-            (match_expr, limit * 2),
+            (match_expr, *library_params, limit * 2),
         )
     except Exception as e:
         return [{"error": str(e)}]
@@ -115,12 +119,11 @@ def search(
     # Load full doc rows for scoring
     placeholders = ",".join("?" * len(paths))
     docs = db.fetchall(
-        f"SELECT * FROM docs WHERE path IN ({placeholders}){library_clause}",
-        tuple(paths + library_params),
+        f"SELECT * FROM docs WHERE path IN ({placeholders})",
+        tuple(paths),
     )
     # WO-2: promoted intake docs are excluded unless the server env gate is open.
-    from app.core import promoted_exposure
-    docs = promoted_exposure.filter_rows(docs, show_promoted=promoted_exposure.env_gate_open())
+    docs = promoted_exposure.filter_rows(docs, show_promoted=show_promoted)
     doc_map = {d["path"]: d for d in docs}
 
     # Normalize BM25 scores: SQLite BM25 is negative (lower = better)

@@ -1,0 +1,964 @@
+{
+  "schema_version": "boh.retrieval-quality.judged-deck.v0.1",
+  "deck_id": "boh-synthetic-judged-deck-v0-1",
+  "as_of": "2026-07-10T12:00:00+00:00",
+  "deck_version": "0.1.0",
+  "deterministic_seed": "boh-rq2-synthetic-seed-2026-07-10",
+  "content_policy": "synthetic_only",
+  "grade_scale": {
+    "0": "not relevant",
+    "1": "contextually related but insufficient or outdated",
+    "2": "relevant supporting evidence",
+    "3": "direct best evidence"
+  },
+  "categories": [
+    "exact_phrase",
+    "identifier_lookup",
+    "natural_language",
+    "no_answer",
+    "conflict_supersession",
+    "promoted_only",
+    "strict_answer_disallowed_source",
+    "logical_library",
+    "daenary_private_boundary",
+    "stale_vs_current"
+  ],
+  "schema_assumptions": {
+    "case_count_minimum": 30,
+    "minimum_cases_per_category": 3,
+    "graded_relevance": "Each entry names an existing synthetic doc_id and chunk_id and uses an integer grade from 1 through 3. An empty list is required for no-answer cases.",
+    "forbidden_doc_ids": "Always nonempty. A semantically relevant document may also be forbidden when exposure or policy requires withholding it.",
+    "answerable": "Boolean policy-aware answerability after filters, exposure gates, authority, and freshness are applied.",
+    "withheld_reasons": "Expected stable reason codes; an empty list is explicit when no evidence should be withheld.",
+    "authority_posture": "A normalized judgment label for the evidence that may support an answer.",
+    "freshness_posture": "A normalized judgment label describing current, stale, mixed, unknown, or absent evidence.",
+    "private_boundary": "The private flag and private_access exposure value are synthetic test metadata and contain no real private content."
+  },
+  "documents": [
+    {
+      "doc_id": "doc-phrase-cobalt",
+      "document_version": "1.0.0",
+      "title": "Cobalt Lantern Protocol",
+      "path": "synthetic/shared/cobalt_lantern.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Phrase Lab",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.98, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-phrase-cobalt-0", "chunk_index": 0, "heading_path": "Protocol > Activation", "chunk_type": "body", "text": "The cobalt lantern protocol begins at silent meridian and ends before dawn. Unique marker coblan-731 identifies this exact instruction."},
+        {"chunk_id": "chunk-phrase-cobalt-1", "chunk_index": 1, "heading_path": "Protocol > Records", "chunk_type": "body", "text": "Operators record cobalt lantern observations in the synthetic watch ledger."}
+      ]
+    },
+    {
+      "doc_id": "doc-phrase-orchid",
+      "document_version": "1.0.0",
+      "title": "Orchid Compass Note",
+      "path": "synthetic/shared/orchid_compass.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Phrase Lab",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.97, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-phrase-orchid-0", "chunk_index": 0, "heading_path": "Compass", "chunk_type": "body", "text": "Orchid compass resolves winter drift when the synthetic vane points east. Unique marker orcomp-842 anchors the phrase."}
+      ]
+    },
+    {
+      "doc_id": "doc-phrase-river",
+      "document_version": "1.0.0",
+      "title": "Glass River Key",
+      "path": "synthetic/shared/glass_river.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Phrase Lab",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.97, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-phrase-river-0", "chunk_index": 0, "heading_path": "River Key", "chunk_type": "body", "text": "Glass river remembers the northern key after the third synthetic bell. Unique marker glariv-953 distinguishes this evidence."}
+      ]
+    },
+    {
+      "doc_id": "doc-phrase-decoy",
+      "document_version": "1.0.0",
+      "title": "Phrase Components Inventory",
+      "path": "synthetic/shared/phrase_components.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Phrase Lab",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "evidence", "non_authoritative": false, "confidence": 0.85, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-phrase-decoy-0", "chunk_index": 0, "heading_path": "Inventory", "chunk_type": "body", "text": "This decoy separately lists cobalt equipment, a lantern bracket, an orchid sample, a compass case, glass beads, a river map, and a northern cabinet key. It contains no judged exact phrase."}
+      ]
+    },
+    {
+      "doc_id": "doc-id-kx17",
+      "document_version": "1.0.0",
+      "title": "KX-17-OMEGA Component Record",
+      "path": "synthetic/shared/kx17_omega.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Identifier Registry",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-02T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.99, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-id-kx17-0", "chunk_index": 0, "heading_path": "Registry > KX-17-OMEGA", "chunk_type": "body", "text": "Identifier KX-17-OMEGA belongs to the synthetic cobalt relay coupler and supersedes no other component."}
+      ]
+    },
+    {
+      "doc_id": "doc-id-aurelia42",
+      "document_version": "1.0.0",
+      "title": "Aurelia Node 42",
+      "path": "synthetic/shared/aurelia_42.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Identifier Registry",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-02T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.99, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-id-aurelia42-0", "chunk_index": 0, "heading_path": "Nodes", "chunk_type": "body", "text": "NODE::AURELIA-42 is the exact synthetic identifier for the eastern telemetry node."}
+      ]
+    },
+    {
+      "doc_id": "doc-id-receipt42",
+      "document_version": "1.0.0",
+      "title": "Receipt RCPT-2026-0042",
+      "path": "synthetic/shared/receipt_2026_0042.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Identifier Registry",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-02T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.99, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-id-receipt42-0", "chunk_index": 0, "heading_path": "Receipts", "chunk_type": "body", "text": "RCPT-2026-0042 records a synthetic handoff from Team Quartz to Team Lumen."}
+      ]
+    },
+    {
+      "doc_id": "doc-id-decoy",
+      "document_version": "1.0.0",
+      "title": "Nearby Identifier Examples",
+      "path": "synthetic/shared/identifier_decoys.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Identifier Registry",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-02T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "evidence", "non_authoritative": false, "confidence": 0.8, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-id-decoy-0", "chunk_index": 0, "heading_path": "Examples", "chunk_type": "body", "text": "Near-match examples are KX-17-OMICRON, NODE::AURELIA-24, and RCPT-2026-0240. None is an expected lookup target."}
+      ]
+    },
+    {
+      "doc_id": "doc-question-cedar",
+      "document_version": "1.0.0",
+      "title": "Cedar Relay Reset",
+      "path": "synthetic/operations/cedar_relay.md",
+      "logical_library_id": "lib-operations",
+      "project": "Synthetic Operations",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-03T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.96, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-question-cedar-0", "chunk_index": 0, "heading_path": "Reset Procedure", "chunk_type": "body", "text": "Reset the synthetic Cedar relay by holding the amber switch for seven seconds, then release it when the juniper indicator blinks twice."}
+      ]
+    },
+    {
+      "doc_id": "doc-question-lyra",
+      "document_version": "1.0.0",
+      "title": "Lyra Beacon Ownership",
+      "path": "synthetic/operations/lyra_beacon.md",
+      "logical_library_id": "lib-operations",
+      "project": "Synthetic Operations",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-03T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.96, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-question-lyra-0", "chunk_index": 0, "heading_path": "Ownership", "chunk_type": "body", "text": "The synthetic Lyra beacon is owned by Team Juniper; Team Quartz is only the maintenance contact."}
+      ]
+    },
+    {
+      "doc_id": "doc-question-finch",
+      "document_version": "1.0.0",
+      "title": "Vault Finch Backup Schedule",
+      "path": "synthetic/operations/vault_finch.md",
+      "logical_library_id": "lib-operations",
+      "project": "Synthetic Operations",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-03T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.96, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-question-finch-0", "chunk_index": 0, "heading_path": "Schedule", "chunk_type": "body", "text": "Synthetic Vault Finch backups run at 02:15 UTC every Tuesday and retain four weekly snapshots."}
+      ]
+    },
+    {
+      "doc_id": "doc-question-decoy",
+      "document_version": "1.0.0",
+      "title": "Unrelated Operations Notes",
+      "path": "synthetic/operations/unrelated_notes.md",
+      "logical_library_id": "lib-operations",
+      "project": "Synthetic Operations",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-03T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "evidence", "non_authoritative": false, "confidence": 0.8, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-question-decoy-0", "chunk_index": 0, "heading_path": "Notes", "chunk_type": "body", "text": "This decoy mentions a cedar crate, a Lyra constellation poster, a finch drawing, and general maintenance without relay reset, ownership, or backup answers."}
+      ]
+    },
+    {
+      "doc_id": "doc-conflict-azure",
+      "document_version": "1.0.0",
+      "title": "Nimbus Archive Limit - Azure Position",
+      "path": "synthetic/governance/nimbus_azure.md",
+      "logical_library_id": "lib-governance",
+      "project": "Synthetic Governance",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "conflicts_with": ["doc-conflict-coral"],
+      "updated_ts": 1783123200,
+      "epistemic_last_evaluated": "2026-07-04T00:00:00+00:00",
+      "epistemic_last_evaluated_ts": 1783123200,
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "epistemic_valid_until_ts": 1893456000,
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.94, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-conflict-azure-0", "chunk_index": 0, "heading_path": "Nimbus Limit", "chunk_type": "body", "text": "The Azure position sets the synthetic Nimbus archive limit at twelve bundles. Conflict marker nimlim-12 is unresolved."}
+      ]
+    },
+    {
+      "doc_id": "doc-conflict-coral",
+      "document_version": "1.0.0",
+      "title": "Nimbus Archive Limit - Coral Position",
+      "path": "synthetic/governance/nimbus_coral.md",
+      "logical_library_id": "lib-governance",
+      "project": "Synthetic Governance",
+      "status": "draft",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:DRAFT",
+      "private": false,
+      "conflicts_with": ["doc-conflict-azure"],
+      "updated_ts": 1783123200,
+      "epistemic_last_evaluated": "2026-07-04T00:00:00+00:00",
+      "epistemic_last_evaluated_ts": 1783123200,
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "epistemic_valid_until_ts": 1893456000,
+      "daenary": [],
+      "plane_card": {"plane": "evidence", "non_authoritative": true, "confidence": 0.72, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-conflict-coral-0", "chunk_index": 0, "heading_path": "Nimbus Limit", "chunk_type": "body", "text": "The Coral draft sets the synthetic Nimbus archive limit at eighteen bundles. Conflict marker nimlim-18 is unresolved."}
+      ]
+    },
+    {
+      "doc_id": "doc-helios-v2",
+      "document_version": "2.0.0",
+      "title": "Helios Rotation Policy v2",
+      "path": "synthetic/governance/helios_rotation_v2.md",
+      "logical_library_id": "lib-governance",
+      "project": "Synthetic Governance",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "updated_ts": 1783123200,
+      "epistemic_last_evaluated": "2026-07-04T00:00:00+00:00",
+      "epistemic_last_evaluated_ts": 1783123200,
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "epistemic_valid_until_ts": 1893456000,
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.97, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-helios-v2-0", "chunk_index": 0, "heading_path": "Current Rotation", "chunk_type": "body", "text": "Current synthetic Helios rotation policy v2 rotates the amber key every fourteen days. It supersedes doc-helios-v1."}
+      ]
+    },
+    {
+      "doc_id": "doc-helios-v1",
+      "document_version": "1.0.0",
+      "title": "Helios Rotation Policy v1",
+      "path": "synthetic/governance/helios_rotation_v1.md",
+      "logical_library_id": "lib-governance",
+      "project": "Synthetic Governance",
+      "status": "superseded",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:DRAFT",
+      "private": false,
+      "superseded_by": "doc-helios-v2",
+      "updated_ts": 1672531200,
+      "epistemic_last_evaluated": "2023-01-01T00:00:00+00:00",
+      "epistemic_last_evaluated_ts": 1672531200,
+      "epistemic_valid_until": "2024-01-01T00:00:00+00:00",
+      "epistemic_valid_until_ts": 1704067200,
+      "daenary": [],
+      "plane_card": {"plane": "evidence", "non_authoritative": true, "confidence": 0.7, "valid_until": "2024-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-helios-v1-0", "chunk_index": 0, "heading_path": "Retired Rotation", "chunk_type": "body", "text": "Superseded synthetic Helios rotation policy v1 rotated the amber key every thirty days. It is replaced by doc-helios-v2."}
+      ]
+    },
+    {
+      "doc_id": "doc-promoted-lattice",
+      "document_version": "1.0.0",
+      "title": "Promoted Lattice Field Note",
+      "path": "synthetic/promoted/lattice_field_note.md",
+      "logical_library_id": "lib-promoted",
+      "project": "Synthetic Promoted Intake",
+      "status": "draft",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:PROMOTED_INTAKE",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-05T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": null,
+      "chunks": [
+        {"chunk_id": "chunk-promoted-lattice-0", "chunk_index": 0, "heading_path": "Promoted Note", "chunk_type": "body", "text": "Synthetic promoted-only evidence states that lattice marker prlat-611 uses a copper triangle during exploration."}
+      ]
+    },
+    {
+      "doc_id": "doc-promoted-cairn",
+      "document_version": "1.0.0",
+      "title": "Promoted Cairn Field Note",
+      "path": "synthetic/promoted/cairn_field_note.md",
+      "logical_library_id": "lib-promoted",
+      "project": "Synthetic Promoted Intake",
+      "status": "draft",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:PROMOTED_INTAKE",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-05T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": null,
+      "chunks": [
+        {"chunk_id": "chunk-promoted-cairn-0", "chunk_index": 0, "heading_path": "Promoted Note", "chunk_type": "body", "text": "Synthetic promoted-only evidence states that cairn marker prcar-722 points toward the indigo ridge."}
+      ]
+    },
+    {
+      "doc_id": "doc-promoted-mosaic",
+      "document_version": "1.0.0",
+      "title": "Promoted Mosaic Field Note",
+      "path": "synthetic/promoted/mosaic_field_note.md",
+      "logical_library_id": "lib-promoted",
+      "project": "Synthetic Promoted Intake",
+      "status": "draft",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:PROMOTED_INTAKE",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-05T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": null,
+      "chunks": [
+        {"chunk_id": "chunk-promoted-mosaic-0", "chunk_index": 0, "heading_path": "Promoted Note", "chunk_type": "body", "text": "Synthetic promoted-only evidence states that mosaic marker prmos-833 requires a silver hexagon."}
+      ]
+    },
+    {
+      "doc_id": "doc-promoted-decoy",
+      "document_version": "1.0.0",
+      "title": "Ordinary Field Shapes",
+      "path": "synthetic/shared/ordinary_field_shapes.md",
+      "logical_library_id": "lib-shared",
+      "project": "Synthetic Phrase Lab",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-05T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "evidence", "non_authoritative": false, "confidence": 0.8, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-promoted-decoy-0", "chunk_index": 0, "heading_path": "Shapes", "chunk_type": "body", "text": "This ordinary decoy lists copper circles, indigo squares, and silver lines without any promoted-only marker."}
+      ]
+    },
+    {
+      "doc_id": "doc-strict-subjective",
+      "document_version": "1.0.0",
+      "title": "Subjective Meteor Interpretation",
+      "path": "synthetic/disallowed/subjective_meteor.md",
+      "logical_library_id": "lib-disallowed",
+      "project": "Synthetic Disallowed Sources",
+      "status": "working",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:DRAFT",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-06T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "subjective", "non_authoritative": true, "confidence": 0.65, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-strict-subjective-0", "chunk_index": 0, "heading_path": "Interpretation", "chunk_type": "body", "text": "The synthetic subjective claim says meteor marker sbmet-144 predicts a violet outcome. It is interpretation, not strict-answer evidence."}
+      ]
+    },
+    {
+      "doc_id": "doc-strict-draft",
+      "document_version": "1.0.0",
+      "title": "Unreviewed Rumor Note",
+      "path": "synthetic/disallowed/unreviewed_rumor.md",
+      "logical_library_id": "lib-disallowed",
+      "project": "Synthetic Disallowed Sources",
+      "status": "draft",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:DRAFT",
+      "private": false,
+      "epistemic_last_evaluated": null,
+      "epistemic_valid_until": null,
+      "daenary": [],
+      "plane_card": null,
+      "chunks": [
+        {"chunk_id": "chunk-strict-draft-0", "chunk_index": 0, "heading_path": "Rumor", "chunk_type": "body", "text": "The synthetic unreviewed rumor says marker drrum-255 opens the basalt hatch. No authority review supports it."}
+      ]
+    },
+    {
+      "doc_id": "doc-strict-expired",
+      "document_version": "1.0.0",
+      "title": "Expired Topaz Procedure",
+      "path": "synthetic/disallowed/expired_topaz.md",
+      "logical_library_id": "lib-disallowed",
+      "project": "Synthetic Disallowed Sources",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "updated_ts": 1640995200,
+      "epistemic_last_evaluated": "2022-01-01T00:00:00+00:00",
+      "epistemic_last_evaluated_ts": 1640995200,
+      "epistemic_valid_until": "2023-01-01T00:00:00+00:00",
+      "epistemic_valid_until_ts": 1672531200,
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.95, "valid_until": "2023-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-strict-expired-0", "chunk_index": 0, "heading_path": "Expired Procedure", "chunk_type": "body", "text": "Expired synthetic procedure marker extop-366 once directed operators to turn the topaz wheel clockwise."}
+      ]
+    },
+    {
+      "doc_id": "doc-library-alpha",
+      "document_version": "1.0.0",
+      "title": "Alpha Heliotrope Ledger",
+      "path": "alpha/heliotrope_ledger.md",
+      "logical_library_id": "lib-alpha",
+      "project": "Synthetic Libraries",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-07T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.95, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-library-alpha-0", "chunk_index": 0, "heading_path": "Alpha Ledger", "chunk_type": "body", "text": "Shared heliotrope ledger token libhel-477 belongs to logical library Alpha and records an amber orchard quorum."}
+      ]
+    },
+    {
+      "doc_id": "doc-library-beta",
+      "document_version": "1.0.0",
+      "title": "Beta Heliotrope Ledger",
+      "path": "beta/heliotrope_ledger.md",
+      "logical_library_id": "lib-beta",
+      "project": "Synthetic Libraries",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-07T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.95, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-library-beta-0", "chunk_index": 0, "heading_path": "Beta Ledger", "chunk_type": "body", "text": "Shared heliotrope ledger token libhel-477 belongs to logical library Beta and records a blue orchard quorum."}
+      ]
+    },
+    {
+      "doc_id": "doc-library-unfiled",
+      "document_version": "1.0.0",
+      "title": "Rootless Sextant Memo",
+      "path": "synthetic_rootless_sextant.md",
+      "logical_library_id": "unfiled",
+      "project": "Synthetic Libraries",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-07T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.95, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-library-unfiled-0", "chunk_index": 0, "heading_path": "Root Memo", "chunk_type": "body", "text": "Rootless sextant memo marker libroot-588 belongs only to the synthetic unfiled logical library."}
+      ]
+    },
+    {
+      "doc_id": "doc-daenary-advance",
+      "document_version": "1.0.0",
+      "title": "Juniper Resilience Advance",
+      "path": "synthetic/daenary/juniper_advance.md",
+      "logical_library_id": "lib-daenary",
+      "project": "Synthetic Daenary",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-08T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [{"dimension": "resilience", "state": 1, "mode": "advance", "quality": 0.92, "confidence": 0.94, "valid_until": "2030-01-01T00:00:00+00:00"}],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.94, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-daenary-advance-0", "chunk_index": 0, "heading_path": "Resilience", "chunk_type": "body", "text": "Trinary juniper axis marker dajun-699 is a positive resilience advance with high synthetic quality."}
+      ]
+    },
+    {
+      "doc_id": "doc-daenary-contain",
+      "document_version": "1.0.0",
+      "title": "Juniper Resilience Containment",
+      "path": "synthetic/daenary/juniper_contain.md",
+      "logical_library_id": "lib-daenary",
+      "project": "Synthetic Daenary",
+      "status": "working",
+      "authority_state": "draft",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:DRAFT",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-08T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [{"dimension": "resilience", "state": 0, "mode": "contain", "quality": 0.78, "confidence": 0.58, "valid_until": "2030-01-01T00:00:00+00:00"}],
+      "plane_card": {"plane": "evidence", "non_authoritative": true, "confidence": 0.58, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-daenary-contain-0", "chunk_index": 0, "heading_path": "Resilience", "chunk_type": "body", "text": "Contained juniper ambiguity marker dajun-700 has trinary state zero and requires synthetic review."}
+      ]
+    },
+    {
+      "doc_id": "doc-private-ember",
+      "document_version": "1.0.0",
+      "title": "Synthetic Private Ember Note",
+      "path": "synthetic/private/ember_note.md",
+      "logical_library_id": "lib-private",
+      "project": "Synthetic Private Boundary",
+      "status": "draft",
+      "authority_state": "quarantined",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:DRAFT",
+      "private": true,
+      "epistemic_last_evaluated": null,
+      "epistemic_valid_until": null,
+      "daenary": [{"dimension": "privacy", "state": -1, "mode": "contain", "quality": 0.5, "confidence": 0.5, "valid_until": null}],
+      "plane_card": null,
+      "chunks": [
+        {"chunk_id": "chunk-private-ember-0", "chunk_index": 0, "heading_path": "Synthetic Private Boundary", "chunk_type": "body", "text": "Invented private-only marker prvember-811 says emberglass vault uses a fictional magenta latch. This is synthetic boundary data, not a credential."}
+      ]
+    },
+    {
+      "doc_id": "doc-temporal-current",
+      "document_version": "2.0.0",
+      "title": "Mercury Calibration Current",
+      "path": "synthetic/temporal/mercury_current.md",
+      "logical_library_id": "lib-temporal",
+      "project": "Synthetic Temporal",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "updated_ts": 1783555200,
+      "epistemic_last_evaluated": "2026-07-09T00:00:00+00:00",
+      "epistemic_last_evaluated_ts": 1783555200,
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "epistemic_valid_until_ts": 1893456000,
+      "daenary": [],
+      "plane_card": {"plane": "canonical", "non_authoritative": false, "confidence": 0.97, "valid_until": "2030-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-temporal-current-0", "chunk_index": 0, "heading_path": "Current Calibration", "chunk_type": "body", "text": "Current synthetic Mercury calibration window is nine minutes and uses checksum mercur-922. This replaces the retired procedure."}
+      ]
+    },
+    {
+      "doc_id": "doc-temporal-stale",
+      "document_version": "1.0.0",
+      "title": "Mercury Calibration Retired",
+      "path": "synthetic/temporal/mercury_stale.md",
+      "logical_library_id": "lib-temporal",
+      "project": "Synthetic Temporal",
+      "status": "superseded",
+      "authority_state": "approved",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "superseded_by": "doc-temporal-current",
+      "updated_ts": 1640995200,
+      "epistemic_last_evaluated": "2022-01-01T00:00:00+00:00",
+      "epistemic_last_evaluated_ts": 1640995200,
+      "epistemic_valid_until": "2023-01-01T00:00:00+00:00",
+      "epistemic_valid_until_ts": 1672531200,
+      "daenary": [],
+      "plane_card": {"plane": "evidence", "non_authoritative": false, "confidence": 0.9, "valid_until": "2023-01-01T00:00:00+00:00"},
+      "chunks": [
+        {"chunk_id": "chunk-temporal-stale-0", "chunk_index": 0, "heading_path": "Retired Calibration", "chunk_type": "body", "text": "Retired synthetic Mercury calibration window was twenty-one minutes and used checksum mercur-123. It is stale and superseded."}
+      ]
+    }
+  ],
+  "conflicts": [
+    {"conflict_id": "conflict-nimbus-limit-v1", "conflict_type": "definition_conflict", "doc_ids": ["doc-conflict-azure", "doc-conflict-coral"], "term": "Nimbus archive limit", "status": "open", "detected_at": "2026-07-04T12:00:00+00:00"}
+  ],
+  "lineage": [
+    {"lineage_id": "lineage-helios-v2-v1", "doc_id": "doc-helios-v2", "related_doc_id": "doc-helios-v1", "relationship": "supersedes", "detected_at": "2026-07-04T13:00:00+00:00"},
+    {"lineage_id": "lineage-mercury-current-stale", "doc_id": "doc-temporal-current", "related_doc_id": "doc-temporal-stale", "relationship": "supersedes", "detected_at": "2026-07-09T12:00:00+00:00"}
+  ],
+  "cases": [
+    {
+      "case_id": "exact_phrase_01_cobalt",
+      "category": "exact_phrase",
+      "query": "\"the cobalt lantern protocol begins at silent meridian\"",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-phrase-cobalt", "chunk_id": "chunk-phrase-cobalt-0", "grade": 3}], "forbidden_doc_ids": ["doc-phrase-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "exact_phrase_02_orchid",
+      "category": "exact_phrase",
+      "query": "\"orchid compass resolves winter drift\"",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-phrase-orchid", "chunk_id": "chunk-phrase-orchid-0", "grade": 3}], "forbidden_doc_ids": ["doc-phrase-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "exact_phrase_03_river",
+      "category": "exact_phrase",
+      "query": "\"glass river remembers the northern key\"",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-phrase-river", "chunk_id": "chunk-phrase-river-0", "grade": 3}], "forbidden_doc_ids": ["doc-phrase-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "identifier_lookup_01_kx17",
+      "category": "identifier_lookup",
+      "query": "KX-17-OMEGA",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-id-kx17", "chunk_id": "chunk-id-kx17-0", "grade": 3}], "forbidden_doc_ids": ["doc-id-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "identifier_lookup_02_aurelia42",
+      "category": "identifier_lookup",
+      "query": "NODE::AURELIA-42",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-id-aurelia42", "chunk_id": "chunk-id-aurelia42-0", "grade": 3}], "forbidden_doc_ids": ["doc-id-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "identifier_lookup_03_receipt42",
+      "category": "identifier_lookup",
+      "query": "RCPT-2026-0042",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-id-receipt42", "chunk_id": "chunk-id-receipt42-0", "grade": 3}], "forbidden_doc_ids": ["doc-id-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "natural_question_01_cedar",
+      "category": "natural_language",
+      "query": "How do I reset the Cedar relay?",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-question-cedar", "chunk_id": "chunk-question-cedar-0", "grade": 3}], "forbidden_doc_ids": ["doc-question-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "natural_question_02_lyra",
+      "category": "natural_language",
+      "query": "Which team owns the Lyra beacon?",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-question-lyra", "chunk_id": "chunk-question-lyra-0", "grade": 3}], "forbidden_doc_ids": ["doc-question-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "natural_question_03_finch",
+      "category": "natural_language",
+      "query": "When do Vault Finch backups run?",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-question-finch", "chunk_id": "chunk-question-finch-0", "grade": 3}], "forbidden_doc_ids": ["doc-question-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "no_answer_01_whale",
+      "category": "no_answer",
+      "query": "What frequency does the obsidian whale transmitter use?",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [], "forbidden_doc_ids": ["doc-question-decoy"], "answerable": false, "withheld_reasons": [], "authority_posture": "no_evidence", "freshness_posture": "no_evidence"}
+    },
+    {
+      "case_id": "no_answer_02_identifier",
+      "category": "no_answer",
+      "query": "ZZ-NULL-999",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [], "forbidden_doc_ids": ["doc-id-decoy"], "answerable": false, "withheld_reasons": [], "authority_posture": "no_evidence", "freshness_posture": "no_evidence"}
+    },
+    {
+      "case_id": "no_answer_03_phrase",
+      "category": "no_answer",
+      "query": "\"violet staircase counts the absent moon\"",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [], "forbidden_doc_ids": ["doc-phrase-decoy"], "answerable": false, "withheld_reasons": [], "authority_posture": "no_evidence", "freshness_posture": "no_evidence"}
+    },
+    {
+      "case_id": "conflict_supersession_01_nimbus",
+      "category": "conflict_supersession",
+      "query": "What is the Nimbus archive bundle limit?",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-conflict-azure", "chunk_id": "chunk-conflict-azure-0", "grade": 3}, {"doc_id": "doc-conflict-coral", "chunk_id": "chunk-conflict-coral-0", "grade": 2}], "forbidden_doc_ids": ["doc-helios-v1"], "answerable": true, "withheld_reasons": [], "authority_posture": "conflicted_bounded", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "conflict_supersession_02_helios_current",
+      "category": "conflict_supersession",
+      "query": "What is the current Helios rotation policy?",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-helios-v2", "chunk_id": "chunk-helios-v2-0", "grade": 3}, {"doc_id": "doc-helios-v1", "chunk_id": "chunk-helios-v1-0", "grade": 1}], "forbidden_doc_ids": ["doc-conflict-coral"], "answerable": true, "withheld_reasons": ["card_expired"], "authority_posture": "canonical_with_superseded_withheld", "freshness_posture": "current_preferred_over_stale"}
+    },
+    {
+      "case_id": "conflict_supersession_03_helios_history",
+      "category": "conflict_supersession",
+      "query": "Which Helios rotation policy was superseded?",
+      "mode": "audit_provenance",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-helios-v1", "chunk_id": "chunk-helios-v1-0", "grade": 3}, {"doc_id": "doc-helios-v2", "chunk_id": "chunk-helios-v2-0", "grade": 2}], "forbidden_doc_ids": ["doc-conflict-azure"], "answerable": true, "withheld_reasons": ["card_expired"], "authority_posture": "historical_with_stale_withheld", "freshness_posture": "historical_mixed"}
+    },
+    {
+      "case_id": "promoted_only_01_open",
+      "category": "promoted_only",
+      "query": "prlat-611 copper triangle lattice marker",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": true, "request_include_promoted": true, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-promoted-lattice", "chunk_id": "chunk-promoted-lattice-0", "grade": 3}], "forbidden_doc_ids": ["doc-promoted-decoy"], "answerable": true, "withheld_reasons": [], "authority_posture": "promoted_advisory", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "promoted_only_02_request_closed",
+      "category": "promoted_only",
+      "query": "prcar-722 indigo ridge cairn marker",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": true, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-promoted-cairn", "chunk_id": "chunk-promoted-cairn-0", "grade": 3}], "forbidden_doc_ids": ["doc-promoted-cairn", "doc-promoted-decoy"], "answerable": false, "withheld_reasons": ["promoted_request_gate_closed"], "authority_posture": "promoted_withheld", "freshness_posture": "current_but_withheld"}
+    },
+    {
+      "case_id": "promoted_only_03_server_closed",
+      "category": "promoted_only",
+      "query": "prmos-833 silver hexagon mosaic marker",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": true, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-promoted-mosaic", "chunk_id": "chunk-promoted-mosaic-0", "grade": 3}], "forbidden_doc_ids": ["doc-promoted-mosaic", "doc-promoted-decoy"], "answerable": false, "withheld_reasons": ["promoted_server_gate_closed"], "authority_posture": "promoted_withheld", "freshness_posture": "current_but_withheld"}
+    },
+    {
+      "case_id": "strict_disallowed_01_subjective",
+      "category": "strict_answer_disallowed_source",
+      "query": "sbmet-144 violet meteor outcome",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-strict-subjective", "chunk_id": "chunk-strict-subjective-0", "grade": 3}], "forbidden_doc_ids": ["doc-strict-subjective"], "answerable": false, "withheld_reasons": ["subjective_excluded"], "authority_posture": "subjective_withheld", "freshness_posture": "current_but_withheld"}
+    },
+    {
+      "case_id": "strict_disallowed_02_draft",
+      "category": "strict_answer_disallowed_source",
+      "query": "drrum-255 basalt hatch marker",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-strict-draft", "chunk_id": "chunk-strict-draft-0", "grade": 3}], "forbidden_doc_ids": ["doc-strict-draft"], "answerable": false, "withheld_reasons": ["non_authoritative_excluded"], "authority_posture": "non_authoritative_withheld", "freshness_posture": "unknown"}
+    },
+    {
+      "case_id": "strict_disallowed_03_expired",
+      "category": "strict_answer_disallowed_source",
+      "query": "extop-366 topaz wheel procedure",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-strict-expired", "chunk_id": "chunk-strict-expired-0", "grade": 3}], "forbidden_doc_ids": ["doc-strict-expired"], "answerable": false, "withheld_reasons": ["card_expired"], "authority_posture": "expired_withheld", "freshness_posture": "stale"}
+    },
+    {
+      "case_id": "logical_library_01_alpha",
+      "category": "logical_library",
+      "query": "libhel-477 shared heliotrope ledger",
+      "mode": "exploration",
+      "filters": {"library_id": "lib-alpha"},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-library-alpha", "chunk_id": "chunk-library-alpha-0", "grade": 3}], "forbidden_doc_ids": ["doc-library-beta"], "answerable": true, "withheld_reasons": [], "authority_posture": "scoped_canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "logical_library_02_beta",
+      "category": "logical_library",
+      "query": "libhel-477 shared heliotrope ledger",
+      "mode": "exploration",
+      "filters": {"library_id": "lib-beta"},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-library-beta", "chunk_id": "chunk-library-beta-0", "grade": 3}], "forbidden_doc_ids": ["doc-library-alpha"], "answerable": true, "withheld_reasons": [], "authority_posture": "scoped_canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "logical_library_03_unfiled",
+      "category": "logical_library",
+      "query": "libroot-588 rootless sextant memo",
+      "mode": "exploration",
+      "filters": {"library_id": "unfiled"},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-library-unfiled", "chunk_id": "chunk-library-unfiled-0", "grade": 3}], "forbidden_doc_ids": ["doc-library-alpha"], "answerable": true, "withheld_reasons": [], "authority_posture": "scoped_canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "daenary_private_01_positive",
+      "category": "daenary_private_boundary",
+      "query": "dajun-699 trinary juniper resilience",
+      "mode": "exploration",
+      "filters": {"dimension": "resilience", "state": 1, "min_quality": 0.9, "min_confidence": 0.9},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-daenary-advance", "chunk_id": "chunk-daenary-advance-0", "grade": 3}], "forbidden_doc_ids": ["doc-daenary-contain"], "answerable": true, "withheld_reasons": [], "authority_posture": "filtered_canonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "daenary_private_02_uncertain",
+      "category": "daenary_private_boundary",
+      "query": "dajun-700 contained juniper ambiguity",
+      "mode": "exploration",
+      "filters": {"dimension": "resilience", "state": 0, "uncertain_only": true, "min_quality": 0.7},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-daenary-contain", "chunk_id": "chunk-daenary-contain-0", "grade": 3}], "forbidden_doc_ids": ["doc-daenary-advance"], "answerable": true, "withheld_reasons": [], "authority_posture": "exploratory_noncanonical", "freshness_posture": "current"}
+    },
+    {
+      "case_id": "daenary_private_03_private",
+      "category": "daenary_private_boundary",
+      "query": "prvember-811 emberglass magenta latch",
+      "mode": "exploration",
+      "filters": {"private": false},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-private-ember", "chunk_id": "chunk-private-ember-0", "grade": 3}], "forbidden_doc_ids": ["doc-private-ember"], "answerable": false, "withheld_reasons": ["private_boundary"], "authority_posture": "private_withheld", "freshness_posture": "unknown"}
+    },
+    {
+      "case_id": "stale_current_01_current",
+      "category": "stale_vs_current",
+      "query": "current Mercury calibration window mercur",
+      "mode": "strict_answer",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-temporal-current", "chunk_id": "chunk-temporal-current-0", "grade": 3}, {"doc_id": "doc-temporal-stale", "chunk_id": "chunk-temporal-stale-0", "grade": 1}], "forbidden_doc_ids": ["doc-temporal-stale"], "answerable": true, "withheld_reasons": ["card_expired"], "authority_posture": "canonical_with_stale_withheld", "freshness_posture": "current_preferred_over_stale"}
+    },
+    {
+      "case_id": "stale_current_02_historical",
+      "category": "stale_vs_current",
+      "query": "retired Mercury calibration checksum mercur-123",
+      "mode": "audit_provenance",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-temporal-stale", "chunk_id": "chunk-temporal-stale-0", "grade": 3}, {"doc_id": "doc-temporal-current", "chunk_id": "chunk-temporal-current-0", "grade": 1}], "forbidden_doc_ids": ["doc-temporal-stale"], "answerable": false, "withheld_reasons": ["card_expired"], "authority_posture": "historical_stale_withheld", "freshness_posture": "stale"}
+    },
+    {
+      "case_id": "stale_current_03_current_checksum",
+      "category": "stale_vs_current",
+      "query": "replacement Mercury checksum mercur-922",
+      "mode": "exploration",
+      "filters": {},
+      "exposure": {"server_promoted_gate": false, "request_include_promoted": false, "private_access": false},
+      "expected": {"graded_relevance": [{"doc_id": "doc-temporal-current", "chunk_id": "chunk-temporal-current-0", "grade": 3}], "forbidden_doc_ids": ["doc-temporal-stale"], "answerable": true, "withheld_reasons": ["card_expired"], "authority_posture": "canonical_current", "freshness_posture": "current"}
+    }
+  ]
+}

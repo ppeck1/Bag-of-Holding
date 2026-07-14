@@ -3,10 +3,10 @@
 DRAFTED 2026-06-10 for the owner schema-review package. The module-level guard below skips the
 whole file while the migration is drafted-but-unwired (DEC-0002: no implementation without owner
 schema approval). When the owner approves and `MIGRATION` is appended to
-`app.db.migrations.MIGRATIONS`, these tests activate automatically â€” no edit needed.
+`app.db.migrations.MIGRATIONS`, these tests activate automatically — no edit needed.
 
 Covers: schema shape, ledger idempotency, fail-loud on pre-existing table, the partial-unique
-single-active-promotion winner, demotion CHECK constraints, and the DEC-0003 provenance case â€”
+single-active-promotion winner, demotion CHECK constraints, and the DEC-0003 provenance case —
 a fingerprint-era capability resolving through its handoff to an OLDER content-identical
 artifact identity without losing the new capability -> run -> source-revision chain.
 """

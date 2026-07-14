@@ -78,13 +78,6 @@ export function SearchContextScreen({
   function runBrief() {
     const q = _query.trim();
     if (!q) return;
-    if (!getRetrievalToken()) {
-      _error = "Retrieval token required. Set it in Settings -> Security & Advanced.";
-      _brief = null;
-      rebuild();
-      onToast && onToast("Retrieval token required for Current Context Brief.", "stale");
-      return;
-    }
     _loading = true;
     _error = "";
     _keywordResults = null;
@@ -135,7 +128,7 @@ export function SearchContextScreen({
             { value: "brief", label: "Current Context" },
             { value: "keyword", label: "Keyword Search" },
           ] }),
-          h("div", { class: "flex items-center gap-2" },
+          _mode === "brief" && h("div", { class: "flex items-center gap-2" },
             h("span", { class: "t-small muted" }, "Promoted"),
             Toggle({ checked: _includePromoted, label: "Include promoted intake", onChange: (v) => { _includePromoted = v; rebuild(); } }))),
         h("div", { class: "flex gap-2" },
@@ -150,8 +143,8 @@ export function SearchContextScreen({
           Button({ variant: "primary", className: "sm", onClick: () => { _query = inputEl.value; run(); },
             children: [_loading ? "Working..." : (_mode === "brief" ? "Brief" : "Search")] })),
         _mode === "brief" && !getRetrievalToken() && AlertBanner({
-          ns: "stale",
-          children: ["Current Context Brief requires the read-only retrieval token."],
+          ns: "advisory",
+          children: ["No retrieval token is loaded. Local BOH search works without one until a retrieval credential is configured."],
         }),
         _mode === "brief" && h("div", { class: "flex gap-2" },
           Button({ variant: "ghost", className: "sm", onClick: () => onNavigate && onNavigate("context-pack"), children: ["Open pack builder"] }),

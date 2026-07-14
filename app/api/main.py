@@ -58,6 +58,7 @@ from app.api.routes.residence_routes import router as residence_router
 from app.api.routes.context_pack_routes import router as context_pack_router
 from app.api.routes.context_object_routes import router as context_object_router
 from app.api.routes.current_context_brief_routes import router as current_context_brief_router
+from app.api.routes.security_settings_routes import router as security_settings_router
 
 
 # ── Init ──────────────────────────────────────────────────────────────────────
@@ -203,6 +204,7 @@ for router in (
     context_pack_router,         # Phase 7: Context Pack Builder surface (read-only assembler)
     context_object_router,       # WO-R2: /api/context-object (Levels 5+3, retrieval-token gated)
     current_context_brief_router,  # CurrentContextBrief v0.1: retrieval-token gated context search
+    security_settings_router,      # Local persistent token configuration
 ):
     app.include_router(router)
 

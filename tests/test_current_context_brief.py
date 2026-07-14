@@ -139,3 +139,62 @@ def test_current_context_brief_surfaces_conflicts_and_withheld(tmp_path, monkeyp
         assert brief["superseded_or_conflicted"]
         assert any(item.get("term") == "brief" for item in brief["superseded_or_conflicted"])
         assert isinstance(brief["withheld"], list)
+
+
+def test_current_context_brief_summary_labels_top_evidence_age_truthfully(monkeypatch):
+    from app.core import current_context_brief
+
+    packs = [
+        {
+            "doc_id": "older-top-doc",
+            "chunk_id": "older-top-chunk",
+            "title": "Older Top Evidence",
+            "text": "older but more relevant",
+            "score": 0.9,
+            "freshness": {"age_days": 58},
+            "citation": {"doc_id": "older-top-doc", "chunk_id": "older-top-chunk"},
+            "warnings": [],
+        },
+        {
+            "doc_id": "newer-doc",
+            "chunk_id": "newer-chunk",
+            "title": "Newer Evidence",
+            "text": "newer but less relevant",
+            "score": 0.8,
+            "freshness": {"age_days": 8},
+            "citation": {"doc_id": "newer-doc", "chunk_id": "newer-chunk"},
+            "warnings": [],
+        },
+    ]
+    monkeypatch.setattr(
+        current_context_brief.retrieval,
+        "retrieve_governed_result",
+        lambda *args, **kwargs: {
+            "context_packs": packs,
+            "excluded_summary": [],
+            "gate_result": {
+                "posture": "answerable",
+                "allowed_context_refs": ["older-top-chunk", "newer-chunk"],
+                "withheld_context_refs": [],
+            },
+            "warnings": [],
+            "retrieval": {},
+        },
+    )
+    monkeypatch.setattr(
+        current_context_brief.context_object,
+        "assemble",
+        lambda *args, **kwargs: {
+            "scope": {"warnings": []},
+            "conflicts": [],
+            "unknowns": [],
+        },
+    )
+
+    brief = current_context_brief.build_current_context_brief("truthful age labels")
+
+    assert brief["answerable_now"] is True
+    assert brief["best_evidence"][0]["doc_id"] == "older-top-doc"
+    assert brief["newest_evidence"][0]["doc_id"] == "newer-doc"
+    assert "top evidence age 58 days" in brief["current_context_summary"]
+    assert "newest observed age" not in brief["current_context_summary"]

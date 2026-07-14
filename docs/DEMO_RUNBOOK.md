@@ -50,7 +50,7 @@ capability it proves and to where to look in the UI/API.
 capability surface — including backend features that do not yet have a `/v2`
 frontend (governed-intake substrate + scheduler-status block, dual-channel
 fold cluster/corpus aggregation, the six CANON scalar-bridge variables,
-SC3 plane inference, lattice, certificate workflow, Metis retrieval contract) —
+SC3 plane inference, lattice, certificate workflow, external retrieval contract) —
 and prints a `PASS / PARTIAL / EMPTY / SKIP / FAIL` matrix. It **writes nothing**.
 
 ```bash
@@ -669,5 +669,5 @@ python demo_showcase.py --execute  # operator opt-in: runs the existing seeds
 - Capability expectations: `tests/test_demo_capability_manifest.py`.
 - Folded-node view: `docs/visualization_folded_node_view.md`.
 - Scoring formulas: `docs/math_authority.md`.
-- Current state of record is maintained in the private working repository's
-  operational records.
+- Current product behavior is verified from the application, public docs, and
+  the test suite rather than from demo output alone.

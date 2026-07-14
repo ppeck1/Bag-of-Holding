@@ -10,10 +10,9 @@ WHAT THIS IS
 WHAT THIS WRITES
     When run with --execute, the steps it triggers WRITE TO THE RUNTIME
     library/ FOLDER AND THE SQLite DATABASE (boh.db). This script itself writes
-    nothing; the existing seeds it calls do. It is intended to be run by a
-    HUMAN OPERATOR, not by an automated agent. Per the repository's frozen-scope
-    rules, runtime data writes require explicit operator action -- which is
-    exactly what invoking this with --execute is.
+    nothing; the existing seeds it calls do. Runtime data writes require an
+    explicit `--execute` opt-in; callers should bind BOH to the intended demo
+    database and library before enabling execution.
 
 DEFAULT IS DRY-RUN
     With no flags (or --dry-run) this prints the plan and runs NOTHING. You must

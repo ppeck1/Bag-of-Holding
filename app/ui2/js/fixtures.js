@@ -50,13 +50,13 @@ export const metrics = [
 ];
 
 export const documents = [
-  { id: "d1", title: "Planar Storage Doctrine",    project: "Project Atlas", authority: "Canon · cert", currentness: "current", markers: [],                     lifecycle: "Stable",  action: "",                   updated: "4m ago",  why: why.healthy },
-  { id: "d2", title: "Authority Ledger Whitepage", project: "Project Atlas", authority: "Reference",    currentness: "current", markers: ["review"],            lifecycle: "Review",  action: "Awaiting admission", updated: "22m ago", why: why.healthy },
-  { id: "d3", title: "BOH Fold Workspace Spec",    project: "Project Atlas", authority: "Draft",        currentness: "stale",   markers: [],                     lifecycle: "Draft",   action: "Re-validate source", updated: "1h ago",  why: why.stale },
+  { id: "d1", title: "Planar Storage Doctrine",    project: "Research Workspace", authority: "Canon · cert", currentness: "current", markers: [],                     lifecycle: "Stable",  action: "",                   updated: "4m ago",  why: why.healthy },
+  { id: "d2", title: "Authority Ledger Whitepaper", project: "Research Workspace", authority: "Reference",    currentness: "current", markers: ["review"],            lifecycle: "Review",  action: "Awaiting admission", updated: "22m ago", why: why.healthy },
+  { id: "d3", title: "BOH Fold Workspace Spec",    project: "Research Workspace", authority: "Draft",        currentness: "stale",   markers: [],                     lifecycle: "Draft",   action: "Re-validate source", updated: "1h ago",  why: why.stale },
   { id: "d4", title: "Intake Capability Map",      project: "Intake",        authority: "Reference",    currentness: "current", markers: ["preserved"],         lifecycle: "Stable",  action: "",                   updated: "2h ago",  why: why.healthy },
   { id: "d5", title: "Overlay Schema Proposal",    project: "Overlays",      authority: "Unmapped",     currentness: "unknown", markers: ["advisory","review"], lifecycle: "Proposed",action: "Reviewer must act",  updated: "3h ago",  why: why.unknown },
-  { id: "d6", title: "Metis Retrieval Contract",   project: "Retrieval",     authority: "Reference",    currentness: "conflict",markers: ["blocked"],           lifecycle: "Blocked", action: "Resolve conflict",   updated: "5h ago",  why: why.conflict },
-  { id: "d7", title: "Current State Snapshot",     project: "Project Atlas", authority: "Derived",      currentness: "current", markers: [],                     lifecycle: "Stable",  action: "",                   updated: "6h ago",  why: why.healthy },
+  { id: "d6", title: "External Retrieval Contract", project: "Retrieval",     authority: "Reference",    currentness: "conflict",markers: ["blocked"],           lifecycle: "Blocked", action: "Resolve conflict",   updated: "5h ago",  why: why.conflict },
+  { id: "d7", title: "Current State Snapshot",     project: "Research Workspace", authority: "Derived",      currentness: "current", markers: [],                     lifecycle: "Stable",  action: "",                   updated: "6h ago",  why: why.healthy },
   { id: "d8", title: "Watcher Configuration",      project: "System",        authority: "Reference",    currentness: "expired", markers: ["quarantine"],        lifecycle: "Archive", action: "Renew validity",     updated: "1d ago",  why: why.expired },
 ];
 

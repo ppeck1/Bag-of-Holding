@@ -669,6 +669,15 @@ function render() {
               pushToast("Clear caches is not yet implemented.", "stale");
               setState({ confirm: null });
             }
+            else if (kind === "clear-security-token") {
+              const execute = state.confirm.execute;
+              setState({ confirm: null });
+              if (typeof execute === "function") {
+                Promise.resolve(execute()).catch(() => {
+                  pushToast("Security verifier removal failed.", "conflict");
+                });
+              }
+            }
             // Fallback for unknown actions
             else {
               pushToast(`${state.confirm.confirmLabel} — prototype action, no backend change.`, state.confirm.danger ? "conflict" : "current");
@@ -677,9 +686,13 @@ function render() {
           }, children: [state.confirm.confirmLabel] })),
       children: [
         h("p", { style: { margin: 0 } }, state.confirm.body),
-        h("div", { className: "scope-preview" },
-          h("div", { className: "sp-row" }, h("span", { className: "k" }, "Library"), h("span", null, "Bag of Holding")),
-          h("div", { className: "sp-row" }, h("span", { className: "k" }, "Source files"), h("span", { style: { color: "var(--state-current)" } }, "untouched"))),
+        state.confirm.kind === "clear-security-token"
+          ? h("div", { className: "scope-preview" },
+              h("div", { className: "sp-row" }, h("span", { className: "k" }, "Settings verifier"), h("span", null, "removed")),
+              h("div", { className: "sp-row" }, h("span", { className: "k" }, "Plaintext / source files"), h("span", { style: { color: "var(--state-current)" } }, "unchanged")))
+          : h("div", { className: "scope-preview" },
+              h("div", { className: "sp-row" }, h("span", { className: "k" }, "Library"), h("span", null, "Bag of Holding")),
+              h("div", { className: "sp-row" }, h("span", { className: "k" }, "Source files"), h("span", { style: { color: "var(--state-current)" } }, "untouched"))),
         state.confirm.danger && h("div", { className: "t-small", style: { color: "var(--state-conflict)" } }, "This action is irreversible. Review the scope preview before confirming."),
       ] }),
     ToastHost({ toasts: state.toasts }),
