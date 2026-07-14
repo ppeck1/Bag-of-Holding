@@ -89,6 +89,29 @@ def _best_first(packs: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
     return sorted(packs, key=lambda p: float(p.get("score") or 0.0), reverse=True)
 
 
+def _pack_ref(pack: Mapping[str, Any]) -> str:
+    return str(
+        pack.get("card_id")
+        or pack.get("chunk_id")
+        or pack.get("doc_id")
+        or ""
+    )
+
+
+def _gate_allowed_packs(
+    packs: list[Mapping[str, Any]],
+    gate: Mapping[str, Any],
+) -> list[Mapping[str, Any]]:
+    if gate.get("posture") == "blocked":
+        return []
+    allowed_refs = {
+        str(ref) for ref in (gate.get("allowed_context_refs") or []) if ref
+    }
+    if not allowed_refs:
+        return []
+    return [pack for pack in packs if _pack_ref(pack) in allowed_refs]
+
+
 def _conflict_entries(packs: list[Mapping[str, Any]], context: Mapping[str, Any]) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for pack in packs:
@@ -134,7 +157,7 @@ def _summary(topic: str, packs: list[Mapping[str, Any]], conflicts: list[dict[st
         )
     top = packs[0]
     age = _freshness_age(top)
-    age_text = f"; newest observed age {age:g} days" if age is not None else ""
+    age_text = f"; top evidence age {age:g} days" if age is not None else ""
     caveats = []
     if conflicts:
         caveats.append(f"{len(conflicts)} conflict/supersession signal(s)")
@@ -157,14 +180,22 @@ def build_current_context_brief(
     mode: str = "exploration",
     include_promoted: bool = False,
     max_context_chars: int = 6000,
+    governed_result: Any | None = None,
 ) -> dict[str, Any]:
     capped = _clamp_limit(limit)
-    retrieval_result = retrieval.retrieve_governed(
-        topic,
-        mode=mode,
-        limit=capped,
-        max_context_chars=max_context_chars,
-        include_promoted=include_promoted,
+    normalized = (
+        governed_result
+        if governed_result is not None
+        else retrieval.retrieve_governed_result(
+            topic,
+            mode=mode,
+            limit=capped,
+            max_context_chars=max_context_chars,
+            include_promoted=include_promoted,
+        )
+    )
+    retrieval_result = (
+        normalized.to_dict() if hasattr(normalized, "to_dict") else dict(normalized)
     )
     context_result = context_object.assemble(
         "query",
@@ -172,8 +203,13 @@ def build_current_context_brief(
         evidence_limit=capped,
         include_promoted=include_promoted,
         question_type="exploratory",
+        governed_result=normalized,
     )
-    packs = [_jsonable(pack) for pack in retrieval_result.get("context_packs", [])]
+    gate = _jsonable(retrieval_result.get("gate_result") or {})
+    retrieved_packs = [
+        _jsonable(pack) for pack in retrieval_result.get("context_packs", [])
+    ]
+    packs = _gate_allowed_packs(retrieved_packs, gate)
     conflicts = _conflict_entries(packs, context_result)
     unknowns = _jsonable(context_result.get("unknowns") or [])
     withheld = _withheld_entries(retrieval_result)
@@ -192,7 +228,7 @@ def build_current_context_brief(
     return {
         "contract": f"{CONTRACT_NAME} v{CONTRACT_VERSION}",
         "topic": topic,
-        "answerable_now": bool(best),
+        "answerable_now": bool(best) and gate.get("posture") != "blocked",
         "current_context_summary": _summary(topic, packs, conflicts, unknowns, withheld),
         "newest_evidence": newest,
         "best_evidence": best,

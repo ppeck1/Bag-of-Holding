@@ -29,6 +29,44 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 DRIVE = Path(__file__).resolve().parent
 
+CONTEXT_SEARCH_FIXTURE = """---
+boh:
+  id: "boh-uidrive-context-search"
+  document_id: "boh-uidrive-context-search"
+  title: "Context Search UI Validation Fixture"
+  purpose: "Context Search UI Validation Fixture"
+  type: "note"
+  document_class: "note"
+  status: "approved"
+  canonical_layer: "supporting"
+  authority_state: "approved"
+  review_state: "none"
+  project: "UI Validation"
+  version: "1.0.0"
+  updated: "2026-07-08T00:00:00+00:00"
+  source_hash: "uidrive-context-search-fixture"
+  provenance:
+    mode: "test"
+    source: "tools/ui_drive/run_drive.py"
+  topics: ["context search validation", "current context brief", "bounded llm instructions"]
+  scope:
+    plane_scope: ["retrieval"]
+    field_scope: []
+    node_scope: []
+  rubrix:
+    operator_state: "observe"
+    operator_intent: "validate"
+    next_operator: null
+---
+
+# Context Search UI Validation Fixture
+
+The context search validation fixture exists so the Search screen can prove
+keyword discovery and CurrentContextBrief rendering through the live /v2 UI.
+It explains newest evidence, best evidence, provenance, warnings, unknowns,
+withheld material, citations, and bounded LLM instructions.
+"""
+
 
 def _free_port() -> int:
     s = socket.socket()
@@ -48,6 +86,28 @@ def _wait_health(base: str, timeout: float = 30.0) -> bool:
         except Exception:
             time.sleep(0.4)
     return False
+
+
+def _seed_context_search_fixture(workdir: Path) -> None:
+    """Seed one indexed fixture with chunks so Search/Current Context has evidence."""
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    os.environ["BOH_DB"] = str(workdir / "boh.db")
+    os.environ["BOH_LIBRARY"] = str(workdir / "library")
+    os.environ["BOH_DATA_ROOT"] = str(workdir)
+    from app.db import connection as db
+
+    db.DB_PATH = os.environ["BOH_DB"]
+    db.init_db()
+    from app.services.indexer import index_file
+
+    library = workdir / "library"
+    fixture = library / "ui_context_search_fixture.md"
+    fixture.write_text(CONTEXT_SEARCH_FIXTURE, encoding="utf-8")
+    result = index_file(fixture, library)
+    if not result.get("indexed"):
+        raise RuntimeError(f"context-search fixture did not index: {result}")
+    print(f"  context fixture indexed: {result.get('doc_id')}")
 
 
 def main() -> int:
@@ -72,6 +132,7 @@ def main() -> int:
     env["BOH_LIBRARY"] = str(workdir / "library")
     env["BOH_DATA_ROOT"] = str(workdir)
     env.setdefault("BOH_OPERATOR_TOKEN", "uidrive-token")
+    env.setdefault("BOH_RETRIEVAL_TOKEN", "uidrive-retrieve-token")
     # Seeds/launcher print Unicode (arrows); force UTF-8 so captured stdout on Windows
     # (cp1252) does not crash the child process.
     env["PYTHONIOENCODING"] = "utf-8"
@@ -88,6 +149,9 @@ def main() -> int:
         if not _wait_health(base):
             print("Server did not become healthy in time.")
             return 1
+
+        print("Seeding context-search fixture ...")
+        _seed_context_search_fixture(workdir)
 
         print("Seeding demo data ...")
         for script in ("seed_ui_demo.py",):

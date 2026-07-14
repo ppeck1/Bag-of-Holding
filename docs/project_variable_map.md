@@ -8,8 +8,8 @@ This map records the current source-level wiring for Bag of Holding. It focuses 
 | --- | --- | --- | --- | --- |
 | `BOH_LIBRARY` | `./library` | `app.core.fs_boundary`, `app.core.autoindex`, routes, launcher | Server-owned document library root. Filesystem reads/writes are expected to resolve under this root. | Yes |
 | `BOH_DB` | `boh.db` | `app.db.connection`, launcher | SQLite database file path. | Yes |
-| `BOH_OPERATOR_TOKEN` | unset | `app.core.auth` | Local privileged mutation/admin/execution boundary. Sent as `X-BOH-Operator-Token`. | Yes |
-| `BOH_RETRIEVAL_TOKEN` | unset | `app.core.retrieval` | Separate read-only connector boundary for `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief`. Sent as `X-BOH-Retrieval-Token`. Fail-closed: routes return 403 when the variable is unset. | Yes |
+| `BOH_OPERATOR_TOKEN` | unset | `app.core.token_config`, `app.core.auth` | Highest-precedence local privileged mutation/admin/execution credential. Sent as `X-BOH-Operator-Token`. When unset, a UI-managed salted verifier may supply the boundary. | Yes |
+| `BOH_RETRIEVAL_TOKEN` | unset | `app.core.token_config`, `app.core.retrieval` | Highest-precedence read-only retrieval credential for `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief`. A UI-managed salted verifier may be used when unset. | Yes |
 | `BOH_RETRIEVAL_INCLUDE_PROMOTED` | `false` | `app.core.promoted_exposure` | Server half of the WO-2 dual exposure gate for promoted intake docs (`corpus_class = 'CORPUS_CLASS:PROMOTED_INTAKE'`). Only the literal value `true` (case-insensitive) opens the gate. Retrieval surfaces (`/api/retrieve`, `/api/context-object`) additionally require the per-request `include_promoted` flag — env AND request, fail-closed. Other read surfaces are env-gate-only. Mutation isolation of promoted docs is gate-independent. | Yes |
 | `BOH_DEFAULT_ACTOR` | `local_operator` fallback | `app.core.actor_ledger` | Default actor identity when `X-BOH-Actor-ID` is not supplied. | Yes |
 | `BOH_CORS_ORIGINS` | localhost allowlist | `app.api.main` | Comma-separated CORS origin override. | Yes |
@@ -26,7 +26,12 @@ This map records the current source-level wiring for Bag of Holding. It focuses 
 
 Notes:
 - Strings such as `BOH_CANON_v3.7`, `BOH_PATCH_v2.19`, and `BOH_WORKER_v4` appear in ontology labels or provenance metadata. They are not runtime environment variables.
-- `BOH_RETRIEVAL_TOKEN` is intentionally separate from `BOH_OPERATOR_TOKEN`. Connectors should never receive the operator token.
+- The retrieval credential is intentionally separate from the operator credential. Retrieval clients should never receive the operator token.
+- Environment credentials have precedence over UI-managed verifiers and cannot be replaced through Settings.
+- ChatGPT MCP does not use either BOH credential. BOH supports a provider OAuth
+  gateway path with scope `boh.read` and a direct stdio OpenAI tunnel path for
+  ChatGPT apps configured with No Authentication. Both paths are
+  operator-owned/self-hosted local setups.
 
 ## HTTP Headers
 
@@ -49,6 +54,7 @@ CORS currently allows `Content-Type`, `Authorization`, `X-Request-ID`, `X-BOH-Op
 | `--db` | unset | Overrides `BOH_DB` for the launched process. |
 | `--reload` | false | Enables uvicorn reload mode for development. |
 | `--no-browser` | false | Skips opening a browser automatically. |
+| `--no-mcp` | false | Skips the ignored local MCP autostart configuration for this launch only. |
 
 ## Browser-Side State Variables
 
@@ -66,6 +72,40 @@ CORS currently allows `Content-Type`, `Authorization`, `X-Request-ID`, `X-BOH-Op
 | `boh_daenary_filters` | `localStorage` | Persisted Daenary search filters. | Yes |
 | `atlas_reader_width` / `boh_atlas_reader_width` | `localStorage` | Atlas reader sizing. | Partially overlapping keys; both appear in UI code. |
 | `boh_v2_phase_a` | `localStorage` | `/v2` app shell settings (density, mode, landing, diagnostics, `activeLibraryId`). Parsed in `app/ui2/js/app.js` `loadSettings()`. | Yes |
+
+## Security and MCP Local Configuration
+
+Publication note: the sanitized public export includes the app-side connector
+configuration and lifecycle contract, but not the operational adapter,
+gateway, startup helper, tunnel profiles, or smoke tooling described below.
+Those entries document the complete operator deployment and are not public
+checkout setup instructions.
+
+| Key / File | Storage | Purpose | Secret Handling |
+| --- | --- | --- | --- |
+| `security_operator_token_v1` | SQLite `system_config` | Salted PBKDF2-SHA256 operator verifier saved by local Settings. | Contains version, algorithm, iterations, random salt, and digest only; no plaintext. |
+| `security_retrieval_token_v1` | SQLite `system_config` | Independent salted retrieval verifier saved by local Settings. | Contains verifier material only; no plaintext. |
+| `.local/boh_mcp_connector_autostart.json` | Ignored local JSON | Explicit opt-in connector coordinates: tunnel ID, `auth_mode`, fixed `boh.read` scope, gateway port, and OAuth issuer only when using `oauth_gateway`. | Contains no token, key, or OAuth client secret. |
+| `.local/secrets/openai_tunnel_runtime_key.txt` | Ignored local file | Tunnel-client runtime credential written from Settings or local setup. | Write-only through the API; value is never returned or displayed. |
+| `.local/tunnel-client/profiles/boh.yaml` | Ignored generated YAML | OAuth gateway tunnel-client profile pointing at localhost MCP and the runtime-key file. | References the key file path, never embeds the key value. |
+| `.local/tunnel-client/profiles/boh-stdio-noauth.yaml` | Ignored generated YAML | No-auth stdio tunnel profile using `mcp.commands` to launch `tools.boh_mcp_adapter.server` directly. | References the key file path, never embeds the key value. |
+| `.local/runs/boh-tunnel-client*` | Ignored local runtime | OAuth gateway tunnel logs, health URL, and PID file. | Responses/logs use gateway redaction; credentials must not be written here. |
+| `.local/runs/boh-stdio-noauth-tunnel-client*` | Ignored local runtime | Direct stdio no-auth tunnel logs, health URL, and PID file. | Contains runtime metadata only; credentials must not be written here. |
+| `BOH_MCP_EXPOSURE_MODE=chatgpt_safe` | Connector child environment | Forces the fixed eight-tool read-only ChatGPT tuple for both remote connector modes. | Non-secret. Do not expose the default full local stdio profile to ChatGPT. |
+| `CONTROL_PLANE_API_KEY` | Environment/runtime secret name | Scrubbed from BOH MCP child environments; OpenAI tunnel runtime uses the ignored runtime-key file instead. | Secret values must never be forwarded to the BOH MCP adapter or committed. |
+
+BOH does not provide a hosted MCP server, shared OpenAI tunnel, OAuth tenant, or
+runtime key. Operators must configure their own local tunnel-client and ChatGPT
+connector. ChatGPT "No Authentication" means no browser-facing OAuth flow for
+that ChatGPT app; it does not make BOH a public unauthenticated service. Live
+ChatGPT connector registration is verified only after the operator's own
+ChatGPT tool scan/call succeeds.
+
+The local mutation routes are `/api/security/tokens/*` and
+`/api/security/mcp-connector/*`. They require a loopback peer, reject
+cross-origin browser mutation, and directly declare the operator authority
+dependency. First operator bootstrap is possible only while BOH is dev-open;
+retrieval and MCP configuration require a valid configured operator credential.
 
 ### `/v2` in-memory app state (`app/ui2/js/app.js` `state` object)
 
@@ -87,7 +127,7 @@ These are not persisted to storage; they reset on page load.
 | `fold` | `{ status: "idle" }` | Cached fold-graph fetch state |
 | `pendingSearch` | `null` | Query pre-filled from TopBar global search (deep-link to the Search screen) |
 
-`state.scope` was **removed** (2026-06-09, commit `15219ef`). The prototype global "Scope: Project Atlas" selector and its fixture tree (`FX.scopeTree`) are gone. The TopBar now exposes a logical-library selector whose default is `Library: All libraries` plus the `Planes:` filter. The logical-library selector is browsing-only for Library and Fold Workspace views; internal/backend scope concepts (authority, retrieval ranking, intake, promotion, status, governance context) are unaffected. `Manage libraries` edits presentation metadata only: display label, hidden-from-dropdown state, order, and reset.
+`state.scope` was removed (2026-06-09, commit `15219ef`). The prototype global project-scope selector and its fixture tree (`FX.scopeTree`) are gone. The TopBar now exposes a logical-library selector whose default is `Library: All libraries` plus the `Planes:` filter. The logical-library selector is browsing-only for Library and Fold Workspace views; internal/backend scope concepts (authority, retrieval ranking, intake, promotion, status, governance context) are unaffected. `Manage libraries` edits presentation metadata only: display label, hidden-from-dropdown state, order, and reset.
 
 `normalizePlaneKey(p)` is exported from `app/ui2/js/ns.js` and used by `app.js`, `screens/library.js`, and `screens/fold.js` to compare `c.plane` / `node.plane` against `visiblePlanes` case-insensitively.
 
@@ -120,6 +160,7 @@ Routers are registered in `app.api.main` before the static UI mount. Current rou
 | `search.router` | `/api` | Document-level search. | Read-only. |
 | `retrieval_router` | `/api` | Read-only LLM context packs. | Uses retrieval token, not operator token. |
 | `current_context_brief_router` | `/api` | `CurrentContextBrief v0.1` topic packets over existing retrieval and context-object evidence. | Uses retrieval token, not operator token. |
+| `security_settings_router` | `/api/security` | Safe token status, salted verifier configuration, opt-in MCP config, and write-only tunnel-key setup. | Mutations are loopback/same-origin and operator protected; first operator bootstrap uses dev-open only. |
 | `library.router` | `/api` | List/read docs; patch metadata. | Metadata patch protected. |
 | `libraries.router` | `/api/libraries` | Logical-library list derived from indexed `docs.path` values inside `BOH_LIBRARY`, plus operator-gated presentation overrides for dropdown label, visibility, order, and reset. | Mutations require operator token. |
 | `reader.router` | `/api` | Document content, related docs, graph data, folded-node packets. | Read-only content path is boundary resolved; folded packets do not mutate PlaneCards. |
@@ -282,8 +323,8 @@ Runtime data:
 Favicons:
 - Source location: `app/ui/assets/favicons/`
 - Active HTML links: `app/ui/index.html`
-- Original runtime handoff zip noted by user: `library/boh_favicon_pack.zip`
-- The zip remains runtime/library material and should not be committed from `library/`.
+- Runtime-generated or imported asset archives remain library material and
+  should not be committed from `library/`.
 
 ## Graph Lab and Current Fold View
 
@@ -472,6 +513,7 @@ Advanced lattice/governance tables:
 - `schema_version`
 - `system_config`
   - `logical_library_overrides_v1` stores operator-managed logical-library display overrides as JSON. It does not move files or rewrite `docs.path`.
+  - `security_operator_token_v1` and `security_retrieval_token_v1` store salted verifier JSON only. Environment values remain authoritative.
 
 ## Import and Indexing Flow
 
@@ -485,14 +527,14 @@ Advanced lattice/governance tables:
 ## Authority Flow
 
 1. Privileged HTTP request includes `X-BOH-Operator-Token`.
-2. `require_operator` verifies the token against `BOH_OPERATOR_TOKEN`; unset config fails closed.
+2. `require_operator` resolves environment-first token state through `app.core.token_config`; it verifies either the environment plaintext or the stored PBKDF2 verifier. Only a completely unconfigured operator boundary is dev-open; malformed/unreadable configured state fails closed.
 3. Actor-aware routes read `X-BOH-Actor-ID` or default to `local_operator`.
 4. Phase 28 actor authority checks evaluate whether the actor has the required grant.
 5. Successful mutations record audit/action ledger entries where implemented.
 
 Not wired:
 - There is no multi-user session login system.
-- The operator token is local process configuration, not a remote identity provider.
+- The operator token is a local BOH permission credential, not a remote identity provider. Its verifier may be environment- or UI-managed.
 
 ## LLM and Retrieval Boundary
 
@@ -504,7 +546,7 @@ LLM proposal path:
 
 LLM retrieval path:
 - `/api/retrieve`, `/api/context-object`, and `/api/current-context-brief` are read-only retrieval-token surfaces.
-- It requires `BOH_RETRIEVAL_TOKEN`, not `BOH_OPERATOR_TOKEN`.
+- It requires the separate retrieval credential, resolved environment-first and otherwise through the UI-managed verifier; it never accepts the operator credential.
 - It returns bounded context with citations, authority/canon warnings, context-object state, or `CurrentContextBrief v0.1` topic packets depending on route.
 
 Not wired:

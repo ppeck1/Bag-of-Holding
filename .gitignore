@@ -21,6 +21,7 @@ env/
 *.db.FAILED-*
 *.sqlite-shm
 *.sqlite-wal
+.local/
 
 # BOH local corpus/runtime data
 library/

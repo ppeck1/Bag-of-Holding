@@ -260,6 +260,298 @@ function lockRow(label, state) {
 
 function SecurityTab({ onConfirm, onToast }) {
   const wrap = h("div", { style: { marginTop: "16px" } });
+
+  async function render() {
+    const [st, tokenStatus, connector] = await Promise.all([
+      api("/api/status"),
+      api("/api/security/tokens"),
+      api("/api/security/mcp-connector", { headers: tokenHeaders() }),
+    ]);
+    if (tokenStatus.error) {
+      wrap.replaceChildren(AlertBanner({ ns: "conflict", children: [`Security status unavailable: ${tokenStatus.error}`] }));
+      return;
+    }
+    const operator = tokenStatus.operator || {};
+    const retrieval = tokenStatus.retrieval || {};
+    wrap.replaceChildren(Card({ title: "Security & Advanced", children: [
+      AlertBanner({ ns: "advisory", children: ["BOH stores only salted verifiers. Plaintext stays in this browser tab. These BOH tokens do not authenticate ChatGPT MCP. Settings manages the OAuth gateway path; the no-auth stdio tunnel path is script-started."] }),
+      settingRow("Default actor", "BOH_DEFAULT_ACTOR - actor used for unauthenticated local requests.", "RESTART REQUIRED", "READ-ONLY ENV", h("span", { class: "t-small muted" }, st.default_actor || "dev_operator")),
+      h("div", { class: "security-token-section" }, "Server credentials"),
+      ServerTokenRow({ kind: "operator", serverState: operator, operatorState: operator, onToast, onRefresh: render, onConfirm }),
+      SessionTokenRow({ onToast }),
+      ServerTokenRow({ kind: "retrieval", serverState: retrieval, operatorState: operator, onToast, onRefresh: render, onConfirm }),
+      RetrievalSessionTokenRow({ onToast }),
+      ...McpConnectorRows({ connector, onToast, onRefresh: render }),
+      h("div", { class: "setting-row" },
+        h("div", { class: "s-main" },
+          h("div", { class: "s-name" }, "Maintenance actions"),
+          h("div", { class: "s-desc" }, "Index maintenance remains governed by operator authorization.")),
+        h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
+          Button({ variant: "secondary", className: "sm", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Discards derived index data and re-scans. Source files are untouched.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
+          Button({ variant: "danger", className: "sm", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace?", body: "Irreversibly removes all local index data and layouts.", confirmLabel: "Reset workspace", variant: "danger", danger: true }), children: ["Reset workspace"] }))),
+    ] }));
+  }
+
+  render();
+  wrap.innerHTML = `<div class="t-small muted" style="margin-top:16px">Loading...</div>`;
+  return wrap;
+}
+
+function tokenRoleDescription(kind, environmentOwned) {
+  if (kind === "operator") {
+    return environmentOwned
+      ? "Mutation access is managed by BOH_OPERATOR_TOKEN. Load the matching value into this tab to use governed controls."
+      : "Create or replace the server verifier for mutation access. Use 16-256 letters, digits, or symbols without spaces.";
+  }
+  return environmentOwned
+    ? "Read-only retrieval access is managed by BOH_RETRIEVAL_TOKEN. Load the matching value into this tab for Search and Current Context."
+    : "Optional protection for Search and Current Context. With no retrieval verifier, local BOH search is open and needs no token.";
+}
+
+export function ServerTokenRow({ kind, serverState, operatorState, onToast, onRefresh, onConfirm }) {
+  let input;
+  const storageKey = kind === "operator" ? "boh_operator_token" : "boh_retrieval_token";
+  const label = kind === "operator" ? "Operator" : "Retrieval";
+  const environmentOwned = serverState.source === "environment";
+  const operatorConfigured = operatorState && operatorState.configured && operatorState.record_valid !== false;
+
+  function serverMutationBlocker() {
+    if (environmentOwned) {
+      return `${label} verifier is managed by the server environment.`;
+    }
+    if (kind === "operator" && serverState.configured && !getToken()) {
+      return "Load the current operator token into this tab before rotating or removing the operator verifier.";
+    }
+    if (kind === "retrieval" && !operatorConfigured) {
+      return "Configure a valid operator verifier before managing retrieval access.";
+    }
+    if (kind === "retrieval" && !getToken()) {
+      return "Load the operator token into this tab before changing the retrieval verifier.";
+    }
+    return "";
+  }
+
+  async function saveToServer() {
+    const value = input && input.value ? input.value : "";
+    if (!value.trim()) {
+      onToast && onToast(`Enter a ${kind} token before saving.`, "stale");
+      return;
+    }
+    const blocked = serverMutationBlocker();
+    if (blocked) {
+      onToast && onToast(blocked, "stale");
+      return;
+    }
+    if (kind === "retrieval" && value === getToken()) {
+      onToast && onToast("Retrieval and operator credentials must be different.", "stale");
+      return;
+    }
+    const result = await api(`/api/security/tokens/${kind}`, {
+      method: "POST",
+      headers: tokenHeaders(),
+      body: JSON.stringify({ token: value }),
+    });
+    if (result.error) {
+      onToast && onToast(result.error, "conflict");
+      return;
+    }
+    sessionStorage.setItem(storageKey, value);
+    input.value = "";
+    onToast && onToast(`${label} verifier saved; credential loaded into this tab.`, "current");
+    onRefresh && onRefresh();
+  }
+
+  async function clearServerNow() {
+    const blocked = serverMutationBlocker();
+    if (blocked) {
+      onToast && onToast(blocked, "stale");
+      return;
+    }
+    const result = await api(`/api/security/tokens/${kind}`, {
+      method: "DELETE",
+      headers: tokenHeaders(),
+    });
+    if (result.error) {
+      onToast && onToast(result.error, "conflict");
+      return;
+    }
+    sessionStorage.removeItem(storageKey);
+    onToast && onToast(`${label} UI verifier removed.`, "stale");
+    onRefresh && onRefresh();
+  }
+
+  function requestClearServer() {
+    if (!onConfirm) return;
+    const devOpenWarning = kind === "operator" && serverState.source === "ui"
+      ? " Removing it will immediately return operator-protected BOH routes to DEV-OPEN."
+      : "";
+    onConfirm({
+      kind: "clear-security-token",
+      title: `Remove ${kind} UI verifier?`,
+      body: `This removes only the salted Settings verifier. Plaintext cannot be recovered.${devOpenWarning}`,
+      confirmLabel: `Remove ${label} verifier`,
+      danger: true,
+      variant: "danger",
+      execute: clearServerNow,
+    });
+  }
+
+  const liveLabel = serverState.restart_required ? "RESTART REQUIRED" : "LIVE";
+  const implLabel = environmentOwned ? "READ-ONLY ENV" : "SETTINGS API";
+  const blocker = serverMutationBlocker();
+  const actionHelp = environmentOwned
+    ? "Server value is environment-owned; use tab-only load for browser requests."
+    : blocker || "Server save stores only a salted verifier and loads the same value into this tab.";
+  const serverStateLabel = serverState.record_valid === false
+    ? "Configuration error"
+    : serverState.source === "environment"
+      ? "Managed by environment"
+      : serverState.configured
+        ? "Configured in Settings"
+        : kind === "operator" ? "DEV-OPEN (not configured)" : "Open locally (no token required)";
+
+  return h("div", { class: "setting-row security-token-row" },
+    h("div", { class: "s-main" },
+      h("div", { class: "s-name" }, `${label} server credential`),
+      h("div", { class: "s-desc" }, tokenRoleDescription(kind, environmentOwned)),
+      h("div", { class: "s-annos" },
+        h("span", { class: "anno", style: { color: liveLabel === "RESTART REQUIRED" ? "var(--state-stale)" : "var(--text-muted)" } }, liveLabel),
+        h("span", { class: "anno", style: { color: implLabel === "READ-ONLY ENV" ? "var(--text-muted)" : "var(--state-current)" } }, implLabel),
+        h("span", { class: "anno", style: { color: "var(--state-advisory)" } }, "PLAINTEXT TAB-LOCAL"))),
+    h("div", { class: "s-control token-control" },
+      h("div", { class: "token-server-state", style: { color: serverState.record_valid === false ? "var(--state-conflict)" : serverState.configured ? "var(--state-current)" : "var(--text-muted)" } }, serverStateLabel),
+      h("div", { class: "token-entry" },
+        (input = h("input", { class: "input token-input", type: "password", placeholder: `Enter ${kind} token`, autocomplete: "off",
+          onKeydown: e => { if (e.key === "Enter") saveToServer(); } })),
+        h("div", { class: "token-actions" },
+          Button({ variant: "secondary", className: "sm", disabled: environmentOwned, onClick: saveToServer, children: [serverState.configured ? `Replace + load ${label.toLowerCase()}` : `Save + load ${label.toLowerCase()}`] }),
+          Button({ variant: "danger", className: "sm", disabled: serverState.source !== "ui" && !serverState.ui_verifier_present, onClick: requestClearServer, children: [environmentOwned ? "Remove dormant UI verifier" : "Remove UI verifier"] }))),
+      h("div", { class: "token-help" }, actionHelp)));
+}
+
+function McpConnectorRows({ connector, onToast, onRefresh }) {
+  if (connector.error) {
+    return [h("div", { class: "setting-row" },
+      h("div", { class: "s-main" },
+        h("div", { class: "s-name" }, "ChatGPT MCP connector"),
+        h("div", { class: "s-desc" }, "Load the current operator credential into this tab to view or change local MCP startup settings.")),
+      h("div", { class: "s-control" }, h("span", { style: { color: "var(--state-stale)" } }, connector.error)))];
+  }
+
+  const config = connector.config || {};
+  const state = connector.status || {};
+  let tunnelIdInput;
+  let issuerInput;
+  let portInput;
+  let enabledInput;
+  let runtimeKeyInput;
+  const inputStyle = { fontFamily: "var(--font-mono)", fontSize: "12px", padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border-default)", borderRadius: "6px", color: "var(--text-primary)", width: "250px" };
+
+  async function saveConfig() {
+    const result = await api("/api/security/mcp-connector/config", {
+      method: "POST",
+      headers: tokenHeaders(),
+      body: JSON.stringify({
+        enabled: Boolean(enabledInput.checked),
+        tunnel_id: tunnelIdInput.value.trim(),
+        oauth_issuer: issuerInput.value.trim(),
+        auth_mode: "oauth_gateway",
+        scope: "boh.read",
+        port: Number(portInput.value),
+      }),
+    });
+    if (result.error) {
+      onToast && onToast(result.error, "conflict");
+      return;
+    }
+    onToast && onToast("MCP connector saved. It will be applied on the next BOH launch.", "current");
+    onRefresh && onRefresh();
+  }
+
+  async function disableConfig() {
+    const result = await api("/api/security/mcp-connector/config", {
+      method: "DELETE",
+      headers: tokenHeaders(),
+    });
+    if (result.error) {
+      onToast && onToast(result.error, "conflict");
+      return;
+    }
+    onToast && onToast("MCP connector autostart disabled for the next launch.", "stale");
+    onRefresh && onRefresh();
+  }
+
+  async function saveRuntimeKey() {
+    const value = runtimeKeyInput && runtimeKeyInput.value ? runtimeKeyInput.value : "";
+    if (!value.trim()) {
+      onToast && onToast("Enter the OpenAI tunnel runtime key.", "stale");
+      return;
+    }
+    const result = await api("/api/security/mcp-connector/runtime-key", {
+      method: "POST",
+      headers: tokenHeaders(),
+      body: JSON.stringify({ runtime_key: value }),
+    });
+    runtimeKeyInput.value = "";
+    if (result.error) {
+      onToast && onToast(result.error, "conflict");
+      return;
+    }
+    onToast && onToast("Tunnel runtime key written locally. Its value was not returned.", "current");
+    onRefresh && onRefresh();
+  }
+
+  const stdioNoAuth = state.auth_mode === "stdio_no_auth";
+  const readiness = state.remote_ready
+    ? (stdioNoAuth ? "stdio tunnel ready" : "gateway + tunnel ready")
+    : state.gateway_ready
+      ? "gateway ready; tunnel not ready"
+      : state.enabled
+        ? (stdioNoAuth ? "stdio no-auth enabled; tunnel not ready" : "enabled; not currently ready")
+        : state.configured
+          ? "configured; autostart disabled"
+          : "not configured";
+  const readinessColor = state.remote_ready ? "var(--state-current)" : state.enabled ? "var(--state-stale)" : "var(--text-muted)";
+
+  return [
+    settingRow(
+      "ChatGPT MCP connector",
+      "Opt-in read-only MCP and OpenAI tunnel. Settings manages the OAuth gateway path; the no-auth stdio path uses tools/start_boh_mcp_connector.ps1 -AuthMode stdio_no_auth.",
+      "NEXT START",
+      "SETTINGS API",
+      h("div", { class: "col gap-1", style: { alignItems: "flex-start" } },
+        h("span", { style: { color: readinessColor } }, readiness),
+        h("span", { class: "t-small muted" }, state.dependencies_ready ? (stdioNoAuth ? "MCP stdio dependency ready" : "JWKS dependencies ready") : (stdioNoAuth ? "MCP dependency missing" : "JWKS dependencies missing")))),
+    h("div", { class: "setting-row" },
+      h("div", { class: "s-main" },
+        h("div", { class: "s-name" }, "MCP startup configuration"),
+        h("div", { class: "s-desc" }, "OAuth gateway startup uses a tunnel ID and canonical OAuth issuer. No-auth stdio startup is configured by the script, not this form."),
+        h("div", { class: "s-annos" }, h("span", { class: "anno" }, "READ-ONLY 8-TOOL PROFILE"))),
+      h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
+        h("label", { class: "flex items-center gap-2 t-small" },
+          (enabledInput = h("input", { type: "checkbox", checked: config.enabled !== false })),
+          "Start MCP with BOH"),
+        (tunnelIdInput = h("input", { value: config.tunnel_id || "", placeholder: "OpenAI tunnel ID", style: inputStyle })),
+        (issuerInput = h("input", { value: config.oauth_issuer || "", placeholder: "https://your-tenant.auth0.com/", style: inputStyle })),
+        (portInput = h("input", { type: "number", min: "1024", max: "65535", value: String(config.port || 4884), style: { ...inputStyle, width: "110px" } })),
+        h("div", { class: "flex gap-2" },
+          Button({ variant: "secondary", className: "sm", onClick: saveConfig, children: ["Save for next launch"] }),
+          Button({ variant: "ghost", className: "sm", disabled: !state.configured, onClick: disableConfig, children: ["Disable autostart"] })))),
+    h("div", { class: "setting-row" },
+      h("div", { class: "s-main" },
+        h("div", { class: "s-name" }, "OpenAI tunnel runtime key"),
+        h("div", { class: "s-desc" }, "Write-only local key for the tunnel client. BOH never reads it back through the API or displays it."),
+        h("div", { class: "s-annos" }, h("span", { class: "anno", style: { color: "var(--state-advisory)" } }, "LOCAL SECRET"))),
+      h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
+        h("span", { style: { color: state.runtime_key_configured ? "var(--state-current)" : "var(--text-muted)" } }, state.runtime_key_configured ? "configured" : "not configured"),
+        h("div", { class: "flex gap-2" },
+          (runtimeKeyInput = h("input", { type: "password", autocomplete: "off", placeholder: "Paste tunnel runtime key", style: inputStyle })),
+          Button({ variant: "secondary", className: "sm", onClick: saveRuntimeKey, children: ["Write key"] })))),
+  ];
+}
+
+function LegacySecurityTab({ onConfirm, onToast }) {
+  const wrap = h("div", { style: { marginTop: "16px" } });
   api("/api/status").then(st => {
     const opTokenControl = h("div", { class: "flex items-center gap-2" },
       h("span", { style: { color: st.operator_token_set ? "var(--state-current)" : "var(--state-stale)" } }, st.operator_token_set ? "✓ configured" : "⚠ DEV-OPEN (not set)"),
@@ -284,7 +576,7 @@ function SecurityTab({ onConfirm, onToast }) {
   return wrap;
 }
 
-function SessionTokenRow({ onToast }) {
+export function SessionTokenRow({ onToast }) {
   let _input;
   function sessionState() {
     return getToken() ? "✓ set for this session" : "○ not set for this session";
@@ -301,7 +593,7 @@ function SessionTokenRow({ onToast }) {
     if (_input) _input.value = "";
     stateSpan.textContent = sessionState();
     stateSpan.style.color = sessionColor();
-    onToast && onToast("Operator token saved for this session.", "current");
+    onToast && onToast("Operator credential loaded into this tab.", "current");
   }
   function clear() {
     sessionStorage.removeItem("boh_operator_token");
@@ -313,8 +605,8 @@ function SessionTokenRow({ onToast }) {
 
   return h("div", { class: "setting-row" },
     h("div", { class: "s-main" },
-      h("div", { class: "s-name" }, "Session token entry"),
-      h("div", { class: "s-desc" }, "Enter the operator token for this browser tab. Cleared when the tab closes. Not the same as setting BOH_OPERATOR_TOKEN in the server environment."),
+      h("div", { class: "s-name" }, "Operator session token"),
+      h("div", { class: "s-desc" }, "Use an operator credential already configured above. This changes only this browser tab, not the BOH server."),
       h("div", { class: "s-annos" },
         h("span", { class: "anno", style: { color: "var(--state-advisory)" } }, "TAB-LOCAL ONLY"))),
     h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
@@ -324,17 +616,17 @@ function SessionTokenRow({ onToast }) {
                    background: "var(--bg-input)", border: "1px solid var(--border-default)",
                    borderRadius: "6px", color: "var(--text-primary)", width: "200px" },
           onKeydown: e => { if (e.key === "Enter") save(); } })),
-        Button({ variant: "secondary", className: "sm", onClick: save, children: ["Save for session"] }),
+        Button({ variant: "secondary", className: "sm", onClick: save, children: ["Load into this tab"] }),
         Button({ variant: "ghost", className: "sm", onClick: clear, children: ["Clear"] })),
       h("div", { class: "flex items-center gap-2" },
         stateSpan,
         h("span", { class: "badge", style: { fontSize: "10px", padding: "2px 8px", borderRadius: "999px", color: "var(--state-advisory)", background: "color-mix(in oklab, var(--state-advisory) 14%, transparent)", border: "1px solid color-mix(in oklab, var(--state-advisory) 30%, transparent)" } }, "session-only (cleared on tab close)"))));
 }
 
-function RetrievalSessionTokenRow({ onToast }) {
+export function RetrievalSessionTokenRow({ onToast }) {
   let _input;
   function sessionState() {
-    return getRetrievalToken() ? "set for this session" : "not set for this session";
+    return getRetrievalToken() ? "loaded in this tab" : "not loaded in this tab";
   }
   function sessionColor() {
     return getRetrievalToken() ? "var(--state-current)" : "var(--text-muted)";
@@ -348,7 +640,7 @@ function RetrievalSessionTokenRow({ onToast }) {
     if (_input) _input.value = "";
     stateSpan.textContent = sessionState();
     stateSpan.style.color = sessionColor();
-    onToast && onToast("Retrieval token saved for this session.", "current");
+    onToast && onToast("Retrieval credential loaded into this tab.", "current");
   }
   function clear() {
     sessionStorage.removeItem("boh_retrieval_token");
@@ -360,25 +652,34 @@ function RetrievalSessionTokenRow({ onToast }) {
 
   return h("div", { class: "setting-row" },
     h("div", { class: "s-main" },
-      h("div", { class: "s-name" }, "Retrieval token entry"),
-      h("div", { class: "s-desc" }, "Enter the read-only retrieval token for this browser tab. Used by Search -> Current Context."),
+      h("div", { class: "s-name" }, "Retrieval session token"),
+      h("div", { class: "s-desc" }, "Use the retrieval credential already configured above. Search and Current Context send it only as the retrieval credential."),
       h("div", { class: "s-annos" },
         h("span", { class: "anno", style: { color: "var(--state-advisory)" } }, "TAB-LOCAL ONLY"))),
-    h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
+    h("div", { class: "s-control token-session-control" },
       h("div", { class: "flex gap-2" },
         (_input = h("input", { type: "password", placeholder: "Enter retrieval token...",
           style: { fontFamily: "var(--font-mono)", fontSize: "12px", padding: "4px 8px",
                    background: "var(--bg-input)", border: "1px solid var(--border-default)",
                    borderRadius: "6px", color: "var(--text-primary)", width: "200px" },
           onKeydown: e => { if (e.key === "Enter") save(); } })),
-        Button({ variant: "secondary", className: "sm", onClick: save, children: ["Save for session"] }),
+        Button({ variant: "secondary", className: "sm", onClick: save, children: ["Load into this tab"] }),
         Button({ variant: "ghost", className: "sm", onClick: clear, children: ["Clear"] })),
       h("div", { class: "flex items-center gap-2" },
         stateSpan,
         h("span", { class: "badge", style: { fontSize: "10px", padding: "2px 8px", borderRadius: "999px", color: "var(--state-advisory)", background: "color-mix(in oklab, var(--state-advisory) 14%, transparent)", border: "1px solid color-mix(in oklab, var(--state-advisory) 30%, transparent)" } }, "read-only"))));
 }
 
-function settingRow(name, desc, live, impl, control) {
+function settingRow(name, desc, live, impl, control, legacyControl) {
+  // Older call sites supplied an environment-variable label as a separate
+  // second description argument. Preserve that information without shifting
+  // the actual control out of the row.
+  if (legacyControl !== undefined) {
+    desc = `${desc} - ${live}`;
+    live = impl;
+    impl = control;
+    control = legacyControl;
+  }
   const liveColor = live === "RESTART REQUIRED" ? "var(--state-stale)" : "var(--text-muted)";
 
   // Color code implementation status for clarity
@@ -390,6 +691,9 @@ function settingRow(name, desc, live, impl, control) {
   } else if (impl === "SESSION LOCAL") {
     implColor = "var(--accent)";
     implBg = "color-mix(in oklab, var(--accent) 14%, transparent)";
+  } else if (impl === "SETTINGS API") {
+    implColor = "var(--state-current)";
+    implBg = "color-mix(in oklab, var(--state-current) 14%, transparent)";
   } else if (impl === "READ-ONLY ENV") {
     implColor = "var(--text-muted)";
     implBg = "color-mix(in oklab, var(--text-muted) 10%, transparent)";

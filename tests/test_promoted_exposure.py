@@ -73,8 +73,8 @@ def _seed_promoted(client, dbc, lib, src, data_root):
     return out.json()["doc_id"]
 
 
-def _retrieve_doc_ids(client, include_promoted=None):
-    payload = {"query": f"{TERM} fixture sentence unique", "mode": "exploration", "limit": 8}
+def _retrieve_doc_ids(client, include_promoted=None, mode="exploration"):
+    payload = {"query": f"{TERM} fixture sentence unique", "mode": mode, "limit": 8}
     if include_promoted is not None:
         payload["include_promoted"] = include_promoted
     res = client.post("/api/retrieve", json=payload,
@@ -149,6 +149,188 @@ def test_dual_gate_opens_retrieval_only_with_both(tmp_path, monkeypatch):
         for p in normal_payload["context_packs"]:
             if p.get("doc_id") != doc_id:
                 assert p["intake_provenance"] is None
+
+
+def test_strict_answer_rejects_promoted_draft_without_plane_card(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as (client, dbc, lib, src, data_root):
+        doc_id = _seed_promoted(client, dbc, lib, src, data_root)
+        assert dbc.fetchone("SELECT id FROM cards WHERE doc_id = ?", (doc_id,)) is None
+
+        monkeypatch.setenv("BOH_RETRIEVAL_INCLUDE_PROMOTED", "true")
+        ids, payload = _retrieve_doc_ids(
+            client,
+            include_promoted=True,
+            mode="strict_answer",
+        )
+
+        assert doc_id not in ids
+        excluded = [item for item in payload["excluded_summary"] if item.get("doc_id") == doc_id]
+        assert excluded
+        assert {item["reason"] for item in excluded} == {"missing_plane_card"}
+        assert all(item["mode"] == "strict_answer" for item in excluded)
+        assert all(item.get("title") in (None, "") for item in excluded)
+        assert all("text" not in item and "snippet" not in item for item in excluded)
+        assert doc_id in payload["gate_result"]["withheld_context_refs"]
+
+
+def test_strict_answer_rejects_do_not_treat_as_canonical_even_if_promoted(
+    tmp_path,
+    monkeypatch,
+):
+    with _client(tmp_path, monkeypatch) as (client, dbc, lib, src, data_root):
+        doc_id = _seed_promoted(client, dbc, lib, src, data_root)
+        monkeypatch.setenv("BOH_RETRIEVAL_INCLUDE_PROMOTED", "true")
+
+        exploration_ids, exploration = _retrieve_doc_ids(
+            client,
+            include_promoted=True,
+            mode="exploration",
+        )
+        assert doc_id in exploration_ids
+        promoted_pack = next(
+            pack for pack in exploration["context_packs"] if pack.get("doc_id") == doc_id
+        )
+        assert promoted_pack["do_not_treat_as_canonical"] is True
+
+        strict_ids, strict = _retrieve_doc_ids(
+            client,
+            include_promoted=True,
+            mode="strict_answer",
+        )
+        assert doc_id not in strict_ids
+        assert any(
+            item.get("doc_id") == doc_id
+            and item.get("reason") in {"missing_plane_card", "non_authoritative_excluded"}
+            for item in strict["excluded_summary"]
+        )
+
+
+def test_exploration_can_include_noncanonical_with_warning(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as (client, dbc, lib, src, data_root):
+        doc_id = _seed_promoted(client, dbc, lib, src, data_root)
+        monkeypatch.setenv("BOH_RETRIEVAL_INCLUDE_PROMOTED", "true")
+
+        ids, payload = _retrieve_doc_ids(
+            client,
+            include_promoted=True,
+            mode="exploration",
+        )
+
+        assert doc_id in ids
+        pack = next(p for p in payload["context_packs"] if p.get("doc_id") == doc_id)
+        assert pack["eligibility"]["allowed"] is True
+        assert pack["do_not_treat_as_canonical"] is True
+        assert "do_not_treat_as_canonical" in pack["warnings"]
+
+
+def test_missing_plane_card_fails_closed_in_strict_answer(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from app.core.plane_card import wrap_and_persist
+    from app.services.indexer import index_file
+
+    with _client(tmp_path, monkeypatch) as (client, dbc, lib, _src, _data_root):
+        path = Path(lib) / "strict-cardless.md"
+        path.write_text(
+            """---
+boh:
+  id: "strict-cardless-doc"
+  document_id: "strict-cardless-doc"
+  title: "Strict Cardless Authority"
+  purpose: "Strict Cardless Authority"
+  type: "note"
+  document_class: "note"
+  status: "draft"
+  authority_state: "approved"
+  canonical_layer: "canonical"
+  review_state: "approved"
+  project: "Strict Cardless Test"
+  version: "1.0.0"
+  updated: "2026-07-10T00:00:00+00:00"
+  source_hash: "seed-strict-cardless-doc"
+  provenance:
+    mode: "test"
+    source: "strict-cardless-test"
+  topics: ["strictcardless", "authority"]
+  scope:
+    plane_scope: ["retrieval"]
+    field_scope: []
+    node_scope: []
+  rubrix:
+    operator_state: "observe"
+    operator_intent: "capture"
+    next_operator: null
+---
+
+# Strict Cardless Authority
+
+The strictcardless authority fixture is otherwise eligible answer evidence.
+""",
+            encoding="utf-8",
+        )
+        indexed = index_file(path, Path(lib))
+        assert indexed["indexed"] is True
+        doc_id = indexed["doc_id"]
+        wrap_and_persist(
+            dict(dbc.fetchone("SELECT * FROM docs WHERE doc_id = ?", (doc_id,)))
+        )
+        assert dbc.fetchone(
+            "SELECT id FROM cards WHERE doc_id = ?",
+            (doc_id,),
+        ) is not None
+        dbc.execute("DELETE FROM cards WHERE doc_id = ?", (doc_id,))
+
+        response = client.post(
+            "/api/retrieve",
+            json={
+                "query": "strictcardless authority fixture",
+                "mode": "strict_answer",
+                "limit": 8,
+            },
+            headers={"X-BOH-Retrieval-Token": "retrieve-token"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert doc_id not in {
+            pack.get("doc_id") for pack in payload["context_packs"]
+        }
+        excluded = [
+            item
+            for item in payload["excluded_summary"]
+            if item.get("doc_id") == doc_id
+        ]
+        assert excluded
+        assert {item["reason"] for item in excluded} == {"missing_plane_card"}
+
+
+def test_current_context_brief_strict_all_withheld_is_not_answerable(
+    tmp_path,
+    monkeypatch,
+):
+    with _client(tmp_path, monkeypatch) as (client, dbc, lib, src, data_root):
+        doc_id = _seed_promoted(client, dbc, lib, src, data_root)
+        monkeypatch.setenv("BOH_RETRIEVAL_INCLUDE_PROMOTED", "true")
+
+        response = client.post(
+            "/api/current-context-brief",
+            json={
+                "topic": f"{TERM} fixture sentence unique",
+                "mode": "strict_answer",
+                "include_promoted": True,
+                "limit": 8,
+            },
+            headers={"X-BOH-Retrieval-Token": "retrieve-token"},
+        )
+
+        assert response.status_code == 200
+        brief = response.json()
+        assert brief["answerable_now"] is False
+        assert brief["best_evidence"] == []
+        assert any(
+            item.get("doc_id") == doc_id or item.get("ref") == doc_id
+            for item in brief["withheld"]
+        )
 
 
 def test_env_gate_opens_secondary_surfaces(tmp_path, monkeypatch):

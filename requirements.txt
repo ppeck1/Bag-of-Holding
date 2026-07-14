@@ -12,6 +12,7 @@ pydantic==2.10.3
 pydantic_core==2.27.1
 python-dotenv==1.2.1
 python-multipart>=0.0.7
+PyJWT[crypto]==2.13.0
 PyYAML>=6.0
 starlette==0.41.3
 typing_extensions==4.15.0

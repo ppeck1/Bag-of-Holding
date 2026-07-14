@@ -1,18 +1,18 @@
-﻿"""seed_full_demo.py â€” Full-capability demo library for Bag of Holding.
+﻿"""seed_full_demo.py — Full-capability demo library for Bag of Holding.
 
 Generates ~50 self-contained markdown documents across all 8 planes,
 all authority tiers, and a wide freshness spread so every Fold projection
 shows rich, meaningful data:
 
-  Web           â€” varied currentness fill (current / stale / expired / conflict / unknown)
-  Risk Map      â€” node sizes span the full range (low risk â†’ critical drift)
-  Authority Pathâ€” 4 border-weight tiers visible
-  Currentness Mapâ€” nodes fill all 4 quadrants (X=authority, Y=freshness)
-  Evidence State â€” all 8 planes represented with correct shapes
-  Timeline      â€” documents span 3 years of validity windows
+  Web           — varied currentness fill (current / stale / expired / conflict / unknown)
+  Risk Map      — node sizes span the full range (low risk → critical drift)
+  Authority Path— 4 border-weight tiers visible
+  Currentness Map— nodes fill all 4 quadrants (X=authority, Y=freshness)
+  Evidence State — all 8 planes represented with correct shapes
+  Timeline      — documents span 3 years of validity windows
 
-No external files required â€” all content is embedded.
-No server required â€” run directly: python seed_full_demo.py
+No external files required — all content is embedded.
+No server required — run directly: python seed_full_demo.py
 
 Usage:
     python seed_full_demo.py            # seed (idempotent)
@@ -62,7 +62,7 @@ def _hdr(t): print(f"\n--- {t} ---")
 # ---------------------------------------------------------------------------
 
 DOCS = [
-    # â”€â”€ CANONICAL plane â€” BOH System â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── CANONICAL plane — BOH System ──────────────────────────────────────────
     dict(
         id="boh.arch.core-model",
         title="BOH Core Architecture Model",
@@ -118,20 +118,20 @@ Authority is a first-class dimension in BOH, not a metadata tag.
 
 ## Authority states (ranked)
 
-1. canonical   â€” formally promoted, certificate held
-2. trusted     â€” approved by designated custodian
-3. approved    â€” reviewed and accepted
-4. reviewed    â€” passed deterministic review
-5. under_reviewâ€” in active review queue
-6. custodian_review â€” flagged for custodian attention
-7. draft       â€” indexed, not yet reviewed
-8. non_authoritative â€” advisory content, LLM-origin or external
-9. unknown     â€” authority not assessed
+1. canonical   — formally promoted, certificate held
+2. trusted     — approved by designated custodian
+3. approved    — reviewed and accepted
+4. reviewed    — passed deterministic review
+5. under_review— in active review queue
+6. custodian_review — flagged for custodian attention
+7. draft       — indexed, not yet reviewed
+8. non_authoritative — advisory content, LLM-origin or external
+9. unknown     — authority not assessed
 
 ## Operator token
 
 The operator token is the local authorization boundary.
-It does not replace authority â€” it gates privileged mutation routes.
+It does not replace authority — it gates privileged mutation routes.
 Actor ID records who performed the action; operator token says they were allowed to.
 
 ## Certificate model
@@ -181,20 +181,20 @@ app/db/connection.py. A proper migration system is planned.
     ),
     dict(
         id="boh.arch.retrieval-contract",
-        title="Metis Retrieval Contract v1",
+        title="External Retrieval Contract v1",
         project="BOH System",
         plane="canonical",
         authority="approved",
         freshness_days=20,
         valid_ahead=365,
         risk=0.09,
-        body="""# Metis Retrieval Contract v1
+        body="""# External Retrieval Contract v1
 
 Read-only retrieval connectors access BOH via /api/retrieve.
 
 ## Authentication
 
-BOH_RETRIEVAL_TOKEN â€” separate from operator token.
+BOH_RETRIEVAL_TOKEN — separate from operator token.
 Connectors must never receive the operator token.
 
 ## Request shape
@@ -233,12 +233,12 @@ The Fold Workspace visualizes the corpus as a force-directed graph.
 
 ## Projections
 
-1. Web â€” default; fill = currentness
-2. Risk Map â€” size = risk-if-wrong; coordinates stable
-3. Authority Path â€” border weight = authority tier
-4. Currentness Map â€” X = authority pressure, Y = freshness pressure; layout changes
-5. Evidence State â€” fill = plane palette; shape = evidence kind
-6. Timeline â€” X = epistemic_valid_until; layout changes
+1. Web — default; fill = currentness
+2. Risk Map — size = risk-if-wrong; coordinates stable
+3. Authority Path — border weight = authority tier
+4. Currentness Map — X = authority pressure, Y = freshness pressure; layout changes
+5. Evidence State — fill = plane palette; shape = evidence kind
+6. Timeline — X = epistemic_valid_until; layout changes
 
 ## Encoding rules
 
@@ -290,17 +290,17 @@ unknowns, resolver trace link.
 """,
     ),
 
-    # â”€â”€ EVIDENCE plane â€” Knowledge Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── EVIDENCE plane — Knowledge Management ─────────────────────────────────
     dict(
         id="km.evidence.retrieval-benchmark-2026",
-        title="Retrieval Quality Benchmark â€” June 2026",
+        title="Retrieval Quality Benchmark — June 2026",
         project="Knowledge Management",
         plane="evidence",
         authority="reviewed",
         freshness_days=8,
         valid_ahead=90,
         risk=0.22,
-        body="""# Retrieval Quality Benchmark â€” June 2026
+        body="""# Retrieval Quality Benchmark — June 2026
 
 ## Methodology
 
@@ -364,14 +364,14 @@ Pair freshness scoring with authority provenance checks.
     ),
     dict(
         id="km.evidence.fold-graph-test-run",
-        title="Fold Graph Projection Test Run â€” All 6 Projections",
+        title="Fold Graph Projection Test Run — All 6 Projections",
         project="Knowledge Management",
         plane="evidence",
         authority="under_review",
         freshness_days=12,
         valid_ahead=60,
         risk=0.38,
-        body="""# Fold Graph Projection Test Run â€” All 6 Projections
+        body="""# Fold Graph Projection Test Run — All 6 Projections
 
 ## Test corpus
 
@@ -409,18 +409,18 @@ claim=circle, interface=diamond. Currentness corner badges visible.
     ),
     dict(
         id="km.evidence.authority-drift-log-q1",
-        title="Authority Drift Log â€” Q1 2026",
+        title="Authority Drift Log — Q1 2026",
         project="Knowledge Management",
         plane="evidence",
         authority="draft",
         freshness_days=90,
         valid_ahead=None,
         risk=0.54,
-        body="""# Authority Drift Log â€” Q1 2026
+        body="""# Authority Drift Log — Q1 2026
 
 ## Summary
 
-12 documents moved from reviewed â†’ under_review during Q1.
+12 documents moved from reviewed → under_review during Q1.
 4 documents expired without renewal.
 2 new conflicts detected.
 
@@ -489,14 +489,14 @@ and authority transfer procedures.
     ),
     dict(
         id="km.evidence.stale-authority-specimens",
-        title="Stale Authority Specimens â€” Analysis",
+        title="Stale Authority Specimens — Analysis",
         project="Knowledge Management",
         plane="evidence",
         authority="unknown",
         freshness_days=None,
         valid_ahead=None,
         risk=0.78,
-        body="""# Stale Authority Specimens â€” Analysis
+        body="""# Stale Authority Specimens — Analysis
 
 ## Note
 
@@ -525,14 +525,14 @@ Observe how it appears in the Fold visualizations:
     ),
     dict(
         id="km.evidence.llm-proposal-quality-log",
-        title="LLM Proposal Quality Log â€” Sample",
+        title="LLM Proposal Quality Log — Sample",
         project="Knowledge Management",
         plane="evidence",
         authority="non_authoritative",
         freshness_days=45,
         valid_ahead=90,
         risk=0.62,
-        body="""# LLM Proposal Quality Log â€” Sample
+        body="""# LLM Proposal Quality Log — Sample
 
 ## Purpose
 
@@ -599,7 +599,7 @@ This distribution ensures:
 """,
     ),
 
-    # â”€â”€ INFORMATIONAL plane â€” Knowledge Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── INFORMATIONAL plane — Knowledge Management ────────────────────────────
     dict(
         id="km.info.getting-started",
         title="Getting Started with Bag of Holding",
@@ -620,14 +620,14 @@ This distribution ensures:
 
     python launcher.py
 
-Opens http://127.0.0.1:8000/v2/ â€” the new governed UI.
+Opens http://127.0.0.1:8000/v2/ — the new governed UI.
 
 ## First steps
 
 1. Navigate to Current State to see corpus health
 2. Use Capture & Intake to add documents to your library
 3. Open Fold Workspace to visualize the corpus graph
-4. Set an operator token in Settings â†’ Security & Advanced
+4. Set an operator token in Settings → Security & Advanced
 
 ## URL map
 
@@ -656,7 +656,7 @@ Opens http://127.0.0.1:8000/v2/ â€” the new governed UI.
 - [ ] Set BOH_OPERATOR_TOKEN (required for production use)
 - [ ] Set BOH_LIBRARY to the correct library root
 - [ ] Set BOH_DB to persistent storage location
-- [ ] Set BOH_RETRIEVAL_TOKEN if using Metis connector
+- [ ] Set BOH_RETRIEVAL_TOKEN for an external retrieval consumer
 - [ ] Configure BOH_OLLAMA_URL if using LLM review
 - [ ] Run: python launcher.py --no-browser to verify startup
 - [ ] Hit /api/health and confirm status: ok
@@ -739,20 +739,20 @@ Fixed in v2.28.4+: all fromisoformat() calls now return UTC-aware datetimes.
 
 ## Documents not appearing in Fold
 
-1. Check /api/fold/library â€” should return docs array
+1. Check /api/fold/library — should return docs array
 2. Run seed_full_demo.py to populate demo content
 3. Verify BOH_LIBRARY points to correct directory
 
 ## Search returns no results
 
-1. Check /api/search?q=test â€” should return results array
+1. Check /api/search?q=test — should return results array
 2. Ensure documents are indexed (not just preserved)
 3. FTS index is built on indexing, not on preservation
 
 ## Authority badges showing unknown
 
 Unknown means authority was not assessed at index time.
-Use Authority & Audit â†’ Authority Ledger to review and promote.
+Use Authority & Audit → Authority Ledger to review and promote.
 """,
     ),
     dict(
@@ -770,24 +770,24 @@ Full OpenAPI spec at /docs or /openapi.json.
 
 ## Key read-only endpoints
 
-GET /api/health          â€” server status and version
-GET /api/dashboard       â€” corpus summary (total docs, conflicts, etc.)
-GET /api/docs            â€” paginated document list
-GET /api/search          â€” full-text search
-GET /api/coherence/summary â€” coherence state distribution
-GET /api/fold/library    â€” Fold Workspace scatter data
-GET /api/fold/node/{id}  â€” detailed node packet with why_current
-GET /api/graph/projection â€” graph topology for Fold
-GET /api/integrity/dashboard â€” integrity and drift state
-GET /api/audit           â€” audit event stream
+GET /api/health          — server status and version
+GET /api/dashboard       — corpus summary (total docs, conflicts, etc.)
+GET /api/docs            — paginated document list
+GET /api/search          — full-text search
+GET /api/coherence/summary — coherence state distribution
+GET /api/fold/library    — Fold Workspace scatter data
+GET /api/fold/node/{id}  — detailed node packet with why_current
+GET /api/graph/projection — graph topology for Fold
+GET /api/integrity/dashboard — integrity and drift state
+GET /api/audit           — audit event stream
 
 ## Key operator-gated endpoints
 
-POST /api/llm/queue/{id}/approve  â€” admit LLM proposal
-POST /api/llm/queue/{id}/reject   â€” reject LLM proposal
-POST /api/governance/approve/{id}/approve â€” approve governance request
-POST /api/intake/run              â€” run intake pipeline
-POST /api/index                   â€” index documents
+POST /api/llm/queue/{id}/approve  — admit LLM proposal
+POST /api/llm/queue/{id}/reject   — reject LLM proposal
+POST /api/governance/approve/{id}/approve — approve governance request
+POST /api/intake/run              — run intake pipeline
+POST /api/index                   — index documents
 
 ## Authentication
 
@@ -797,14 +797,14 @@ X-BOH-Retrieval-Token required for /api/retrieve.
     ),
     dict(
         id="km.info.visualization-guide",
-        title="BOH Visualization Guide â€” Understanding Fold Projections",
+        title="BOH Visualization Guide — Understanding Fold Projections",
         project="Knowledge Management",
         plane="informational",
         authority="reviewed",
         freshness_days=6,
         valid_ahead=180,
         risk=0.17,
-        body="""# BOH Visualization Guide â€” Understanding Fold Projections
+        body="""# BOH Visualization Guide — Understanding Fold Projections
 
 ## How to read the Fold Workspace
 
@@ -813,9 +813,9 @@ Each document is a node. Edges show relationships.
 
 ## Color encoding (Web projection)
 
-- Green (âœ“ current): freshness and authority both good
-- Amber (âš  stale): aging, needs attention
-- Brown (â§– expired): validity window closed
+- Green (✓ current): freshness and authority both good
+- Amber (⚠ stale): aging, needs attention
+- Brown (⧖ expired): validity window closed
 - Red (! conflicted): contradicting content detected
 - Purple (? unknown): authority/freshness not assessed
 
@@ -926,7 +926,7 @@ Example: old specs, deprecated APIs, historical decisions.
 """,
     ),
 
-    # â”€â”€ SUBJECTIVE plane â€” Knowledge Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── SUBJECTIVE plane — Knowledge Management ───────────────────────────────
     dict(
         id="km.subj.design-philosophy",
         title="BOH Design Philosophy Notes",
@@ -967,14 +967,14 @@ Complexity in the engine; simplicity in the interface.
     ),
     dict(
         id="km.subj.ux-design-notes",
-        title="UX Design Notes â€” Governed Interface Principles",
+        title="UX Design Notes — Governed Interface Principles",
         project="Knowledge Management",
         plane="subjective",
         authority="non_authoritative",
         freshness_days=15,
         valid_ahead=90,
         risk=0.42,
-        body="""# UX Design Notes â€” Governed Interface Principles
+        body="""# UX Design Notes — Governed Interface Principles
 
 Advisory. Based on observation, not formal study.
 
@@ -1005,14 +1005,14 @@ Trust is built by being honest about limitations.
     ),
     dict(
         id="km.subj.future-architecture-speculation",
-        title="Future Architecture Speculation â€” LLM Advisory",
+        title="Future Architecture Speculation — LLM Advisory",
         project="Knowledge Management",
         plane="subjective",
         authority="non_authoritative",
         freshness_days=30,
         valid_ahead=60,
         risk=0.71,
-        body="""# Future Architecture Speculation â€” LLM Advisory
+        body="""# Future Architecture Speculation — LLM Advisory
 
 This document is LLM-generated and advisory only.
 Do not treat as canonical. Enter review queue before using.
@@ -1108,14 +1108,14 @@ PROPOSAL ONLY. Not approved. Under discussion.
 
 The current review queue is binary: admit or reject.
 Complex proposals may need staged admission:
-draft â†’ under_review â†’ approved â†’ canonical.
+draft → under_review → approved → canonical.
 
 ## Proposed: Staged admission
 
 Each LLM proposal could move through stages with different reviewer tiers.
-Stage 1: any reviewer can promote draft â†’ under_review
-Stage 2: approved reviewer required for â†’ approved
-Stage 3: custodian required for â†’ canonical
+Stage 1: any reviewer can promote draft → under_review
+Stage 2: approved reviewer required for → approved
+Stage 3: custodian required for → canonical
 
 ## Rationale
 
@@ -1134,14 +1134,14 @@ Review this before implementing.
     ),
     dict(
         id="km.subj.performance-tuning-notes",
-        title="Performance Tuning Notes â€” Informal",
+        title="Performance Tuning Notes — Informal",
         project="Knowledge Management",
         plane="subjective",
         authority="non_authoritative",
         freshness_days=200,
         valid_ahead=None,
         risk=0.66,
-        body="""# Performance Tuning Notes â€” Informal
+        body="""# Performance Tuning Notes — Informal
 
 Informal notes. Not verified. Use with caution.
 
@@ -1167,57 +1167,44 @@ Run your own benchmarks before making architectural decisions based on this.
 """,
     ),
 
-    # â”€â”€ INTERNAL plane â€” Governance Layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── INTERNAL plane — Governance Layer ─────────────────────────────────────
     dict(
-        id="gov.internal.agents-scaffold",
-        title="Agent Governance Scaffold",
+        id="gov.internal.change-control",
+        title="Change Control Overview",
         project="Governance Layer",
         plane="internal",
         authority="approved",
         freshness_days=8,
         valid_ahead=365,
         risk=0.11,
-        body="""# Agent Governance Scaffold
+        body="""# Change Control Overview
 
-This is the governance contract for agent-assisted development in BOH.
+BOH separates proposed changes from governed acceptance.
 
-## Authority order
+## Review principles
 
-1. Human instruction in current session
-2. The active work order record
-3. The repo-level done gate
-4. The factual state snapshot
-5. The agent contract
-6. Relevant scoped rules files
-7. README and factual architecture docs
-8. Historical notes
+- Capture the requested outcome and affected boundary.
+- Keep proposed changes narrow and attributable.
+- Require relevant tests before acceptance.
+- Preserve authorization, validation, filesystem, and audit controls.
+- Stop when a change cannot be verified safely.
 
-## Scope control
+## Evidence
 
-- Implement only the active task
-- Do not expand scope
-- Do not add dependencies without approval
-- Do not perform broad formatting churn
-
-## Stop conditions
-
-Stop and report if:
-- Task scope conflicts with current code
-- Required behavior cannot be verified
-- A change would weaken auth or auditability
-- Secrets or credentials are encountered
+Accepted changes should record what changed, why it changed, who approved it,
+and which verification demonstrated the intended result.
 """,
     ),
     dict(
         id="gov.internal.phase-planning-notes",
-        title="Phase Planning Notes â€” BOH Development",
+        title="Phase Planning Notes — BOH Development",
         project="Governance Layer",
         plane="internal",
         authority="under_review",
         freshness_days=45,
         valid_ahead=60,
         risk=0.40,
-        body="""# Phase Planning Notes â€” BOH Development
+        body="""# Phase Planning Notes — BOH Development
 
 ## Completed phases
 
@@ -1241,8 +1228,8 @@ Phase G: Fold Phase 7c (cluster UI)
 
 ## Governance note
 
-All phases require an approved work order before implementation.
-No silent scope expansion.
+Future phases require explicit review and acceptance before implementation.
+Planning notes are not evidence that a feature is shipped.
 """,
     ),
     dict(
@@ -1268,21 +1255,21 @@ Bash:
 ## Using the token in browser requests
 
 The token is stored in sessionStorage as boh_operator_token.
-Enter it in Settings â†’ Security & Advanced.
+Enter it in Settings → Security & Advanced.
 
 ## Actor identity
 
-Set actor ID in Settings â†’ Security & Advanced.
+Set actor ID in Settings → Security & Advanced.
 Default: local_operator.
-Attribution records appear in Authority & Audit â†’ Authority Ledger.
+Attribution records appear in Authority & Audit → Authority Ledger.
 
 ## Clean workspace workflow
 
 1. Set operator token
 2. Start BOH
-3. Navigate to Status â†’ Maintenance
+3. Navigate to Status → Maintenance
 4. Click Rebuild index (destroys derived data, recoverable)
-5. Or Reset workspace (irreversible â€” removes all index data)
+5. Or Reset workspace (irreversible — removes all index data)
 
 ## Safe restart
 
@@ -1291,14 +1278,14 @@ Ctrl+C to stop. Launcher auto-selects next free port if 8000 is in use.
     ),
     dict(
         id="gov.internal.release-notes-2026-06",
-        title="Release Notes â€” June 2026",
+        title="Release Notes — June 2026",
         project="Governance Layer",
         plane="internal",
         authority="approved",
         freshness_days=1,
         valid_ahead=90,
         risk=0.07,
-        body="""# Release Notes â€” June 2026
+        body="""# Release Notes — June 2026
 
 ## New features
 
@@ -1338,8 +1325,8 @@ Ctrl+C to stop. Launcher auto-selects next free port if 8000 is in use.
 
 ## UI pinning tests (fast, no server required)
 
-tests/test_fold_view_ui.py â€” 17 tests
-tests/test_phase27_browser_workflow_static.py â€” 18 tests
+tests/test_fold_view_ui.py — 17 tests
+tests/test_phase27_browser_workflow_static.py — 18 tests
 Total: 35 tests, run in ~0.2s
 
 Run after any HTML/JS change:
@@ -1347,7 +1334,7 @@ Run after any HTML/JS change:
 
 ## Fold packet tests (requires DB init)
 
-tests/test_current_fold_packet.py â€” 55 tests
+tests/test_current_fold_packet.py — 55 tests
 Run in ~6s with DB.
 
 ## Full suite
@@ -1364,14 +1351,14 @@ Timestamp-sensitive. Passes in isolation. Known issue.
     ),
     dict(
         id="gov.internal.security-audit-notes",
-        title="Security Audit Notes â€” Local Dev",
+        title="Security Audit Notes — Local Dev",
         project="Governance Layer",
         plane="internal",
         authority="custodian_review",
         freshness_days=60,
         valid_ahead=90,
         risk=0.46,
-        body="""# Security Audit Notes â€” Local Dev
+        body="""# Security Audit Notes — Local Dev
 
 These notes are for local development only.
 A proper security audit is needed for any production deployment.
@@ -1404,17 +1391,17 @@ additional security hardening outside scope of current implementation.
 """,
     ),
 
-    # â”€â”€ REVIEW plane â€” Governance Layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── REVIEW plane — Governance Layer ───────────────────────────────────────
     dict(
         id="gov.review.schema-change-proposal",
-        title="RFC: Schema Change â€” Add currentness_score Column",
+        title="RFC: Schema Change — Add currentness_score Column",
         project="Governance Layer",
         plane="review",
         authority="draft",
         freshness_days=18,
         valid_ahead=30,
         risk=0.58,
-        body="""# RFC: Schema Change â€” Add currentness_score Column
+        body="""# RFC: Schema Change — Add currentness_score Column
 
 STATUS: UNDER REVIEW. Do not implement without approval.
 
@@ -1452,14 +1439,14 @@ Under review. Requires custodian approval before implementation.
     ),
     dict(
         id="gov.review.api-extension-proposal",
-        title="RFC: API Extension â€” /api/fold/why-current Endpoint",
+        title="RFC: API Extension — /api/fold/why-current Endpoint",
         project="Governance Layer",
         plane="review",
         authority="draft",
         freshness_days=14,
         valid_ahead=45,
         risk=0.52,
-        body="""# RFC: API Extension â€” /api/fold/why-current Endpoint
+        body="""# RFC: API Extension — /api/fold/why-current Endpoint
 
 STATUS: UNDER REVIEW.
 
@@ -1512,7 +1499,7 @@ Move classic UI to /classic/.
 
 ## Steps
 
-1. Verify all daily-use screens functional in /v2/ âœ“
+1. Verify all daily-use screens functional in /v2/ ✓
 2. Update app/api/main.py StaticFiles mount order
 3. Update test_phase27_browser_workflow_static.py
    (currently pins classic UI HTML structure)
@@ -1550,7 +1537,7 @@ DRAFT. Not yet approved.
 ## When a conflict is detected
 
 1. System raises a conflict flag on both documents
-2. Documents appear in Review Center â†’ Conflicts
+2. Documents appear in Review Center → Conflicts
 3. Operator assigns a resolver
 
 ## Resolution options
@@ -1628,7 +1615,7 @@ Authority state remains canonical but currentness becomes expired.
         risk=0.56,
         body="""# Review: Ollama Integration Governance
 
-STATUS: CUSTODIAN REVIEW â€” expires soon, renewal needed.
+STATUS: CUSTODIAN REVIEW — expires soon, renewal needed.
 
 ## Current governance locks (hard-coded)
 
@@ -1657,17 +1644,17 @@ and either renew or update governance policy.
 """,
     ),
 
-    # â”€â”€ CONFLICT plane â€” Governance Layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── CONFLICT plane — Governance Layer ─────────────────────────────────────
     dict(
         id="gov.conflict.authority-scope-dispute-a",
-        title="Authority Scope: Interpretation A â€” Operator Owns Corpus",
+        title="Authority Scope: Interpretation A — Operator Owns Corpus",
         project="Governance Layer",
         plane="conflict",
         authority="under_review",
         freshness_days=25,
         valid_ahead=60,
         risk=0.88,
-        body="""# Authority Scope: Interpretation A â€” Operator Owns Corpus
+        body="""# Authority Scope: Interpretation A — Operator Owns Corpus
 
 CONFLICT DOCUMENT. In dispute with Interpretation B.
 
@@ -1697,14 +1684,14 @@ Cannot be promoted until conflict resolved.
     ),
     dict(
         id="gov.conflict.authority-scope-dispute-b",
-        title="Authority Scope: Interpretation B â€” Authority is Document Property",
+        title="Authority Scope: Interpretation B — Authority is Document Property",
         project="Governance Layer",
         plane="conflict",
         authority="under_review",
         freshness_days=23,
         valid_ahead=60,
         risk=0.91,
-        body="""# Authority Scope: Interpretation B â€” Authority is Document Property
+        body="""# Authority Scope: Interpretation B — Authority is Document Property
 
 CONFLICT DOCUMENT. In dispute with Interpretation A.
 
@@ -1737,14 +1724,14 @@ Requires custodian resolution.
     ),
     dict(
         id="gov.conflict.data-model-version-conflict",
-        title="Data Model: v2 vs v2.1 â€” Conflicting Schema Definitions",
+        title="Data Model: v2 vs v2.1 — Conflicting Schema Definitions",
         project="Governance Layer",
         plane="conflict",
         authority="draft",
         freshness_days=50,
         valid_ahead=None,
         risk=0.84,
-        body="""# Data Model: v2 vs v2.1 â€” Conflicting Schema Definitions
+        body="""# Data Model: v2 vs v2.1 — Conflicting Schema Definitions
 
 CONFLICT. Two documents define the schema differently.
 
@@ -1810,17 +1797,17 @@ This document exists to surface the disagreement explicitly.
 """,
     ),
 
-    # â”€â”€ ARCHIVE plane â€” Research Archive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── ARCHIVE plane — Research Archive ──────────────────────────────────────
     dict(
         id="arch.archive.legacy-route-docs",
-        title="ARCHIVED: Legacy Route Documentation â€” Pre-Phase-27",
+        title="ARCHIVED: Legacy Route Documentation — Pre-Phase-27",
         project="Research Archive",
         plane="archive",
         authority="trusted",
         freshness_days=None,
         valid_ahead=None,
         risk=0.33,
-        body="""# ARCHIVED: Legacy Route Documentation â€” Pre-Phase-27
+        body="""# ARCHIVED: Legacy Route Documentation — Pre-Phase-27
 
 HISTORICAL. Superseded by current route surface.
 
@@ -1850,14 +1837,14 @@ Do not re-activate these patterns.
     ),
     dict(
         id="arch.archive.old-data-model-v1",
-        title="ARCHIVED: Data Model v1 â€” Pre-PlaneCard",
+        title="ARCHIVED: Data Model v1 — Pre-PlaneCard",
         project="Research Archive",
         plane="archive",
         authority="approved",
         freshness_days=None,
         valid_ahead=None,
         risk=0.28,
-        body="""# ARCHIVED: Data Model v1 â€” Pre-PlaneCard
+        body="""# ARCHIVED: Data Model v1 — Pre-PlaneCard
 
 HISTORICAL. PlaneCard model supersedes this.
 
@@ -1882,19 +1869,19 @@ v2: 8 planes, 9 authority states, temporal validity windows
 ## Preservation reason
 
 Kept for understanding data model evolution.
-Migration notes for v1 â†’ v2 are in docs/archive/.
+Migration notes for v1 → v2 are in docs/archive/.
 """,
     ),
     dict(
         id="arch.archive.phase-15-design-notes",
-        title="ARCHIVED: Phase 15 Design Notes â€” Coherence Decay",
+        title="ARCHIVED: Phase 15 Design Notes — Coherence Decay",
         project="Research Archive",
         plane="archive",
         authority="reviewed",
         freshness_days=None,
         valid_ahead=None,
         risk=0.37,
-        body="""# ARCHIVED: Phase 15 Design Notes â€” Coherence Decay
+        body="""# ARCHIVED: Phase 15 Design Notes — Coherence Decay
 
 HISTORICAL.
 
@@ -1913,9 +1900,9 @@ Phase 24.2 introduced the temporal governor with drift detection.
 
 ## Current implementation
 
-app/core/coherence_decay.py â€” the coherence formula
-app/core/temporal_governor.py â€” drift detection and escalation
-app/core/temporal_escalation.py â€” escalation policy
+app/core/coherence_decay.py — the coherence formula
+app/core/temporal_governor.py — drift detection and escalation
+app/core/temporal_escalation.py — escalation policy
 
 ## Known issue (fixed June 2026)
 
@@ -1926,14 +1913,14 @@ Fixed by attaching UTC timezone when tzinfo is None.
     ),
     dict(
         id="arch.archive.original-fold-design",
-        title="ARCHIVED: Original Fold View Design â€” Phases 0-5",
+        title="ARCHIVED: Original Fold View Design — Phases 0-5",
         project="Research Archive",
         plane="archive",
         authority="reviewed",
         freshness_days=None,
         valid_ahead=None,
         risk=0.30,
-        body="""# ARCHIVED: Original Fold View Design â€” Phases 0-5
+        body="""# ARCHIVED: Original Fold View Design — Phases 0-5
 
 HISTORICAL. Superseded by Phase B Fold Workspace.
 
@@ -2008,14 +1995,14 @@ Future designers should understand why alternatives were considered and rejected
     ),
     dict(
         id="arch.archive.glossary-v1",
-        title="ARCHIVED: Glossary v1 â€” Superseded by Plane Guide",
+        title="ARCHIVED: Glossary v1 — Superseded by Plane Guide",
         project="Research Archive",
         plane="archive",
         authority="approved",
         freshness_days=None,
         valid_ahead=None,
         risk=0.25,
-        body="""# ARCHIVED: Glossary v1 â€” Superseded by Plane Guide
+        body="""# ARCHIVED: Glossary v1 — Superseded by Plane Guide
 
 HISTORICAL. See Plane Classification Guide (km.info.plane-classification-guide).
 
@@ -2035,7 +2022,7 @@ Was: "layer". Renamed to "plane" in Phase 18.
 Computed from freshness decay, conflict penalty, and refresh credit.
 
 **Fold**: the governed visualization of corpus structure.
-Name reflects "dimensional folding" â€” projecting high-dimensional state
+Name reflects "dimensional folding" — projecting high-dimensional state
 onto viewable 2D representations.
 
 **Certificate**: the formal attestation required for canonical promotion.
@@ -2075,13 +2062,13 @@ def _iso_ahead(days: Optional[int]) -> Optional[str]:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def _iso_ago(days: Optional[int]) -> Optional[str]:
-    """Return an ISO timestamp for `days` ago (None â†’ very old, use 3yr ago)."""
+    """Return an ISO timestamp for `days` ago (None → very old, use 3yr ago)."""
     if days is None:
         days = 3 * 365
     dt = datetime.datetime.utcfromtimestamp(max(0, NOW_TS - days * 86400))
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-# Authority â†’ approximate score
+# Authority → approximate score
 AUTHORITY_SCORE = {
     "canonical":       0.95,
     "trusted":         0.83,
@@ -2132,7 +2119,7 @@ def _enrich_doc(doc_id: str, doc: dict) -> None:
     """Update DB fields for authority, plane, freshness, validity.
 
     Fold scalars (freshness_score, authority_score, ...) are DERIVED by
-    app.core.fold_metrics at projection time â€” they are not stored columns.
+    app.core.fold_metrics at projection time — they are not stored columns.
     Freshness derives from epistemic_last_evaluated (priority) or updated_ts,
     so 'ancient/unknown' is encoded as a very old evaluation timestamp.
     """
@@ -2209,7 +2196,7 @@ def seed() -> None:
     DEMO_DIR.mkdir(parents=True, exist_ok=True)
 
     _hdr(f"Writing {len(DOCS)} documents to {DEMO_DIR}")
-    doc_id_map = {}  # logical_id â†’ db doc_id
+    doc_id_map = {}  # logical_id → db doc_id
 
     for doc in DOCS:
         path = _write_doc(doc)
@@ -2229,7 +2216,7 @@ def seed() -> None:
         if a_db and b_db:
             _add_edge(a_db, b_db, etype)
         else:
-            _skip(f"  edge skipped: {a} â†’ {b} (missing: {not a_db and a}, {not b_db and b})")
+            _skip(f"  edge skipped: {a} -> {b} (missing: {not a_db and a}, {not b_db and b})")
 
     for a, b in SUPERSEDES_PAIRS:
         a_db = doc_id_map.get(a)
@@ -2237,7 +2224,7 @@ def seed() -> None:
         if a_db and b_db:
             _add_edge(a_db, b_db, "supersedes")
         else:
-            _skip(f"  supersedes skipped: {a} â†’ {b}")
+            _skip(f"  supersedes skipped: {a} -> {b}")
 
     MARKER.write_text(f"seeded {NOW_TS}\n{len(DOCS)} docs\n{len(doc_id_map)} indexed\n")
 
@@ -2245,8 +2232,8 @@ def seed() -> None:
     _ok(f"Demo seeded: {len(doc_id_map)}/{len(DOCS)} documents indexed")
     print(f"\n  Planes: canonical, evidence, informational, subjective, internal, review, conflict, archive")
     print(f"  Projects: BOH System, Knowledge Management, Governance Layer, Research Archive")
-    print(f"  Authority: full spread (canonical â†’ unknown)")
-    print(f"  Freshness: full spread (1 day ago â†’ unknown/ancient)")
+    print("  Authority: full spread (canonical to unknown)")
+    print("  Freshness: full spread (1 day ago to unknown/ancient)")
     print(f"  Conflicts: {len(CONFLICT_PAIRS)} conflict pairs")
     print(f"  Supersedes: {len(SUPERSEDES_PAIRS)} supersession edges")
     print()
@@ -2260,7 +2247,7 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.dry_run:
-        print(f"DRY RUN â€” would seed {len(DOCS)} documents across 4 projects, 8 planes")
+        print(f"DRY RUN — would seed {len(DOCS)} documents across 4 projects, 8 planes")
         for doc in DOCS:
             print(f"  [{doc['plane'][:8]:8s}] [{doc['authority'][:16]:16s}] {doc['title'][:60]}")
         return

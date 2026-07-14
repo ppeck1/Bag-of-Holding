@@ -8,27 +8,42 @@ so a neural embedding backend can be added later without changing the API shape.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import math
 import os
 import re
 import time
-from collections import Counter
+import copy
+from collections import Counter, defaultdict
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
 from typing import Any
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
 
 from app.db import connection as db
 from app.core import fold_metrics
 from app.core import promoted_exposure
+from app.core import token_config
 from app.core.canon import canon_score
 from app.core import planar_authority, planar_gate
-from app.core.plane_card import get_card_for_doc, list_cards, log_storage_event
+from app.core.plane_card import (
+    PlaneCard,
+    _row_to_card,
+    get_card_for_doc,
+    list_cards,
+    log_storage_event,
+)
 
 RETRIEVAL_HEADER = "X-BOH-Retrieval-Token"
 EMBEDDING_MODEL = "boh-local-hash-embedding-v1"
 EMBEDDING_DIMS = 64
+RETRIEVAL_AUTHORITY_COMPONENT_BUDGET = 0.15
 WORD_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_\-]{1,}")
+STRONG_IDENTIFIER_RE = re.compile(
+    r"(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+$"
+)
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 TABLE_RE = re.compile(r"^\s*\|.*\|\s*$")
 LINK_RE = re.compile(r"\[[^\]]+\]\([^)]+\)|https?://\S+")
@@ -39,31 +54,131 @@ STOPWORDS = {
 }
 
 
+@dataclass(frozen=True)
+class GovernedRetrievalResult(Mapping[str, Any]):
+    """Normalized internal result with a backward-compatible wire projection."""
+
+    query: str
+    context_packs: list[dict]
+    excluded_summary: list[dict]
+    audit_context: dict
+    retrieval: dict
+    planar_context_pack: dict
+    gate_result: dict
+    warnings: list[str]
+    context_conflicts: list[dict]
+
+    @property
+    def count(self) -> int:
+        return len(self.context_packs)
+
+    def to_dict(self) -> dict[str, Any]:
+        return copy.deepcopy({
+            "query": self.query,
+            "count": self.count,
+            "context_packs": self.context_packs,
+            "excluded_summary": self.excluded_summary,
+            "audit_context": self.audit_context,
+            "retrieval": self.retrieval,
+            "planar_context_pack": self.planar_context_pack,
+            "gate_result": self.gate_result,
+            "warnings": self.warnings,
+        })
+
+    def __getitem__(self, key: str) -> Any:
+        return self.to_dict()[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.to_dict())
+
+    def __len__(self) -> int:
+        return len(self.to_dict())
+
+
+class _RetrievalReadSnapshot:
+    """One deterministic SQLite read transaction for a retrieval request."""
+
+    def __init__(self) -> None:
+        self.conn = None
+
+    def __enter__(self) -> "_RetrievalReadSnapshot":
+        self.conn = db.get_conn()
+        try:
+            self.conn.execute("PRAGMA query_only=ON")
+            self.conn.execute("BEGIN")
+        except Exception:
+            self.conn.close()
+            self.conn = None
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        if self.conn is not None:
+            connection = self.conn
+            self.conn = None
+            try:
+                connection.rollback()
+            finally:
+                connection.close()
+
+    def fetchall(self, query: str, params: tuple[Any, ...] = ()) -> list[dict]:
+        if self.conn is None:
+            raise RuntimeError("retrieval snapshot is not active")
+        return [dict(row) for row in self.conn.execute(query, params).fetchall()]
+
+    def fetchone(self, query: str, params: tuple[Any, ...] = ()) -> dict | None:
+        if self.conn is None:
+            raise RuntimeError("retrieval snapshot is not active")
+        row = self.conn.execute(query, params).fetchone()
+        return dict(row) if row else None
+
+
+def _in_marks(values: list[Any]) -> str:
+    return ",".join("?" for _ in values)
+
+
 def retrieval_status() -> dict:
+    state = token_config.get_state("retrieval")
     return {
-        "configured": bool(os.environ.get("BOH_RETRIEVAL_TOKEN", "").strip()),
+        "configured": state.configured,
         "header_name": RETRIEVAL_HEADER,
         "read_only": True,
         "operator_token_required": False,
         "protected_routes_fail_closed": True,
+        "source": state.source,
+        "record_valid": state.record_valid,
+        "managed_by_environment": state.managed_by_environment,
+        "restart_required": state.restart_required,
     }
 
 
+def _is_loopback_peer(host: str | None) -> bool:
+    if not host:
+        return False
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host.casefold() == "localhost"
+
+
 def require_retrieval_token(
+    request: Request,
     x_boh_retrieval_token: str | None = Header(default=None, alias=RETRIEVAL_HEADER),
 ) -> str:
-    expected = os.environ.get("BOH_RETRIEVAL_TOKEN", "").strip()
-    if not expected:
+    state = token_config.get_state("retrieval")
+    if not state.configured:
+        if request.client and _is_loopback_peer(request.client.host):
+            return "local_dev_retrieval"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="retrieval token is not configured; set BOH_RETRIEVAL_TOKEN before launch",
+            detail="retrieval token is not configured for non-local access",
         )
     if not x_boh_retrieval_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"missing {RETRIEVAL_HEADER}",
         )
-    if x_boh_retrieval_token != expected:
+    if not token_config.verify("retrieval", x_boh_retrieval_token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="invalid retrieval token",
@@ -73,6 +188,11 @@ def require_retrieval_token(
 
 def _terms(text: str) -> list[str]:
     return [t.lower() for t in WORD_RE.findall(text or "") if t.lower() not in STOPWORDS]
+
+
+def _strong_identifier_terms(terms: list[str]) -> list[str]:
+    """Return identifier-shaped terms that should not degrade to generic matches."""
+    return [term for term in terms if STRONG_IDENTIFIER_RE.fullmatch(term)]
 
 
 def _term_counter(text: str) -> Counter:
@@ -393,6 +513,216 @@ def _intake_provenance_for(doc_id: str) -> dict | None:
     return dict(rows[0]) if rows else None
 
 
+@dataclass
+class _BatchedMetadata:
+    lineage: dict[str, list[dict]]
+    conflicts: dict[str, list[dict]]
+    context_conflicts: dict[str, list[dict]]
+    provenance: dict[str, dict]
+    review_state: dict[str, dict]
+    intake_provenance: dict[str, dict]
+    cards_by_doc: dict[str, PlaneCard]
+    recent_cards: list[PlaneCard]
+
+
+def _batch_metadata(
+    snapshot: _RetrievalReadSnapshot,
+    doc_ids: list[str],
+    *,
+    recent_card_limit: int,
+) -> _BatchedMetadata:
+    """Load all candidate metadata in one traced read statement."""
+    unique_ids = list(dict.fromkeys(doc_id for doc_id in doc_ids if doc_id))
+    if not unique_ids:
+        rows = snapshot.fetchall(
+            "SELECT * FROM cards ORDER BY updated_ts DESC LIMIT ?",
+            (recent_card_limit,),
+        )
+        cards = [_row_to_card(row) for row in rows]
+        return _BatchedMetadata(
+            {}, {}, {}, {}, {}, {},
+            {card.doc_id: card for card in cards if card.doc_id},
+            cards,
+        )
+
+    marks = _in_marks(unique_ids)
+    conflict_predicate = " OR ".join("x.doc_ids LIKE ?" for _ in unique_ids)
+    conflict_params = tuple(f"%{doc_id}%" for doc_id in unique_ids)
+    params: list[Any] = []
+    parts: list[str] = []
+
+    parts.append(
+        "SELECT 'lineage' AS kind, l.doc_id AS object_id, "
+        "json_object('id', l.id, 'doc_id', l.doc_id, 'related_doc_id', l.related_doc_id, "
+        "'relationship', l.relationship, 'detected_ts', l.detected_ts, 'detail', l.detail) AS payload "
+        f"FROM lineage l WHERE l.doc_id IN ({marks}) OR l.related_doc_id IN ({marks})"
+    )
+    params.extend(unique_ids)
+    params.extend(unique_ids)
+
+    parts.append(
+        "SELECT 'conflict' AS kind, NULL AS object_id, "
+        "json_object('rowid', x.rowid, 'conflict_type', x.conflict_type, 'doc_ids', x.doc_ids, "
+        "'term', x.term, 'plane_path', x.plane_path, 'detected_ts', x.detected_ts, "
+        "'acknowledged', x.acknowledged) AS payload "
+        f"FROM conflicts x WHERE {conflict_predicate}"
+    )
+    params.extend(conflict_params)
+
+    parts.append(
+        "SELECT 'artifact' AS kind, p.document_id AS object_id, "
+        "json_object('artifact_id', p.artifact_id, 'approval_id', p.approval_id, "
+        "'action_type', p.action_type, 'document_id', p.document_id, "
+        "'from_state', p.from_state, 'to_state', p.to_state, "
+        "'approved_by', p.approved_by, 'approved_at', p.approved_at) AS payload "
+        f"FROM provenance_artifacts p WHERE p.document_id IN ({marks})"
+    )
+    params.extend(unique_ids)
+
+    parts.append(
+        "SELECT 'intake' AS kind, p.doc_id AS object_id, "
+        "json_object('promotion_id', p.promotion_id, 'source_revision_id', p.source_revision_id, "
+        "'intake_capability_id', p.intake_capability_id, 'handoff_id', p.handoff_id, "
+        "'normalized_artifact_id', p.normalized_artifact_id, 'normalized_hash', p.normalized_hash, "
+        "'normalized_output_type', p.normalized_output_type, "
+        "'normalized_output_profile', p.normalized_output_profile, 'adapter_id', p.adapter_id, "
+        "'adapter_version', p.adapter_version, 'adapter_registry_version', p.adapter_registry_version, "
+        "'policy_snapshot_hash', p.policy_snapshot_hash, 'promoted_by', p.promoted_by, "
+        "'promoted_at', p.promoted_at, 'intake_run_id', h.intake_run_id) AS payload "
+        "FROM intake_promotions p LEFT JOIN intake_handoffs h ON h.handoff_id = p.handoff_id "
+        f"WHERE p.doc_id IN ({marks}) AND p.status = 'active'"
+    )
+    params.extend(unique_ids)
+
+    parts.append(
+        "SELECT 'card' AS kind, c.doc_id AS object_id, "
+        "json_object('rowid', c.rowid, 'id', c.id, 'plane', c.plane, 'card_type', c.card_type, "
+        "'topic', c.topic, 'b', c.b, 'd', c.d, 'm', c.m, 'delta_json', c.delta_json, "
+        "'constraints_json', c.constraints_json, 'authority_json', c.authority_json, "
+        "'observed_at', c.observed_at, 'valid_until', c.valid_until, "
+        "'context_ref_json', c.context_ref_json, 'payload_json', c.payload_json, "
+        "'doc_id', c.doc_id, 'created_ts', c.created_ts, 'updated_ts', c.updated_ts, "
+        "'plane_card_version', c.plane_card_version, "
+        "'recent', CASE WHEN c.id IN (SELECT id FROM cards ORDER BY updated_ts DESC LIMIT ?) "
+        "THEN 1 ELSE 0 END) AS payload FROM cards c "
+        f"WHERE c.doc_id IN ({marks}) OR c.id IN "
+        "(SELECT id FROM cards ORDER BY updated_ts DESC LIMIT ?)"
+    )
+    params.append(recent_card_limit)
+    params.extend(unique_ids)
+    params.append(recent_card_limit)
+
+    try:
+        rows = snapshot.fetchall(" UNION ALL ".join(parts), tuple(params))
+    except Exception as exc:
+        # Old databases may predate the intake tables. Preserve the established
+        # fail-soft intake-provenance behavior without hiding other SQL defects.
+        if "intake_" not in str(exc).lower() or "no such table" not in str(exc).lower():
+            raise
+        intake_index = next(i for i, part in enumerate(parts) if "'intake' AS kind" in part)
+        del parts[intake_index]
+        intake_param_start = len(unique_ids) * 2 + len(conflict_params) + len(unique_ids)
+        del params[intake_param_start:intake_param_start + len(unique_ids)]
+        rows = snapshot.fetchall(" UNION ALL ".join(parts), tuple(params))
+
+    lineage_rows: list[dict] = []
+    conflict_rows: list[dict] = []
+    artifacts: dict[str, list[dict]] = defaultdict(list)
+    intake: dict[str, dict] = {}
+    card_rows: list[dict] = []
+    for row in rows:
+        payload = json.loads(row.get("payload") or "{}")
+        kind = row.get("kind")
+        if kind == "lineage":
+            lineage_rows.append(payload)
+        elif kind == "conflict":
+            conflict_rows.append(payload)
+        elif kind == "artifact":
+            artifacts[str(row.get("object_id") or "")].append(payload)
+        elif kind == "intake":
+            intake.setdefault(str(row.get("object_id") or ""), payload)
+        elif kind == "card":
+            card_rows.append(payload)
+
+    lineage_rows.sort(key=lambda row: (-(row.get("detected_ts") or 0), row.get("id") or 0))
+    lineage_by_doc: dict[str, list[dict]] = {}
+    for doc_id in unique_ids:
+        lineage_by_doc[doc_id] = [
+            row for row in lineage_rows
+            if row.get("doc_id") == doc_id or row.get("related_doc_id") == doc_id
+        ]
+
+    conflict_rows.sort(key=lambda row: (-(row.get("detected_ts") or 0), row.get("rowid") or 0))
+    conflicts_by_doc: dict[str, list[dict]] = {}
+    context_conflicts_by_doc: dict[str, list[dict]] = {}
+    for doc_id in unique_ids:
+        # Preserve the legacy retrieval order: SQL LIKE + LIMIT 10 happened
+        # before exact CSV membership filtering. ContextObject historically
+        # used the full exact member set, so keep that separately.
+        legacy_like_rows = [
+            row for row in conflict_rows if doc_id in str(row.get("doc_ids") or "")
+        ][:10]
+        matched = []
+        for row in legacy_like_rows:
+            if doc_id not in str(row.get("doc_ids") or "").split(","):
+                continue
+            item = dict(row)
+            item["resolution_status"] = "acknowledged" if item.get("acknowledged") else "open"
+            matched.append(item)
+        conflicts_by_doc[doc_id] = matched
+        full_exact = []
+        for row in conflict_rows:
+            if doc_id not in str(row.get("doc_ids") or "").split(","):
+                continue
+            item = dict(row)
+            item["resolution_status"] = "acknowledged" if item.get("acknowledged") else "open"
+            full_exact.append(item)
+        context_conflicts_by_doc[doc_id] = full_exact
+
+    provenance: dict[str, dict] = {}
+    review_state: dict[str, dict] = {}
+    for doc_id in unique_ids:
+        ordered = sorted(
+            artifacts.get(doc_id, []),
+            key=lambda row: -(row.get("approved_at") or 0),
+        )
+        provenance[doc_id] = {"artifacts": [
+            {key: row.get(key) for key in (
+                "artifact_id", "approval_id", "approved_by", "approved_at", "action_type"
+            )}
+            for row in ordered[:5]
+        ]}
+        review_state[doc_id] = {
+            "last_review": ({key: ordered[0].get(key) for key in (
+                "action_type", "from_state", "to_state", "approved_by", "approved_at"
+            )} if ordered else None),
+            "review_count": len(ordered),
+        }
+
+    cards_by_doc: dict[str, PlaneCard] = {}
+    recent_rows = []
+    for row in card_rows:
+        is_recent = bool(row.pop("recent", 0))
+        row.pop("rowid", None)
+        card = _row_to_card(row)
+        if card.doc_id and card.doc_id not in cards_by_doc:
+            cards_by_doc[card.doc_id] = card
+        if is_recent:
+            recent_rows.append((row.get("updated_ts") or 0, card))
+    recent_rows.sort(key=lambda item: item[0], reverse=True)
+
+    return _BatchedMetadata(
+        lineage=lineage_by_doc,
+        conflicts=conflicts_by_doc,
+        context_conflicts=context_conflicts_by_doc,
+        provenance=provenance,
+        review_state=review_state,
+        intake_provenance=intake,
+        cards_by_doc=cards_by_doc,
+        recent_cards=[card for _updated, card in recent_rows[:recent_card_limit]],
+    )
+
+
 def _authority_weight(doc: dict) -> float:
     status = doc.get("status") or ""
     authority = doc.get("authority_state") or ""
@@ -406,7 +736,13 @@ def _authority_weight(doc: dict) -> float:
         weight += 0.10
     if authority in {"quarantined", "draft"}:
         weight -= 0.08
-    return max(-0.15, min(0.35, weight))
+    # status, authority_state, and canonical_layer are correlated projections of
+    # authority. Preserve their existing tier signals without letting the three
+    # aliases stack beyond the retrieval component's 0.15 score budget.
+    return max(
+        -RETRIEVAL_AUTHORITY_COMPONENT_BUDGET,
+        min(RETRIEVAL_AUTHORITY_COMPONENT_BUDGET, weight),
+    )
 
 
 def _snippet(text: str, query_terms: list[str], max_chars: int = 420) -> str:
@@ -522,13 +858,15 @@ def _card_matches_filters(card: dict, filters: dict[str, Any] | None) -> bool:
 
 
 def _matching_card_packs(query: str, mode: str, limit: int,
-                         filters: dict[str, Any] | None = None) -> list[dict]:
+                         filters: dict[str, Any] | None = None,
+                         cards: list[PlaneCard] | None = None) -> list[dict]:
     q_terms = set(_terms(query))
     if not q_terms:
         return []
+    strong_identifiers = set(_strong_identifier_terms(list(q_terms)))
     packs = []
-    cards = list_cards(limit=max(limit * 4, 25))
-    for card in cards:
+    card_pool = cards if cards is not None else list_cards(limit=max(limit * 4, 25))
+    for card in card_pool:
         c = card.to_dict()
         if not _card_matches_filters(c, filters):
             continue
@@ -541,7 +879,12 @@ def _matching_card_packs(query: str, mode: str, limit: int,
             str(payload.get("summary") or ""),
             str(payload.get("text") or ""),
         ])
-        overlap = q_terms & set(_terms(haystack))
+        haystack_terms = set(_terms(haystack))
+        # Card augmentation must preserve the identifier precision of document
+        # retrieval, especially when an exact target is policy-hidden.
+        if strong_identifiers and not strong_identifiers.issubset(haystack_terms):
+            continue
+        overlap = q_terms & haystack_terms
         if not overlap:
             continue
         score = 0.20 + min(0.40, len(overlap) / max(len(q_terms), 1))
@@ -550,32 +893,140 @@ def _matching_card_packs(query: str, mode: str, limit: int,
     return packs[:limit]
 
 
-def _attach_card_authority(packs: list[dict], mode: str) -> list[dict]:
+def _attach_card_authority(
+    packs: list[dict],
+    mode: str,
+    cards_by_doc: dict[str, PlaneCard] | None = None,
+) -> list[dict]:
     out = []
     for pack in packs:
         if pack.get("card_id"):
             out.append(pack)
             continue
-        card = get_card_for_doc(pack.get("doc_id"), auto_wrap=False) if pack.get("doc_id") else None
+        card = (
+            (cards_by_doc or {}).get(pack.get("doc_id"))
+            if cards_by_doc is not None
+            else (get_card_for_doc(pack.get("doc_id"), auto_wrap=False) if pack.get("doc_id") else None)
+        )
         if card:
             c = card.to_dict()
-            decision = planar_authority.can_use("retrieval_connector", c, "answer_context", mode)
+            payload = dict(c.get("payload") or {})
+            payload["non_authoritative"] = bool(
+                payload.get("non_authoritative")
+                or pack.get("do_not_treat_as_canonical")
+            )
+            if payload.get("confidence") is None:
+                semantic_score = (pack.get("why_selected") or {}).get("semantic_score")
+                if semantic_score is not None:
+                    payload["confidence"] = semantic_score
+            c["payload"] = payload
+            authority = dict(c.get("authority") or {})
+            if not authority.get("state") and pack.get("authority_state"):
+                authority["state"] = pack.get("authority_state")
+            c["authority"] = authority
+            decision = planar_authority.can_use(
+                "retrieval_connector",
+                c,
+                "answer_context",
+                mode,
+            )
             pack["card_id"] = c.get("id")
             pack["plane"] = c.get("plane")
             pack["card_type"] = c.get("card_type")
-            pack["eligibility"] = decision.to_dict()
-            if not decision.allowed:
-                pack.setdefault("warnings", []).append(f"blocked:{decision.reason}")
         else:
-            decision = planar_authority.can_use("retrieval_connector", {}, "answer_context", mode)
-            pack["eligibility"] = decision.to_dict()
+            mode_key = str(mode or "").lower().replace(" ", "_").replace("-", "_")
+            if mode_key in {"strict_answer", "strict"}:
+                decision = planar_authority.Decision(
+                    allowed=False,
+                    reason="missing_plane_card",
+                    required_action="review_card",
+                    visible_message=(
+                        "This evidence has no PlaneCard and cannot support a strict answer."
+                    ),
+                )
+            else:
+                freshness = pack.get("freshness") or {}
+                card_like = {
+                    "id": None,
+                    "doc_id": pack.get("doc_id"),
+                    "plane": pack.get("plane"),
+                    "payload": {
+                        "non_authoritative": bool(
+                            pack.get("do_not_treat_as_canonical")
+                        ),
+                        "confidence": (
+                            pack.get("why_selected") or {}
+                        ).get("semantic_score"),
+                    },
+                    "authority": {"state": pack.get("authority_state")},
+                    "valid_until": freshness.get("valid_until"),
+                }
+                decision = planar_authority.can_use(
+                    "retrieval_connector",
+                    card_like,
+                    "answer_context",
+                    mode,
+                )
+        pack["eligibility"] = decision.to_dict()
+        if not decision.allowed:
+            warning = f"blocked:{decision.reason}"
+            if warning not in pack.setdefault("warnings", []):
+                pack["warnings"].append(warning)
         out.append(pack)
     return out
 
 
-def _audit_objects(packs: list[dict]) -> dict:
+def _audit_objects(
+    packs: list[dict],
+    snapshot: _RetrievalReadSnapshot | None = None,
+) -> dict:
     card_ids = [p.get("card_id") for p in packs if p.get("card_id")]
     doc_ids = [p.get("doc_id") for p in packs if p.get("doc_id")]
+    if snapshot is not None:
+        card_query_ids = list(dict.fromkeys(card_ids[:10]))
+        doc_query_ids = list(dict.fromkeys(doc_ids[:10]))
+        event_clauses = []
+        event_params: list[Any] = []
+        if card_query_ids:
+            event_clauses.append(f"card_id IN ({_in_marks(card_query_ids)})")
+            event_params.extend(card_query_ids)
+        if doc_query_ids:
+            event_clauses.append(f"doc_id IN ({_in_marks(doc_query_ids)})")
+            event_params.extend(doc_query_ids)
+        event_rows = snapshot.fetchall(
+            "SELECT * FROM storage_events WHERE " + " OR ".join(event_clauses)
+            + " ORDER BY created_ts DESC",
+            tuple(event_params),
+        ) if event_clauses else []
+        events = []
+        for card_id in card_ids[:10]:
+            events.extend([row for row in event_rows if row.get("card_id") == card_id][:10])
+        for doc_id in doc_ids[:10]:
+            events.extend([row for row in event_rows if row.get("doc_id") == doc_id][:10])
+        certificate_rows = snapshot.fetchall(
+            f"SELECT * FROM certificates WHERE node_id IN ({_in_marks(card_query_ids)}) "
+            "ORDER BY created_at DESC",
+            tuple(card_query_ids),
+        ) if card_query_ids else []
+        interface_rows = snapshot.fetchall(
+            f"SELECT * FROM plane_interfaces WHERE node_id IN ({_in_marks(card_query_ids)}) "
+            "ORDER BY created_at DESC",
+            tuple(card_query_ids),
+        ) if card_query_ids else []
+        certificates = []
+        interfaces = []
+        for card_id in card_ids[:10]:
+            certificates.extend([
+                row for row in certificate_rows if row.get("node_id") == card_id
+            ][:5])
+            interfaces.extend([
+                row for row in interface_rows if row.get("node_id") == card_id
+            ][:5])
+        return {
+            "storage_events": events[:30],
+            "certificates": certificates[:20],
+            "plane_interfaces": interfaces[:20],
+        }
     events = []
     for card_id in card_ids[:10]:
         events.extend(db.fetchall("SELECT * FROM storage_events WHERE card_id = ? ORDER BY created_ts DESC LIMIT 10", (card_id,)))
@@ -594,70 +1045,107 @@ def _audit_objects(packs: list[dict]) -> dict:
     }
 
 
-def retrieve_governed(query: str, mode: str = "strict_answer", limit: int = 8,
-                      include_lineage: bool = True, filters: dict[str, Any] | None = None,
-                      max_context_chars: int = 6000,
-                      include_promoted: bool = False) -> dict:
-    """Wrap retrieval with Planar Storage mode eligibility."""
+def retrieve_governed_result(
+    query: str,
+    mode: str = "strict_answer",
+    limit: int = 8,
+    include_lineage: bool = True,
+    filters: dict[str, Any] | None = None,
+    max_context_chars: int = 6000,
+    include_promoted: bool = False,
+    emit_audit_event: bool = True,
+) -> GovernedRetrievalResult:
+    """Build one normalized governed result for all answer-oriented consumers."""
     mode_key = (mode or "strict_answer").lower().replace(" ", "_").replace("-", "_")
     if mode_key not in {"strict_answer", "exploration", "audit_provenance", "canon_review", "low_b_worker_context"}:
         raise ValueError(f"unknown retrieval mode: {mode!r}")
 
-    base = retrieve(
-        query,
-        limit=limit,
-        include_lineage=include_lineage,
-        filters=filters,
-        max_context_chars=max_context_chars,
-        # Dual gate (DEC-0004): server env AND request flag must both be open.
-        show_promoted=promoted_exposure.visible(include_promoted),
-    )
-    packs = _attach_card_authority(base.get("context_packs", []), mode_key)
-    existing_cards = {p.get("card_id") for p in packs}
-    for pack in _matching_card_packs(query, mode_key, limit, filters=filters):
-        if pack.get("card_id") not in existing_cards:
-            packs.append(pack)
-            existing_cards.add(pack.get("card_id"))
+    with _RetrievalReadSnapshot() as snapshot:
+        base, metadata = retrieve(
+            query,
+            limit=limit,
+            include_lineage=include_lineage,
+            filters=filters,
+            max_context_chars=max_context_chars,
+            # Dual gate (DEC-0004): server env AND request flag must both be open.
+            show_promoted=promoted_exposure.visible(include_promoted),
+            _snapshot=snapshot,
+            _return_metadata=True,
+        )
+        packs = _attach_card_authority(
+            base.get("context_packs", []), mode_key, metadata.cards_by_doc
+        )
+        existing_cards = {p.get("card_id") for p in packs}
+        for pack in _matching_card_packs(
+            query,
+            mode_key,
+            limit,
+            filters=filters,
+            cards=metadata.recent_cards,
+        ):
+            if pack.get("card_id") not in existing_cards:
+                packs.append(pack)
+                existing_cards.add(pack.get("card_id"))
 
-    included = []
-    excluded = []
-    for pack in packs:
-        decision = pack.get("eligibility") or {"allowed": True}
-        if decision.get("allowed"):
-            included.append(pack)
+        included = []
+        excluded = []
+        for pack in packs:
+            decision = pack.get("eligibility") or {"allowed": True}
+            if decision.get("allowed"):
+                included.append(pack)
+            else:
+                excluded.append({
+                    "card_id": pack.get("card_id"),
+                    "doc_id": pack.get("doc_id"),
+                    # Preserve the established response key without leaking title/content.
+                    "title": None,
+                    "plane": pack.get("plane"),
+                    "mode": mode_key,
+                    "reason": decision.get("reason"),
+                    "required_action": decision.get("required_action"),
+                    "visible_message": decision.get("visible_message"),
+                })
+
+        if mode_key == "canon_review":
+            included.sort(key=lambda p: (p.get("plane") != "canonical", -float(p.get("score") or 0)))
+        elif mode_key == "audit_provenance":
+            included.sort(key=lambda p: (not p.get("provenance"), -float(p.get("score") or 0)))
         else:
-            excluded.append({
-                "card_id": pack.get("card_id"),
-                "doc_id": pack.get("doc_id"),
-                "title": pack.get("title"),
-                "plane": pack.get("plane"),
-                "reason": decision.get("reason"),
-                "required_action": decision.get("required_action"),
-                "visible_message": decision.get("visible_message"),
-            })
+            included.sort(key=lambda p: float(p.get("score") or 0), reverse=True)
+        included = included[:limit]
 
-    if mode_key == "canon_review":
-        included.sort(key=lambda p: (p.get("plane") != "canonical", -float(p.get("score") or 0)))
-    elif mode_key == "audit_provenance":
-        included.sort(key=lambda p: (not p.get("provenance"), -float(p.get("score") or 0)))
-    else:
-        included.sort(key=lambda p: float(p.get("score") or 0), reverse=True)
-    included = included[:limit]
+        context_conflict_map: dict[str, dict] = {}
+        for doc_id in dict.fromkeys(
+            pack.get("doc_id") for pack in included if pack.get("doc_id")
+        ):
+            for conflict in metadata.context_conflicts.get(doc_id, []):
+                key = str(conflict.get("rowid") or conflict.get("conflict_id") or conflict)
+                context_conflict_map.setdefault(key, conflict)
+        context_conflicts = list(context_conflict_map.values())
+        context_conflicts.sort(
+            key=lambda conflict: (
+                conflict.get("resolution_status") != "open",
+                -(conflict.get("detected_ts") or 0),
+                -(conflict.get("rowid") or 0),
+            )
+        )
+        context_conflicts = context_conflicts[:50]
 
-    audit = _audit_objects(included) if mode_key == "audit_provenance" else {}
-    log_storage_event(
-        "retrieval_performed",
-        subject_type="retrieval",
-        subject_id=hashlib.sha256(f"{mode_key}:{query}".encode("utf-8", errors="replace")).hexdigest()[:24],
-        actor_id="retrieval_connector",
-        detail={
-            "query": query,
-            "mode": mode_key,
-            "included": len(included),
-            "excluded": len(excluded),
-            "filters": filters or {},
-        },
-    )
+        audit = _audit_objects(included, snapshot) if mode_key == "audit_provenance" else {}
+    if emit_audit_event:
+        log_storage_event(
+            "retrieval_performed",
+            subject_type="retrieval",
+            subject_id=hashlib.sha256(f"{mode_key}:{query}".encode("utf-8", errors="replace")).hexdigest()[:24],
+            actor_id="retrieval_connector",
+            detail={
+                "query": query,
+                "mode": mode_key,
+                "included": len(included),
+                "excluded": len(excluded),
+                "filters": filters or {},
+            },
+        )
 
     meta = base.get("retrieval", {})
     meta["context_chars"] = sum(len(p.get("text") or "") for p in included)
@@ -666,7 +1154,7 @@ def retrieve_governed(query: str, mode: str = "strict_answer", limit: int = 8,
     meta["eligibility_filtered"] = True
     meta["excluded_count"] = len(excluded)
     meta["mode_notes"] = {
-        "strict_answer": "Excludes subjective, expired, blocked, low-confidence, and non-authoritative cards.",
+        "strict_answer": "Excludes missing-card, subjective, expired, blocked, low-confidence, and non-authoritative evidence.",
         "exploration": "Includes weaker material but labels eligibility and canonicality warnings.",
         "audit_provenance": "Prioritizes trace/provenance objects and returns audit context.",
         "canon_review": "Ranks canonical/authority material first while preserving warnings.",
@@ -708,25 +1196,80 @@ def retrieve_governed(query: str, mode: str = "strict_answer", limit: int = 8,
     for entry in excluded:
         _add_warning(entry.get("reason"))
 
-    return {
-        "query": query,
-        "count": len(included),
-        "context_packs": included,
-        "excluded_summary": excluded,
-        "audit_context": audit,
-        "retrieval": meta,
-        "planar_context_pack": context_pack,
-        "gate_result": gate_result,
-        "warnings": top_warnings,
-    }
+    return GovernedRetrievalResult(
+        query=query,
+        context_packs=included,
+        excluded_summary=excluded,
+        audit_context=audit,
+        retrieval=meta,
+        planar_context_pack=context_pack,
+        gate_result=gate_result,
+        warnings=top_warnings,
+        context_conflicts=context_conflicts,
+    )
+
+
+def retrieve_governed(query: str, mode: str = "strict_answer", limit: int = 8,
+                      include_lineage: bool = True, filters: dict[str, Any] | None = None,
+                      max_context_chars: int = 6000,
+                      include_promoted: bool = False) -> dict:
+    """Backward-compatible wire adapter for the normalized governed result."""
+    return retrieve_governed_result(
+        query,
+        mode=mode,
+        limit=limit,
+        include_lineage=include_lineage,
+        filters=filters,
+        max_context_chars=max_context_chars,
+        include_promoted=include_promoted,
+    ).to_dict()
 
 
 def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
              filters: dict[str, Any] | None = None,
              max_context_chars: int = 6000,
-             show_promoted: bool = False) -> dict:
+             show_promoted: bool = False,
+             *,
+             _snapshot: _RetrievalReadSnapshot | None = None,
+             _return_metadata: bool = False) -> Any:
+    """Return raw retrieval wire data, optionally reusing an owned read snapshot."""
+    if _snapshot is None:
+        with _RetrievalReadSnapshot() as snapshot:
+            result, metadata = _retrieve_in_snapshot(
+                query,
+                limit=limit,
+                include_lineage=include_lineage,
+                filters=filters,
+                max_context_chars=max_context_chars,
+                show_promoted=show_promoted,
+                snapshot=snapshot,
+            )
+    else:
+        result, metadata = _retrieve_in_snapshot(
+            query,
+            limit=limit,
+            include_lineage=include_lineage,
+            filters=filters,
+            max_context_chars=max_context_chars,
+            show_promoted=show_promoted,
+            snapshot=_snapshot,
+        )
+    return (result, metadata) if _return_metadata else result
+
+
+def _retrieve_in_snapshot(
+    query: str,
+    *,
+    limit: int,
+    include_lineage: bool,
+    filters: dict[str, Any] | None,
+    max_context_chars: int,
+    show_promoted: bool,
+    snapshot: _RetrievalReadSnapshot,
+) -> tuple[dict, _BatchedMetadata]:
     filters = filters or {}
     q_terms = _terms(query)
+    strong_identifiers = _strong_identifier_terms(q_terms)
     q_vec = _term_counter(query)
     where, params = _metadata_where(filters)
     promo = promoted_exposure.exclusion_sql("d", show_promoted=show_promoted)
@@ -734,10 +1277,12 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
     # operator characters inside tokens ('-', ':') can no longer raise an FTS syntax error —
     # a hyphenated token matches as the phrase of its tokenizer sub-tokens
     # (boh_retrieval_fts_query_hyphen_hardening_v0_1).
-    fts_query = " OR ".join(f'"{t}"' for t in q_terms[:12])
+    candidate_terms = strong_identifiers or q_terms[:12]
+    candidate_joiner = " AND " if strong_identifiers else " OR "
+    fts_query = candidate_joiner.join(f'"{t}"' for t in candidate_terms)
     rows = []
     if fts_query:
-        rows = db.fetchall(
+        rows = snapshot.fetchall(
             f"""
             SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
                    d.operator_state, d.operator_intent, d.provenance_json,
@@ -756,8 +1301,8 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
             (fts_query, *params, max(limit * 4, 20)),
         )
         rows = [dict(r) | {"retrieval_source": "fts"} for r in rows]
-    if not rows:
-        fallback_rows = db.fetchall(
+    if not rows and not strong_identifiers:
+        fallback_rows = snapshot.fetchall(
             f"""
             SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
                    d.operator_state, d.operator_intent, d.provenance_json,
@@ -778,42 +1323,77 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
             if _cosine(q_vec, _term_counter(r["text"] + " " + (r["heading_path"] or ""))) > 0
         ]
     if not rows:
+        metadata = _batch_metadata(snapshot, [], recent_card_limit=max(limit * 4, 25))
         return {
             "query": query,
             "count": 0,
             "context_packs": [],
             "retrieval": _retrieval_metadata(),
-        }
+        }, metadata
 
     if include_lineage:
         seen_chunk_ids = {r["chunk_id"] for r in rows}
         seed_doc_ids = list(dict.fromkeys(r["doc_id"] for r in rows[:max(limit, 3)]))
+        seed_marks = _in_marks(seed_doc_ids)
+        seed_lineage = snapshot.fetchall(
+            f"SELECT * FROM lineage WHERE doc_id IN ({seed_marks}) "
+            f"OR related_doc_id IN ({seed_marks}) ORDER BY detected_ts DESC",
+            tuple(seed_doc_ids + seed_doc_ids),
+        )
+        related_by_seed: dict[str, list[str]] = {}
         for doc_id in seed_doc_ids:
-            for related_doc_id in _related_doc_ids(doc_id)[:3]:
-                related_rows = db.fetchall(
-                    f"""
-                    SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
-                           d.operator_state, d.operator_intent, d.provenance_json,
-                           d.source_type, d.topics_tokens, d.updated_ts, d.corpus_class,
-                   d.epistemic_last_evaluated, d.epistemic_valid_until,
-                           e.vector_json AS embedding_vector_json,
-                           0.0 AS bm25_score
-                    FROM doc_chunks c
-                    JOIN docs d ON d.doc_id = c.doc_id
-                    LEFT JOIN doc_chunk_embeddings e ON e.chunk_id = c.chunk_id
-                    WHERE c.doc_id = ? {where}{promo}
-                    ORDER BY c.chunk_index
-                    LIMIT 2
-                    """,
-                    (related_doc_id, *params),
-                )
-                for row in related_rows:
+            related = []
+            for lineage_row in seed_lineage:
+                related_doc_id = None
+                if lineage_row.get("doc_id") == doc_id:
+                    related_doc_id = lineage_row.get("related_doc_id")
+                elif lineage_row.get("related_doc_id") == doc_id:
+                    related_doc_id = lineage_row.get("doc_id")
+                if related_doc_id and related_doc_id not in related:
+                    related.append(related_doc_id)
+            related_by_seed[doc_id] = related[:3]
+        related_doc_ids = list(dict.fromkeys(
+            related_doc_id
+            for doc_id in seed_doc_ids
+            for related_doc_id in related_by_seed.get(doc_id, [])
+        ))
+        related_by_doc: dict[str, list[dict]] = defaultdict(list)
+        if related_doc_ids:
+            related_marks = _in_marks(related_doc_ids)
+            related_rows = snapshot.fetchall(
+                f"""
+                SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
+                       d.operator_state, d.operator_intent, d.provenance_json,
+                       d.source_type, d.topics_tokens, d.updated_ts, d.corpus_class,
+                       d.epistemic_last_evaluated, d.epistemic_valid_until,
+                       e.vector_json AS embedding_vector_json,
+                       0.0 AS bm25_score
+                FROM doc_chunks c
+                JOIN docs d ON d.doc_id = c.doc_id
+                LEFT JOIN doc_chunk_embeddings e ON e.chunk_id = c.chunk_id
+                WHERE c.doc_id IN ({related_marks}) {where}{promo}
+                ORDER BY c.doc_id, c.chunk_index
+                """,
+                tuple(related_doc_ids + params),
+            )
+            for related_row in related_rows:
+                if len(related_by_doc[related_row["doc_id"]]) < 2:
+                    related_by_doc[related_row["doc_id"]].append(related_row)
+        for doc_id in seed_doc_ids:
+            for related_doc_id in related_by_seed.get(doc_id, []):
+                for row in related_by_doc.get(related_doc_id, []):
                     item = dict(row)
                     if item["chunk_id"] in seen_chunk_ids:
                         continue
                     seen_chunk_ids.add(item["chunk_id"])
                     item["retrieval_source"] = f"lineage_expansion:{doc_id}"
                     rows.append(item)
+
+    metadata = _batch_metadata(
+        snapshot,
+        [row["doc_id"] for row in rows],
+        recent_card_limit=max(limit * 4, 25),
+    )
 
     q_embedding = _hash_embedding(query)
     bm25_vals = [r["bm25_score"] for r in rows]
@@ -834,11 +1414,12 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
         semantic_score = (0.65 * embedding_score) + (0.35 * lexical_score)
         doc_auth = _authority_weight(item)
         cscore = max(0.0, min(1.0, canon_score(item) / 180.0))
-        lineages = _lineage_for(item["doc_id"]) if include_lineage else []
+        all_lineages = metadata.lineage.get(item["doc_id"], [])
+        lineages = all_lineages[:10] if include_lineage else []
         lineage_bonus = 0.05 if lineages else 0.0
         if str(item.get("retrieval_source") or "").startswith("lineage_expansion"):
             lineage_bonus += 0.03
-        conflicts = _conflicts_for(item["doc_id"])
+        conflicts = metadata.conflicts.get(item["doc_id"], [])[:10]
         conflict_penalty = -0.12 if conflicts else 0.0
         final = (
             0.45 * text_score
@@ -852,6 +1433,22 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
             item.get("status") == "canonical"
             or item.get("authority_state") in {"approved", "trusted", "canonical"}
         )
+        try:
+            frontmatter_provenance = json.loads(item.get("provenance_json") or "{}")
+        except Exception:
+            frontmatter_provenance = {"raw": item.get("provenance_json") or ""}
+        superseding = next((
+            row for row in all_lineages
+            if row.get("doc_id") == item["doc_id"]
+            and row.get("relationship") in {"superseded_by", "superseded"}
+        ), None)
+        age_days = None
+        freshness_source = None
+        for column in ("epistemic_last_evaluated", "updated_ts"):
+            days = fold_metrics._parse_freshness_days(item.get(column), column)
+            if days is not None:
+                age_days, freshness_source = days, column
+                break
         packs.append({
             "chunk_id": item["chunk_id"],
             "doc_id": item["doc_id"],
@@ -871,11 +1468,22 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
             "authority_state": item.get("authority_state"),
             "status": item.get("status"),
             "canonical_layer": item.get("canonical_layer"),
-            "provenance": _provenance_for(item),
-            "review_state": _review_state_for(item["doc_id"]),
-            "freshness": _freshness_for(item),
+            "provenance": {
+                "frontmatter": frontmatter_provenance,
+                "artifacts": metadata.provenance.get(item["doc_id"], {}).get("artifacts", []),
+            },
+            "review_state": metadata.review_state.get(
+                item["doc_id"], {"last_review": None, "review_count": 0}
+            ),
+            "freshness": {
+                "age_days": age_days,
+                "source": freshness_source,
+                "valid_until": item.get("epistemic_valid_until"),
+                "superseded": bool(superseding),
+                "superseded_by": superseding.get("related_doc_id") if superseding else None,
+            },
             "intake_provenance": (
-                _intake_provenance_for(item["doc_id"])
+                metadata.intake_provenance.get(item["doc_id"])
                 if item.get("corpus_class") == promoted_exposure.PROMOTED_CORPUS_CLASS
                 else None),
             "conflicts": conflicts,
@@ -929,4 +1537,4 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
         "count": len(packs),
         "context_packs": packs,
         "retrieval": meta,
-    }
+    }, metadata

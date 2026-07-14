@@ -9,10 +9,10 @@ from pathlib import Path
 os.environ.setdefault("BOH_DB", str(Path("boh.db").resolve()))
 
 from app.db.connection import init_db, get_conn
-from app.services.indexer import index_file
 
 ROOT = Path(__file__).resolve().parent
-LIB = ROOT / "library"
+LIB = Path(os.environ.get("BOH_LIBRARY", ROOT / "library")).resolve()
+VIZ_LIB = LIB / "demo_visualization"
 
 DOC_UPDATES = {
     "demo.core.viability-canonical": (1,None,.94,.91,"accurate","2026-06-01T00:00:00Z",.18,"canonical","canonical","canonical","canonical","approved"),
@@ -49,29 +49,29 @@ EDGES = [
 ]
 
 init_db()
-
-# Index all ordinary files first. Canonical docs may be blocked by authority rules,
-# so they are upserted below as synthetic seed fixtures.
-for path in LIB.glob("*.md"):
-    try:
-        index_file(path, LIB)
-    except Exception as exc:
-        print("index warning:", path.name, exc)
-
+VIZ_LIB.mkdir(parents=True, exist_ok=True)
 conn = get_conn()
 
-# Ensure blocked canonical fixtures exist.
-for doc_id in ("demo.core.viability-canonical", "demo.policy.authority-map"):
-    path = next(LIB.glob(doc_id.replace("demo.","").replace(".","-") + ".md"))
-    text = path.read_text(encoding="utf-8")
+# These are deliberately synthetic, self-contained visualization fixtures.
+# Create every referenced document so the script works against an empty,
+# isolated BOH_LIBRARY and never depends on a developer's existing corpus.
+for doc_id in DOC_UPDATES:
     title = doc_id.replace("demo.","").replace("."," ").title()
+    path = VIZ_LIB / f"{doc_id}.md"
+    text = (
+        f"# {title}\n\n"
+        "Synthetic visualization fixture. This content is fabricated for the "
+        "public demo and does not represent production knowledge.\n"
+    )
+    path.write_text(text, encoding="utf-8")
+    relative_path = path.relative_to(LIB).as_posix()
     conn.execute("""INSERT OR IGNORE INTO docs
       (doc_id,path,type,status,version,updated_ts,operator_state,operator_intent,
        plane_scope_json,field_scope_json,node_scope_json,text_hash,source_type,topics_tokens,
        title,summary,corpus_class,project,document_class,canonical_layer,authority_state,
        review_state,provenance_json,source_hash,document_id,app_state)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-      (doc_id, path.name, "architecture", "canonical", "0.0.1", int(time.time()),
+      (doc_id, relative_path, "architecture", "draft", "0.0.1", int(time.time()),
        "release", "canonize", "[]", "[]", json.dumps([doc_id]),
        hashlib.sha256(text.encode()).hexdigest(), "library", "canonical authority",
        title, "Synthetic canonical anchor.", "CORPUS_CLASS:CANON",

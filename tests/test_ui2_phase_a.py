@@ -244,8 +244,27 @@ class TestSearchContextScreen:
         assert "getRetrievalToken" in api_src
         assert "retrievalHeaders" in api_src
         assert "boh_retrieval_token" in api_src
-        assert "RetrievalSessionTokenRow" in settings_src
+        assert "ServerTokenRow" in settings_src
+        assert 'kind: "retrieval"' in settings_src
         assert "boh_retrieval_token" in settings_src
+        assert "security-token-row" in settings_src
+        assert "Load the operator token into this tab before changing the retrieval verifier." in settings_src
+
+    def test_settings_can_persist_boh_verifiers_and_configure_mcp_startup(self):
+        settings_src = _read(UI2 / "js" / "screens" / "settings-full.js")
+        css_src = _read(UI2 / "app.css")
+        assert "/api/security/tokens/${kind}" in settings_src
+        assert "Save + load" in settings_src
+        assert "Operator session token" in settings_src
+        assert "Retrieval session token" in settings_src
+        assert "PLAINTEXT TAB-LOCAL" in settings_src
+        assert "/api/security/mcp-connector/config" in settings_src
+        assert "/api/security/mcp-connector/runtime-key" in settings_src
+        assert "runtime_key_value_returned" not in settings_src
+        assert "These BOH tokens do not authenticate ChatGPT MCP" in settings_src
+        assert ".token-server-state" in css_src
+        assert ".token-entry" in css_src
+        assert ".token-session-control" in css_src
 
     def test_preview_styles_are_bounded_and_scrollable(self):
         css = _read(UI2 / "app.css")

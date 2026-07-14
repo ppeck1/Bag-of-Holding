@@ -7,6 +7,7 @@ Usage:
     python launcher.py                  # default port 8000
     python launcher.py --port 9000      # custom port
     python launcher.py --no-browser     # headless / server-only
+    python launcher.py --no-mcp         # skip configured MCP autostart
     python launcher.py --library /path  # set library root at launch
 
 URLs once running:
@@ -106,7 +107,7 @@ def preflight_check(project_root: Path) -> list[str]:
     return [f for f in required if not (project_root / f).exists()]
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Bag of Holding -- Local Knowledge Workbench",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -117,7 +118,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--db",         type=str,  default=None,          help="Database file path (overrides BOH_DB env)")
     p.add_argument("--no-browser", action="store_true",              help="Do not open browser automatically")
     p.add_argument("--reload",     action="store_true",              help="Enable uvicorn hot-reload (dev mode)")
-    return p.parse_args()
+    p.add_argument("--no-mcp",     action="store_true",              help="Skip configured MCP connector autostart")
+    return p.parse_args(argv)
 
 
 def wait_for_ready(url: str, timeout: float = MAX_WAIT_S) -> bool:
@@ -147,11 +149,11 @@ def port_is_open(host: str, port: int) -> bool:
         return False
 
 
-def main():
+def main(argv: list[str] | None = None):
     # Step 1: Dependency check (clear error before uvicorn crashes)
     dependency_preflight()
 
-    args = parse_args()
+    args = parse_args(argv)
 
     # Step 2: File preflight
     missing = preflight_check(PROJECT_ROOT)
@@ -207,11 +209,13 @@ def main():
         print(f"  Library:  {env['BOH_LIBRARY']}")
     print()
 
+    connector_runtime = None
+
     # Step 4: Start uvicorn subprocess
     try:
         proc = subprocess.Popen(cmd, env=env, cwd=str(PROJECT_ROOT))
-    except FileNotFoundError:
-        print("ERROR: Python / uvicorn not found.")
+    except OSError as exc:
+        print(f"ERROR: Python / uvicorn could not start ({type(exc).__name__}).")
         print("  Fix:  pip install uvicorn fastapi")
         sys.exit(1)
 
@@ -224,6 +228,8 @@ def main():
     else:
         rc = proc.poll()
         if rc is not None:
+            if connector_runtime is not None:
+                connector_runtime.stop()
             print(f"\n\nERROR: Server exited with code {rc} before becoming ready.")
             print("  Check the output above for details.")
             print("  Common causes:")
@@ -239,8 +245,6 @@ def main():
         print(f"  Opening {ui_url}")
         webbrowser.open(ui_url)
 
-    print(f"\n  Press Ctrl+C to stop\n")
-
     def shutdown(sig, frame):
         print("\n  Shutting down...")
         proc.terminate()
@@ -248,15 +252,39 @@ def main():
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
+        if connector_runtime is not None:
+            connector_runtime.stop()
         sys.exit(0)
 
     signal.signal(signal.SIGINT,  shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
+    # MCP starts only after Uvicorn is already serving and signal cleanup is
+    # installed. Connector readiness can never delay BOH API/UI availability.
+    if args.no_mcp:
+        print("  MCP connector autostart skipped (--no-mcp)")
+    else:
+        try:
+            from app.core.mcp_connector import start_if_enabled
+            connector_runtime = start_if_enabled(PROJECT_ROOT, env=env)
+            connector_state = connector_runtime.safe_dict()
+            if connector_state["enabled"] and connector_state["error"]:
+                print(f"  [WARN] MCP connector: {connector_state['error']} (BOH will continue)")
+            elif connector_state["enabled"]:
+                mode = "reused" if connector_state["gateway_reused"] and connector_state["tunnel_reused"] else "ready"
+                print(f"  MCP connector: {mode} [OK]")
+        except Exception as exc:
+            print(f"  [WARN] MCP connector: mcp_start_failed:{type(exc).__name__} (BOH will continue)")
+
+    print(f"\n  Press Ctrl+C to stop\n")
+
     try:
         proc.wait()
     except KeyboardInterrupt:
         shutdown(None, None)
+
+    if connector_runtime is not None:
+        connector_runtime.stop()
 
     return proc.returncode
 

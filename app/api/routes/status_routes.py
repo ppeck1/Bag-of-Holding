@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter
 
 from app.db import connection as db
-from app.core import autoindex, llm_queue
+from app.core import autoindex, llm_queue, token_config
 
 router = APIRouter(prefix="/api")
 
@@ -20,8 +20,10 @@ def get_system_status():
     library_found = Path(library_root).expanduser().resolve().exists()
 
     # Token presence checks (never expose the actual token value)
-    operator_token_set = bool(os.environ.get("BOH_OPERATOR_TOKEN"))
-    retrieval_token_set = bool(os.environ.get("BOH_RETRIEVAL_TOKEN"))
+    operator_token_state = token_config.get_state("operator")
+    retrieval_token_state = token_config.get_state("retrieval")
+    operator_token_set = operator_token_state.configured
+    retrieval_token_set = retrieval_token_state.configured
     default_actor = os.environ.get("BOH_DEFAULT_ACTOR", "dev_operator")
 
     # Doc counts
@@ -111,5 +113,7 @@ def get_system_status():
         "intake_scheduler": intake_scheduler,
         "operator_token_set": operator_token_set,
         "retrieval_token_set": retrieval_token_set,
+        "operator_token": operator_token_state.safe_dict(),
+        "retrieval_token": retrieval_token_state.safe_dict(),
         "default_actor": default_actor,
     }

@@ -1,8 +1,7 @@
-"""Contract tests for additive Metis-facing retrieval fields (v0.1).
+"""Contract tests for additive external-consumer retrieval fields (v0.1).
 
 Covers citation_uri, source_spans, top-level warnings rollup, the plane_card
 null-case, and that no pre-existing response key changed name/type.
-See docs/specs/boh_metis_retrieval_contract_v0_1.md.
 """
 
 import importlib
