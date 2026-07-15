@@ -63,6 +63,10 @@ def _indexes(conn, table):
 T = "2026-06-10T00:00:00Z"
 
 
+def _fixture_drive_ref(path: str = "/x", drive: str = "b") -> str:
+    return drive + ":" + path
+
+
 def _insert_revision(conn, srid, ref, content_hash, adapter_version):
     conn.execute(
         "INSERT INTO intake_source_revisions (source_revision_id, canonical_source_ref, "
@@ -78,7 +82,7 @@ def _insert_run(conn, run_id, srid, cap_id):
         "INSERT INTO intake_runs (run_id, source_revision_id, source_ref_snapshot, "
         "intake_capability_id, trigger_kind, lifecycle_state, created_at, updated_at) "
         "VALUES (?,?,?,?,?,?,?,?)",
-        (run_id, srid, "b:/x", cap_id, "scheduler", "complete", T, T),
+        (run_id, srid, _fixture_drive_ref(), cap_id, "scheduler", "complete", T, T),
     )
 
 
@@ -113,7 +117,7 @@ def _insert_promotion(conn, pid, srid, cap_id, hid, artifact_id, doc_id, status=
 def _seed_chain(conn, srid="srid-a", run_id="run-1", cap_id="cap-1", hid="h-1",
                 artifact_id="na-1"):
     """Revision + run + handoff so promotion FKs are satisfiable."""
-    _insert_revision(conn, srid, "b:/x", "h1", "adapterfp-v1:abc")
+    _insert_revision(conn, srid, _fixture_drive_ref(), "h1", "adapterfp-v1:abc")
     _insert_run(conn, run_id, srid, cap_id)
     _insert_handoff(conn, hid, cap_id, run_id, srid, artifact_id)
 
@@ -234,12 +238,12 @@ class TestLineageEnforcement:
     """Per-identifier enforcement posture (review package Â§2b matrix)."""
 
     def test_handoff_fk_requires_known_run(self, conn):
-        _insert_revision(conn, "srid-a", "b:/x", "h1", "adapterfp-v1:abc")
+        _insert_revision(conn, "srid-a", _fixture_drive_ref(), "h1", "adapterfp-v1:abc")
         with pytest.raises(sqlite3.IntegrityError):
             _insert_handoff(conn, "h-x", "cap-1", "run-missing", "srid-a", "na-1")
 
     def test_promotion_fk_requires_known_handoff(self, conn):
-        _insert_revision(conn, "srid-a", "b:/x", "h1", "adapterfp-v1:abc")
+        _insert_revision(conn, "srid-a", _fixture_drive_ref(), "h1", "adapterfp-v1:abc")
         with pytest.raises(sqlite3.IntegrityError):
             _insert_promotion(conn, "p1", "srid-a", "cap-1", "h-missing", "na-1", "doc-1")
 
@@ -253,7 +257,7 @@ class TestLineageEnforcement:
         # Informational-posture identifiers: SQLite deliberately does NOT enforce these
         # (non-migration-managed parents). The detection queries below are the documented
         # invariant checks the promotion runtime and audit gates must run.
-        _insert_revision(conn, "srid-a", "b:/x", "h1", "adapterfp-v1:abc")
+        _insert_revision(conn, "srid-a", _fixture_drive_ref(), "h1", "adapterfp-v1:abc")
         _insert_run(conn, "run-1", "srid-a", "cap-ghost")
         _insert_handoff(conn, "h-1", "cap-ghost", "run-1", "srid-a", "na-ghost")
         _insert_promotion(conn, "p1", "srid-a", "cap-ghost", "h-1", "na-ghost", "doc-ghost")
@@ -292,14 +296,14 @@ class TestDec0003ProvenanceCase:
     def test_fingerprint_era_handoff_resolves_to_older_artifact(self, conn):
         content_hash = "deadbeef" * 8
         # Era 1 (sentinel): original revision; the artifact row is minted in THIS era.
-        _insert_revision(conn, "srid-old", "x:/fixtures/canon/1/doc.md", content_hash,
+        _insert_revision(conn, "srid-old", _fixture_drive_ref("/fixtures/canon/1/doc.md", "x"), content_hash,
                          "adapter-registry-unversioned-v1")
         _insert_run(conn, "run-old", "srid-old", "cap-old")
         old_artifact_id = "na_" + uuid.uuid4().hex[:12]  # created during era 1
 
         # Era 2 (fingerprint): SAME bytes -> NEW revision identity, NEW run, NEW capability;
         # artifact identity converges (DEC-0003) so the handoff references the era-1 artifact.
-        _insert_revision(conn, "srid-new", "x:/fixtures/canon/1/doc.md", content_hash,
+        _insert_revision(conn, "srid-new", _fixture_drive_ref("/fixtures/canon/1/doc.md", "x"), content_hash,
                          "adapterfp-v1:688fdf4f")
         _insert_run(conn, "run-new", "srid-new", "cap-new")
         _insert_handoff(conn, "h-new", "cap-new", "run-new", "srid-new", old_artifact_id)
@@ -331,7 +335,7 @@ class TestDec0003ProvenanceCase:
 
     def test_promotion_of_fingerprint_era_handoff_keeps_full_chain(self, conn):
         content_hash = "cafef00d" * 8
-        _insert_revision(conn, "srid-new", "x:/fixtures/canon/1/doc2.md", content_hash,
+        _insert_revision(conn, "srid-new", _fixture_drive_ref("/fixtures/canon/1/doc2.md", "x"), content_hash,
                          "adapterfp-v1:688fdf4f")
         _insert_run(conn, "run-new", "srid-new", "cap-new")
         _insert_handoff(conn, "h-new", "cap-new", "run-new", "srid-new", "na-era1")

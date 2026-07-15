@@ -10,6 +10,11 @@ Project: Bag of Holding
 
 Secret policy: names only. Secret values must never be recorded.
 
+Publication note: `.project/launchpad.json` is private project-local metadata
+used by the owner's launcher tooling. It is not included in the sanitized
+public export; the rows below document the private source checkout's current
+launch/test contract without publishing machine-local paths or live values.
+
 | Name | Type | Location | Default | Required | Secret | Used By | Notes | Last Verified |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | project_root | path | `.project/launchpad.json` | repository root | yes | no | local runtime manifest | Folder containing `.project/launchpad.json`. | 2026-07-14 |

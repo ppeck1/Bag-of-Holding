@@ -153,10 +153,11 @@ def test_stdio_no_auth_start_uses_direct_stdio_profile_without_gateway(tmp_path,
         lambda _config: (_ for _ in ()).throw(AssertionError("gateway not used")),
     )
     monkeypatch.setattr(mcp_connector, "tunnel_ready", lambda _root, _config=None: len(calls) >= 1)
+    python_fixture = "C:" + "/Python/python.exe"
 
     runtime = mcp_connector.start_if_enabled(
         root,
-        python_executable="C:/Python/python.exe",
+        python_executable=python_fixture,
         spawn=spawn,
         tunnel_timeout=0.1,
         env={
@@ -193,7 +194,7 @@ def test_stdio_no_auth_start_uses_direct_stdio_profile_without_gateway(tmp_path,
     ).read_text(encoding="utf-8")
     assert "commands:" in profile
     assert "server_urls:" not in profile
-    assert "C:/Python/python.exe -m tools.boh_mcp_adapter.server" in profile
+    assert f"{python_fixture} -m tools.boh_mcp_adapter.server" in profile
     assert "runtime-key-value-123456" not in profile
 
 

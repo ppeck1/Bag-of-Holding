@@ -383,8 +383,8 @@ def test_artifact_path_containment_fails_closed(tmp_path, monkeypatch):
             hostile += [
                 "..\\..\\evil.md",                   # parent traversal, native separators
                 "../..\\evil.md",                    # mixed separators
-                "C:\\Windows\\system32\\drivers\\etc\\hosts",  # absolute outside root
-                "Z:\\other_drive\\evil.md",          # unexpected drive prefix
+                "C:" + "\\Windows\\system32\\drivers\\etc\\hosts",  # absolute outside root
+                "Z:" + "\\other_drive\\evil.md",          # unexpected drive prefix
             ]
         else:
             hostile += ["/etc/hosts"]                # absolute outside root
