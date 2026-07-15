@@ -406,8 +406,8 @@ def test_adapter_version_change_yields_new_revision_id():
 
 @pytest.mark.skipif(os.name != "nt", reason="case-folding applies on case-insensitive FS (Windows)")
 def test_path_casing_normalized_same_revision_on_windows():
-    a = canonicalize_source_ref(r"C:\Lib\A.MD")
-    b = canonicalize_source_ref(r"c:\lib\a.md")
+    a = canonicalize_source_ref("C:" + "\\Lib\\A.MD")
+    b = canonicalize_source_ref("c:" + "\\lib\\a.md")
     assert a == b
     assert (
         compute_source_revision_id(canonical_source_ref=a, source_hash_sha256="H1")
