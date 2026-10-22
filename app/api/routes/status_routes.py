@@ -16,6 +16,8 @@ router = APIRouter(prefix="/api")
 
 @router.get("/status", summary="System status diagnostics", tags=["system"])
 def get_system_status():
+    # Retain legacy fallback values, but let consumers distinguish failure from zero.
+    unavailable_fields = []
     library_root  = os.environ.get("BOH_LIBRARY", "./library")
     library_found = Path(library_root).expanduser().resolve().exists()
 
@@ -31,6 +33,7 @@ def get_system_status():
         indexed_docs = db.fetchone("SELECT COUNT(*) AS n FROM docs")["n"]
     except Exception:
         indexed_docs = 0
+        unavailable_fields.append("indexed_docs")
 
     # Edge counts (explicit + lineage)
     try:
@@ -39,6 +42,7 @@ def get_system_status():
         graph_edges    = explicit_edges + lineage_edges
     except Exception:
         graph_edges = 0
+        unavailable_fields.append("graph_edges")
 
     # Failed-index count from audit log
     try:
@@ -49,18 +53,21 @@ def get_system_status():
         index_errors = err_row["n"] if err_row else 0
     except Exception:
         index_errors = 0
+        unavailable_fields.append("index_errors")
 
     # Pending review items
     try:
         pending_reviews = llm_queue.get_pending_count()
     except Exception:
         pending_reviews = 0
+        unavailable_fields.append("review_queue")
 
     # Auto-index state
     try:
         ai_status = autoindex.get_status()
     except Exception:
         ai_status = {"last_run_ts": None, "last_indexed": 0}
+        unavailable_fields.append("autoindex")
 
     # Ollama. Use the same DB-or-env gate as the Ollama routes so the
     # Status panel reflects the UI toggle immediately.
@@ -76,12 +83,14 @@ def get_system_status():
         }
     except Exception:
         ollama_info = {"enabled": False, "available": False, "model": None}
+        unavailable_fields.append("ollama")
 
     try:
         from app.core.governance_metrics import governance_native_metrics
         gov_metrics = governance_native_metrics(limit=10).get("primary_metrics", {})
     except Exception:
         gov_metrics = {}
+        unavailable_fields.append("governance_native_metrics")
 
     # Managed intake scheduler status (read-only; WO-1.1 Phase B item 3). A status failure is
     # surfaced as an explicit error block — never masked as an inert/"disabled" scheduler.
@@ -97,6 +106,7 @@ def get_system_status():
         }
 
     return {
+        "unavailable_fields": unavailable_fields,
         "server":         "ok",
         "primary_status_surface": "/api/integrity/dashboard",
         "governance_native_metrics": gov_metrics,

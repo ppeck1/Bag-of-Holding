@@ -23,7 +23,7 @@ from typing import Any
 from fastapi import Header, HTTPException, Request, status
 
 from app.db import connection as db
-from app.core import fold_metrics
+from app.core import fold_metrics, source_lifecycle, exact_lookup
 from app.core import promoted_exposure
 from app.core import token_config
 from app.core.canon import canon_score
@@ -40,10 +40,13 @@ RETRIEVAL_HEADER = "X-BOH-Retrieval-Token"
 EMBEDDING_MODEL = "boh-local-hash-embedding-v1"
 EMBEDDING_DIMS = 64
 RETRIEVAL_AUTHORITY_COMPONENT_BUDGET = 0.15
+GOVERNED_SELECTION_LIMIT = 25  # Existing public API/MCP maximum.
 WORD_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_\-]{1,}")
 STRONG_IDENTIFIER_RE = re.compile(
     r"(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+$"
 )
+# Query-only literals: do not change stored chunk tokens or hashed embeddings.
+LITERAL_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+(?:[.-][A-Za-z0-9_]+)*")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 TABLE_RE = re.compile(r"^\s*\|.*\|\s*$")
 LINK_RE = re.compile(r"\[[^\]]+\]\([^)]+\)|https?://\S+")
@@ -124,11 +127,17 @@ class _RetrievalReadSnapshot:
     def fetchall(self, query: str, params: tuple[Any, ...] = ()) -> list[dict]:
         if self.conn is None:
             raise RuntimeError("retrieval snapshot is not active")
+        budget = getattr(self, 'exact_budget', None)
+        if budget is not None:
+            return exact_lookup.read(self.conn, query, params, budget)
         return [dict(row) for row in self.conn.execute(query, params).fetchall()]
 
     def fetchone(self, query: str, params: tuple[Any, ...] = ()) -> dict | None:
         if self.conn is None:
             raise RuntimeError("retrieval snapshot is not active")
+        budget = getattr(self, 'exact_budget', None)
+        if budget is not None:
+            return exact_lookup.read(self.conn, query, params, budget, one=True)
         row = self.conn.execute(query, params).fetchone()
         return dict(row) if row else None
 
@@ -389,6 +398,70 @@ def replace_doc_chunks(conn, doc: dict, body: str, frontmatter_text: str = "") -
     return chunks
 
 
+FILTER_KEYS = frozenset({'doc_id','status','authority_state','canonical_layer','project','chunk_type','library_id'})
+
+
+def validate_filters(filters: dict[str, Any] | None) -> dict[str, str]:
+    if filters is None:
+        return {}
+    if not isinstance(filters, dict) or set(filters) - FILTER_KEYS:
+        raise ValueError('unsupported retrieval filter')
+    if any(value is not None and (not isinstance(value,str) or not value.strip()) for value in filters.values()):
+        raise ValueError('retrieval filters require nonempty string values')
+    normalized = {key:value for key,value in filters.items() if value is not None}
+    if 'library_id' in normalized:
+        normalized['library_id'] = normalized['library_id'].strip()
+        if normalized['library_id'] == 'all':
+            del normalized['library_id']
+    return normalized
+
+
+def require_matching_scope(filters: dict[str, Any] | None, result: Any) -> dict[str, str]:
+    requested = validate_filters(filters)
+    if requested and requested != (result.get('retrieval') or {}).get('filters', {}):
+        raise ValueError('supplied retrieval result does not match requested scope')
+    return requested
+
+
+def _quoted_phrases(query: str) -> list[str]:
+    # FTS retains stopwords and single-character tokens inside literal phrases.
+    return [' '.join(re.findall(r'[A-Za-z0-9_]+',value.lower()))
+            for value in re.findall(r'"([^"]+)"', query)
+            if re.search(r'[A-Za-z0-9_]',value)]
+
+
+def _query_identifiers(query: str) -> list[str]:
+    """Keep clear code identifiers literal without constraining ordinary prose."""
+    identifiers = _strong_identifier_terms(_terms(query))
+    identifiers.extend(
+        token.lower() for token in LITERAL_TOKEN_RE.findall(query or "")
+        if ("." in token or "_" in token) and re.search(r"[A-Za-z]", token)
+        # Initialisms such as e.g./U.S. remain prose unless explicitly backticked.
+        and not re.fullmatch(r"[A-Za-z](?:\.[A-Za-z])+", token)
+    )
+    identifiers.extend(
+        value.lower() for value in re.findall(r"`([^`]+)`", query or "")
+        if LITERAL_TOKEN_RE.fullmatch(value)
+    )
+    return list(dict.fromkeys(identifiers))
+
+
+def _matches_query_constraints(query: str, *texts: str) -> bool:
+    identifiers = set(_query_identifiers(query))
+    phrases = _quoted_phrases(query)
+    if not identifiers and not phrases:
+        return True
+    tokens = {token.lower() for text in texts for token in LITERAL_TOKEN_RE.findall(text or "")}
+    normalized = [' ' + ' '.join(re.findall(r'[A-Za-z0-9_]+', (text or '').lower())) + ' '
+                  for text in texts]
+    # Each phrase must occur within a field; concatenating headings/chunks or
+    # separate card fields can manufacture an adjacency absent from the source.
+    return identifiers.issubset(tokens) and all(
+        any(' ' + phrase + ' ' in field for field in normalized)
+        for phrase in phrases
+    )
+
+
 def _metadata_where(filters: dict[str, Any]) -> tuple[str, list[Any]]:
     clauses = []
     params: list[Any] = []
@@ -401,7 +474,8 @@ def _metadata_where(filters: dict[str, Any]) -> tuple[str, list[Any]]:
     if project:
         clauses.append("d.project = ?")
         params.append(project)
-    return (" AND " + " AND ".join(clauses)) if clauses else "", params
+    clause = (" AND " + " AND ".join(clauses)) if clauses else ""
+    return clause, params
 
 
 def _conflicts_for(doc_id: str) -> list[dict]:
@@ -523,6 +597,7 @@ class _BatchedMetadata:
     intake_provenance: dict[str, dict]
     cards_by_doc: dict[str, PlaneCard]
     recent_cards: list[PlaneCard]
+    source_lifecycle: dict[str, dict] | None = None
 
 
 def _batch_metadata(
@@ -530,19 +605,23 @@ def _batch_metadata(
     doc_ids: list[str],
     *,
     recent_card_limit: int,
+    recent_card_query: tuple[str, tuple] | None = None,
 ) -> _BatchedMetadata:
     """Load all candidate metadata in one traced read statement."""
     unique_ids = list(dict.fromkeys(doc_id for doc_id in doc_ids if doc_id))
+    card_query, card_params = recent_card_query or (
+        'SELECT id FROM cards ORDER BY updated_ts DESC LIMIT ?', (recent_card_limit,))
     if not unique_ids:
         rows = snapshot.fetchall(
-            "SELECT * FROM cards ORDER BY updated_ts DESC LIMIT ?",
-            (recent_card_limit,),
+            f"SELECT c.*, {source_lifecycle.payload_sql('c.doc_id')} AS source_lifecycle_json FROM cards c WHERE id IN ({card_query}) ORDER BY updated_ts DESC",
+            card_params,
         )
         cards = [_row_to_card(row) for row in rows]
         return _BatchedMetadata(
             {}, {}, {}, {}, {}, {},
             {card.doc_id: card for card in cards if card.doc_id},
             cards,
+            {row['doc_id']: source_lifecycle.decode_status(row['source_lifecycle_json']) for row in rows if row.get('doc_id')},
         )
 
     marks = _in_marks(unique_ids)
@@ -603,15 +682,20 @@ def _batch_metadata(
         "'context_ref_json', c.context_ref_json, 'payload_json', c.payload_json, "
         "'doc_id', c.doc_id, 'created_ts', c.created_ts, 'updated_ts', c.updated_ts, "
         "'plane_card_version', c.plane_card_version, "
-        "'recent', CASE WHEN c.id IN (SELECT id FROM cards ORDER BY updated_ts DESC LIMIT ?) "
+        f"'recent', CASE WHEN c.id IN ({card_query}) "
         "THEN 1 ELSE 0 END) AS payload FROM cards c "
-        f"WHERE c.doc_id IN ({marks}) OR c.id IN "
-        "(SELECT id FROM cards ORDER BY updated_ts DESC LIMIT ?)"
+        f"WHERE (c.doc_id IN ({marks}) OR c.id IN "
+        f"({card_query})){source_lifecycle.card_clause('c')}"
     )
-    params.append(recent_card_limit)
+    params.extend(card_params)
     params.extend(unique_ids)
-    params.append(recent_card_limit)
+    params.extend(card_params)
 
+    parts.append("SELECT 'source_lifecycle' AS kind,d.doc_id AS object_id, "
+                 + source_lifecycle.payload_sql('d.doc_id') + " AS payload FROM docs d "
+                 + f"WHERE d.doc_id IN ({marks}) OR d.doc_id IN (SELECT doc_id FROM cards WHERE id IN ({card_query}))")
+    params.extend(unique_ids)
+    params.extend(card_params)
     try:
         rows = snapshot.fetchall(" UNION ALL ".join(parts), tuple(params))
     except Exception as exc:
@@ -630,7 +714,11 @@ def _batch_metadata(
     artifacts: dict[str, list[dict]] = defaultdict(list)
     intake: dict[str, dict] = {}
     card_rows: list[dict] = []
+    source_statuses = {}
     for row in rows:
+        if row.get('kind') == 'source_lifecycle':
+            source_statuses[row['object_id']] = source_lifecycle.decode_status(row.get('payload'))
+            continue
         payload = json.loads(row.get("payload") or "{}")
         kind = row.get("kind")
         if kind == "lineage":
@@ -720,6 +808,7 @@ def _batch_metadata(
         intake_provenance=intake,
         cards_by_doc=cards_by_doc,
         recent_cards=[card for _updated, card in recent_rows[:recent_card_limit]],
+        source_lifecycle=source_statuses,
     )
 
 
@@ -854,16 +943,18 @@ def _card_matches_filters(card: dict, filters: dict[str, Any] | None) -> bool:
         "project": payload.get("project"),
         "chunk_type": "plane_card",
     }
-    return all(values.get(k) == v for k, v in (filters or {}).items())
+    # Library scope has already constrained the backing-doc card pool in SQL.
+    return all(values.get(k) == v for k, v in (filters or {}).items() if k != 'library_id')
 
 
 def _matching_card_packs(query: str, mode: str, limit: int,
                          filters: dict[str, Any] | None = None,
-                         cards: list[PlaneCard] | None = None) -> list[dict]:
+                         cards: list[PlaneCard] | None = None,
+                         source_statuses: dict[str, dict] | None = None) -> list[dict]:
     q_terms = set(_terms(query))
-    if not q_terms:
+    has_constraints = bool(_query_identifiers(query) or _quoted_phrases(query))
+    if not q_terms and not has_constraints:
         return []
-    strong_identifiers = set(_strong_identifier_terms(list(q_terms)))
     packs = []
     card_pool = cards if cards is not None else list_cards(limit=max(limit * 4, 25))
     for card in card_pool:
@@ -871,24 +962,30 @@ def _matching_card_packs(query: str, mode: str, limit: int,
         if not _card_matches_filters(c, filters):
             continue
         payload = c.get("payload") or {}
-        haystack = " ".join([
+        fields = [
             c.get("topic") or "",
             c.get("plane") or "",
             c.get("card_type") or "",
             str(payload.get("title") or ""),
             str(payload.get("summary") or ""),
             str(payload.get("text") or ""),
-        ])
-        haystack_terms = set(_terms(haystack))
-        # Card augmentation must preserve the identifier precision of document
-        # retrieval, especially when an exact target is policy-hidden.
-        if strong_identifiers and not strong_identifiers.issubset(haystack_terms):
+        ]
+        haystack_terms = set(_terms(" ".join(fields)))
+        if not _matches_query_constraints(query, *fields):
             continue
         overlap = q_terms & haystack_terms
-        if not overlap:
+        # Literal phrases containing only stopwords/one-character tokens can
+        # satisfy constraints even though the ordinary scorer has no terms.
+        if not overlap and not has_constraints:
             continue
         score = 0.20 + min(0.40, len(overlap) / max(len(q_terms), 1))
-        packs.append(_card_pack(card, query, mode, score=round(score, 6)))
+        pack = _card_pack(card, query, mode, score=round(score, 6))
+        state = (source_statuses or {}).get(c.get('doc_id'), source_lifecycle.decode_status(None))
+        pack['source_lifecycle'] = state
+        if state['current_evidence'] is False:
+            pack['do_not_treat_as_canonical'] = True
+            pack['warnings'].append('historical_source_evidence')
+        packs.append(pack)
     packs.sort(key=lambda p: p["score"], reverse=True)
     return packs[:limit]
 
@@ -1056,14 +1153,27 @@ def retrieve_governed_result(
     emit_audit_event: bool = True,
 ) -> GovernedRetrievalResult:
     """Build one normalized governed result for all answer-oriented consumers."""
+    filters = validate_filters(filters)
     mode_key = (mode or "strict_answer").lower().replace(" ", "_").replace("-", "_")
     if mode_key not in {"strict_answer", "exploration", "audit_provenance", "canon_review", "low_b_worker_context"}:
         raise ValueError(f"unknown retrieval mode: {mode!r}")
 
-    with _RetrievalReadSnapshot() as snapshot:
+    # Admit one bounded population before applying the caller's output limit.
+    # Otherwise chunk/card de-duplication can replace an earlier card when a
+    # larger request admits another chunk from its document. The fixed public
+    # horizon also stabilizes FTS normalization, lineage and recent-card reads.
+    selection_limit = max(GOVERNED_SELECTION_LIMIT, limit)
+    exact = (exact_lookup.Budget(lambda *fields: _matches_query_constraints(query, *fields))
+             if _query_identifiers(query) or _quoted_phrases(query) else None)
+    included, excluded, context_conflicts, audit = [], [], [], {}
+    base = {"retrieval": _retrieval_metadata()}
+    with _RetrievalReadSnapshot() as snapshot, exact_lookup.guard(exact):
+        snapshot.exact_budget = exact
+        if exact is not None:
+            exact.register(snapshot.conn)
         base, metadata = retrieve(
             query,
-            limit=limit,
+            limit=selection_limit,
             include_lineage=include_lineage,
             filters=filters,
             max_context_chars=max_context_chars,
@@ -1071,6 +1181,7 @@ def retrieve_governed_result(
             show_promoted=promoted_exposure.visible(include_promoted),
             _snapshot=snapshot,
             _return_metadata=True,
+            include_source_history=mode_key == 'audit_provenance',
         )
         packs = _attach_card_authority(
             base.get("context_packs", []), mode_key, metadata.cards_by_doc
@@ -1079,9 +1190,10 @@ def retrieve_governed_result(
         for pack in _matching_card_packs(
             query,
             mode_key,
-            limit,
+            exact.match_limit if exact is not None else selection_limit,
             filters=filters,
             cards=metadata.recent_cards,
+            source_statuses=metadata.source_lifecycle,
         ):
             if pack.get("card_id") not in existing_cards:
                 packs.append(pack)
@@ -1112,7 +1224,20 @@ def retrieve_governed_result(
             included.sort(key=lambda p: (not p.get("provenance"), -float(p.get("score") or 0)))
         else:
             included.sort(key=lambda p: float(p.get("score") or 0), reverse=True)
-        included = included[:limit]
+        # Card augmentation participates in the same final character budget.
+        # Stop at the first over-budget successor so every smaller limit keeps
+        # this prefix; preserve raw retrieval's first-pack oversize convention.
+        bounded = []
+        used_chars = 0
+        for pack in included:
+            if len(bounded) >= limit:
+                break
+            next_chars = len(pack.get("text") or "")
+            if bounded and used_chars + next_chars > max_context_chars:
+                break
+            bounded.append(pack)
+            used_chars += next_chars
+        included = bounded
 
         context_conflict_map: dict[str, dict] = {}
         for doc_id in dict.fromkeys(
@@ -1132,6 +1257,9 @@ def retrieve_governed_result(
         context_conflicts = context_conflicts[:50]
 
         audit = _audit_objects(included, snapshot) if mode_key == "audit_provenance" else {}
+    if exact is not None and exact.failure:
+        included, excluded, context_conflicts, audit = [], [], [], {}
+        base = {"retrieval": _retrieval_metadata()}
     if emit_audit_event:
         log_storage_event(
             "retrieval_performed",
@@ -1148,6 +1276,8 @@ def retrieve_governed_result(
         )
 
     meta = base.get("retrieval", {})
+    if exact is not None:
+        meta['exact_lookup'] = exact.public()
     meta["context_chars"] = sum(len(p.get("text") or "") for p in included)
     meta["returned_count"] = len(included)
     meta["planar_mode"] = mode_key
@@ -1160,6 +1290,13 @@ def retrieve_governed_result(
         "canon_review": "Ranks canonical/authority material first while preserving warnings.",
         "low_b_worker_context": "Allows broad context for worker tasks; callers must preserve warnings.",
     }.get(mode_key)
+    meta['source_lifecycle_policy'] = 'labelled_history' if mode_key == 'audit_provenance' else 'current_managed_sources'
+    meta['filters'] = filters
+    meta['promoted_visibility'] = {
+        'env_gate_open': promoted_exposure.env_gate_open(),
+        'request_opt_in': bool(include_promoted),
+        'visible': promoted_exposure.visible(include_promoted),
+    }
     context_pack, gate_result = planar_gate.evaluate_context_pack(
         query=query,
         operation="answer_context",
@@ -1181,6 +1318,8 @@ def retrieve_governed_result(
         pack["source_spans"] = [span] if isinstance(span, dict) else []
 
     top_warnings: list[str] = []
+    if exact is not None and exact.public()['state'] != 'complete':
+        top_warnings.append('exact_lookup_incomplete')
 
     def _add_warning(value: Any) -> None:
         if isinstance(value, str) and value and value not in top_warnings:
@@ -1231,8 +1370,10 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
              show_promoted: bool = False,
              *,
              _snapshot: _RetrievalReadSnapshot | None = None,
-             _return_metadata: bool = False) -> Any:
+             _return_metadata: bool = False,
+             include_source_history: bool = False) -> Any:
     """Return raw retrieval wire data, optionally reusing an owned read snapshot."""
+    filters = validate_filters(filters)
     if _snapshot is None:
         with _RetrievalReadSnapshot() as snapshot:
             result, metadata = _retrieve_in_snapshot(
@@ -1243,6 +1384,7 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
                 max_context_chars=max_context_chars,
                 show_promoted=show_promoted,
                 snapshot=snapshot,
+                include_source_history=include_source_history,
             )
     else:
         result, metadata = _retrieve_in_snapshot(
@@ -1253,6 +1395,7 @@ def retrieve(query: str, limit: int = 8, include_lineage: bool = True,
             max_context_chars=max_context_chars,
             show_promoted=show_promoted,
             snapshot=_snapshot,
+            include_source_history=include_source_history,
         )
     return (result, metadata) if _return_metadata else result
 
@@ -1266,28 +1409,86 @@ def _retrieve_in_snapshot(
     max_context_chars: int,
     show_promoted: bool,
     snapshot: _RetrievalReadSnapshot,
+    include_source_history: bool = False,
 ) -> tuple[dict, _BatchedMetadata]:
     filters = filters or {}
     q_terms = _terms(query)
-    strong_identifiers = _strong_identifier_terms(q_terms)
+    strong_identifiers = _query_identifiers(query)
     q_vec = _term_counter(query)
     where, params = _metadata_where(filters)
+    source_clause = '' if include_source_history else source_lifecycle.current_clause('d.doc_id')
+    where += source_clause
+    library_clause, library_params = '', []
+    if filters.get('library_id'):
+        from app.core.logical_libraries import docs_where_clause
+        library_clause, library_params, _ = docs_where_clause(filters['library_id'], alias='d')
+        where += library_clause
+        params.extend(library_params)
     promo = promoted_exposure.exclusion_sql("d", show_promoted=show_promoted)
     # Each term is quoted as an FTS5 string literal: identical semantics for plain words, and
     # operator characters inside tokens ('-', ':') can no longer raise an FTS syntax error —
     # a hyphenated token matches as the phrase of its tokenizer sub-tokens
     # (boh_retrieval_fts_query_hyphen_hardening_v0_1).
-    candidate_terms = strong_identifiers or q_terms[:12]
-    candidate_joiner = " AND " if strong_identifiers else " OR "
+    phrases = _quoted_phrases(query)
+    candidate_terms = list(dict.fromkeys(phrases + strong_identifiers)) or q_terms[:12]
+    candidate_joiner = " AND " if strong_identifiers or phrases else " OR "
     fts_query = candidate_joiner.join(f'"{t}"' for t in candidate_terms)
+    exact = getattr(snapshot, 'exact_budget', None)
+    exact_supplement = []
+    recent_card_limit = exact.match_limit + 1 if exact is not None else max(limit * 4, 25)
+    card_filter_clause, card_filter_params = exact_lookup.card_filters(filters) if exact is not None else ('', [])
+    card_scope_params = list(library_params) + card_filter_params
+    card_scope = f"1=1{library_clause}{promo}{source_clause}{source_lifecycle.card_clause('card')}{card_filter_clause}"
+    card_exact_clause = (exact.predicate(
+        'card.topic', 'card.plane', 'card.card_type', 'card.payload_json',
+        guard=card_scope, function='boh_exact_card') if exact is not None else '')
+    recent_card_query = (
+        'SELECT card.id FROM cards card LEFT JOIN docs d ON d.doc_id=card.doc_id '
+        f"WHERE 1=1{library_clause}{promo}{source_clause}{source_lifecycle.card_clause('card')}{card_filter_clause}{card_exact_clause} "
+        'ORDER BY card.updated_ts DESC LIMIT ?', (*card_scope_params, *(card_scope_params if exact is not None else []), recent_card_limit),
+    )
     rows = []
     if fts_query:
-        rows = snapshot.fetchall(
-            f"""
+        if exact is not None:
+            rows, exact_supplement = exact_lookup.candidates(
+                snapshot, f"""
             SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
                    d.operator_state, d.operator_intent, d.provenance_json,
                    d.source_type, d.topics_tokens, d.updated_ts, d.corpus_class,
                    d.epistemic_last_evaluated, d.epistemic_valid_until,
+                   {source_lifecycle.payload_sql('d.doc_id')} AS source_lifecycle_json,
+                   e.vector_json AS embedding_vector_json,
+                   bm25(doc_chunks_fts) AS bm25_score, 0 AS _exact_scan
+            FROM doc_chunks_fts
+            JOIN doc_chunks c ON c.chunk_id = doc_chunks_fts.chunk_id
+            JOIN docs d ON d.doc_id = c.doc_id
+            LEFT JOIN doc_chunk_embeddings e ON e.chunk_id = c.chunk_id
+            WHERE doc_chunks_fts MATCH ? {where}{promo}{exact.predicate("c.text", "c.heading_path", guard="1=1"+where+promo)}
+            ORDER BY bm25(doc_chunks_fts)
+            LIMIT ?
+            """, (fts_query, *params, *params, max(limit * 4, 20)),
+                f"""
+            SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
+                   d.operator_state, d.operator_intent, d.provenance_json,
+                   d.source_type, d.topics_tokens, d.updated_ts, d.corpus_class,
+                   d.epistemic_last_evaluated, d.epistemic_valid_until,
+                   {source_lifecycle.payload_sql('d.doc_id')} AS source_lifecycle_json,
+                   e.vector_json AS embedding_vector_json,
+                   0.0 AS bm25_score, 1 AS _exact_scan
+            FROM doc_chunks c
+            JOIN docs d ON d.doc_id = c.doc_id
+            LEFT JOIN doc_chunk_embeddings e ON e.chunk_id = c.chunk_id
+            WHERE 1=1 {where}{promo}{exact.predicate("c.text", "c.heading_path", guard="1=1"+where+promo)}
+            ORDER BY c.rowid
+            LIMIT ?
+            """, (*params, *params, exact.match_limit + 1), exact)
+        else:
+            rows = snapshot.fetchall(f"""
+            SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
+                   d.operator_state, d.operator_intent, d.provenance_json,
+                   d.source_type, d.topics_tokens, d.updated_ts, d.corpus_class,
+                   d.epistemic_last_evaluated, d.epistemic_valid_until,
+                   {source_lifecycle.payload_sql('d.doc_id')} AS source_lifecycle_json,
                    e.vector_json AS embedding_vector_json,
                    bm25(doc_chunks_fts) AS bm25_score
             FROM doc_chunks_fts
@@ -1297,17 +1498,17 @@ def _retrieve_in_snapshot(
             WHERE doc_chunks_fts MATCH ? {where}{promo}
             ORDER BY bm25(doc_chunks_fts)
             LIMIT ?
-            """,
-            (fts_query, *params, max(limit * 4, 20)),
-        )
-        rows = [dict(r) | {"retrieval_source": "fts"} for r in rows]
-    if not rows and not strong_identifiers:
+            """, (fts_query, *params, max(limit * 4, 20)))
+            rows = [dict(r) | {"retrieval_source": "fts"} for r in rows
+                    if _matches_query_constraints(query, r['text'], r['heading_path'] or '')]
+    if not rows and not strong_identifiers and not phrases:
         fallback_rows = snapshot.fetchall(
             f"""
             SELECT c.*, d.title, d.summary, d.type, d.project, d.document_class,
                    d.operator_state, d.operator_intent, d.provenance_json,
                    d.source_type, d.topics_tokens, d.updated_ts, d.corpus_class,
                    d.epistemic_last_evaluated, d.epistemic_valid_until,
+                   {source_lifecycle.payload_sql('d.doc_id')} AS source_lifecycle_json,
                    e.vector_json AS embedding_vector_json,
                    0.0 AS bm25_score
             FROM doc_chunks c
@@ -1322,8 +1523,11 @@ def _retrieve_in_snapshot(
             dict(r) | {"retrieval_source": "lexical_fallback"} for r in fallback_rows
             if _cosine(q_vec, _term_counter(r["text"] + " " + (r["heading_path"] or ""))) > 0
         ]
-    if not rows:
-        metadata = _batch_metadata(snapshot, [], recent_card_limit=max(limit * 4, 25))
+    if not rows and not exact_supplement:
+        metadata = _batch_metadata(snapshot, [], recent_card_limit=recent_card_limit, recent_card_query=recent_card_query)
+        if exact is not None:
+            exact.cards = len(metadata.recent_cards) <= exact.match_limit
+            metadata.recent_cards = metadata.recent_cards[:exact.match_limit]
         return {
             "query": query,
             "count": 0,
@@ -1359,6 +1563,10 @@ def _retrieve_in_snapshot(
         ))
         related_by_doc: dict[str, list[dict]] = defaultdict(list)
         if related_doc_ids:
+            exact_lineage_clause = (
+                " AND c.chunk_id IN (SELECT lc.chunk_id FROM doc_chunks lc WHERE lc.doc_id=c.doc_id "
+                "ORDER BY lc.chunk_index LIMIT 2)" + exact.predicate('c.text', 'c.heading_path', guard='1=1'+where+promo)
+                if exact is not None else '')
             related_marks = _in_marks(related_doc_ids)
             related_rows = snapshot.fetchall(
                 f"""
@@ -1366,15 +1574,16 @@ def _retrieve_in_snapshot(
                        d.operator_state, d.operator_intent, d.provenance_json,
                        d.source_type, d.topics_tokens, d.updated_ts, d.corpus_class,
                        d.epistemic_last_evaluated, d.epistemic_valid_until,
+                       {source_lifecycle.payload_sql('d.doc_id')} AS source_lifecycle_json,
                        e.vector_json AS embedding_vector_json,
                        0.0 AS bm25_score
                 FROM doc_chunks c
                 JOIN docs d ON d.doc_id = c.doc_id
                 LEFT JOIN doc_chunk_embeddings e ON e.chunk_id = c.chunk_id
-                WHERE c.doc_id IN ({related_marks}) {where}{promo}
+                WHERE c.doc_id IN ({related_marks}) {where}{promo}{exact_lineage_clause}
                 ORDER BY c.doc_id, c.chunk_index
                 """,
-                tuple(related_doc_ids + params),
+                tuple(related_doc_ids + params + (params if exact is not None else [])),
             )
             for related_row in related_rows:
                 if len(related_by_doc[related_row["doc_id"]]) < 2:
@@ -1383,18 +1592,27 @@ def _retrieve_in_snapshot(
             for related_doc_id in related_by_seed.get(doc_id, []):
                 for row in related_by_doc.get(related_doc_id, []):
                     item = dict(row)
+                    if not _matches_query_constraints(query, item['text'], item['heading_path'] or ''):
+                        continue
                     if item["chunk_id"] in seen_chunk_ids:
                         continue
                     seen_chunk_ids.add(item["chunk_id"])
                     item["retrieval_source"] = f"lineage_expansion:{doc_id}"
                     rows.append(item)
 
+    if exact_supplement:
+        admitted = {row['chunk_id'] for row in rows}
+        rows.extend(row for row in exact_supplement if row['chunk_id'] not in admitted)
     metadata = _batch_metadata(
         snapshot,
         [row["doc_id"] for row in rows],
-        recent_card_limit=max(limit * 4, 25),
+        recent_card_limit=recent_card_limit,
+        recent_card_query=recent_card_query,
     )
 
+    if exact is not None:
+        exact.cards = len(metadata.recent_cards) <= exact.match_limit
+        metadata.recent_cards = metadata.recent_cards[:exact.match_limit]
     q_embedding = _hash_embedding(query)
     bm25_vals = [r["bm25_score"] for r in rows]
     min_b = min(bm25_vals)
@@ -1404,6 +1622,8 @@ def _retrieve_in_snapshot(
     packs = []
     seen = set()
     for row in rows:
+        if exact is not None:
+            exact.check()
         item = dict(row)
         if item["chunk_id"] in seen:
             continue
@@ -1433,6 +1653,9 @@ def _retrieve_in_snapshot(
             item.get("status") == "canonical"
             or item.get("authority_state") in {"approved", "trusted", "canonical"}
         )
+        lifecycle_state = source_lifecycle.decode_status(item.get('source_lifecycle_json'))
+        if lifecycle_state['current_evidence'] is False:
+            do_not_treat_as_canonical = True
         try:
             frontmatter_provenance = json.loads(item.get("provenance_json") or "{}")
         except Exception:
@@ -1479,9 +1702,10 @@ def _retrieve_in_snapshot(
                 "age_days": age_days,
                 "source": freshness_source,
                 "valid_until": item.get("epistemic_valid_until"),
-                "superseded": bool(superseding),
-                "superseded_by": superseding.get("related_doc_id") if superseding else None,
+                "superseded": bool(superseding) or lifecycle_state['superseded'],
+                "superseded_by": superseding.get("related_doc_id") if superseding else lifecycle_state.get('superseded_by'),
             },
+            "source_lifecycle": source_lifecycle.decode_status(item.get('source_lifecycle_json')),
             "intake_provenance": (
                 metadata.intake_provenance.get(item["doc_id"])
                 if item.get("corpus_class") == promoted_exposure.PROMOTED_CORPUS_CLASS
@@ -1499,6 +1723,7 @@ def _retrieve_in_snapshot(
             "warnings": [
                 "do_not_treat_as_canonical" if do_not_treat_as_canonical else "",
                 "open_conflicts_present" if conflicts else "",
+                "historical_source_evidence" if lifecycle_state['current_evidence'] is False else "",
             ],
             "do_not_treat_as_canonical": do_not_treat_as_canonical,
             "score": round(final, 6),
@@ -1519,10 +1744,10 @@ def _retrieve_in_snapshot(
     bounded = []
     used_chars = 0
     for p in packs:
-        if len(bounded) >= limit:
+        if exact is None and len(bounded) >= limit:
             break
         next_chars = len(p["text"])
-        if bounded and used_chars + next_chars > max_context_chars:
+        if exact is None and bounded and used_chars + next_chars > max_context_chars:
             break
         bounded.append(p)
         used_chars += next_chars

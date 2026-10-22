@@ -10,10 +10,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core import context_object, retrieval
+from app.api.retrieval_validation import require_query_fields
 
 router = APIRouter(prefix="/api", tags=["context-object"])
 
@@ -34,16 +35,19 @@ def _parse_edge_types(edge_types: Optional[str]) -> Optional[list]:
 
 
 class ContextObjectRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
     scope: dict = Field(..., description='{"type": "query", "query": "..."} or '
                                          '{"type": "doc|project|plane", "value": "..."}')
     only: Optional[str] = None
     evidence_limit: int = Field(8, ge=1, le=25)
     include_promoted: bool = False
     question_type: Optional[str] = None  # WO-R3: historical|operational|authority|exploratory
+    filters: dict[str, str] | None = None
 
 
 @router.get("/context-object", summary="Assemble a governed context object for a simple scope")
 def get_context_object(
+    request: Request,
     scope: str = Query(..., min_length=3, max_length=512,
                        description="doc:{id} | project:{p} | plane:{p}"),
     only: Optional[str] = Query(None, description="'blocking' for the reduced blocker view"),
@@ -56,6 +60,7 @@ def get_context_object(
         None, description="node-scope CSV filter within the verified stored vocabulary (WO-R4)"),
     _connector: str = Depends(retrieval.require_retrieval_token),
 ):
+    require_query_fields(request, {'scope','only','evidence_limit','include_promoted','question_type','radius','edge_types'})
     if question_type is not None and question_type not in context_object.QUESTION_TYPES:
         raise HTTPException(status_code=422,
                             detail=f"question_type must be one of {context_object.QUESTION_TYPES}")
@@ -85,6 +90,8 @@ def post_context_object(
     _connector: str = Depends(retrieval.require_retrieval_token),
 ):
     stype = (req.scope or {}).get("type")
+    if set(req.scope) - ({'type','query'} if stype == 'query' else {'type','value'}):
+        raise HTTPException(status_code=422, detail='unsupported context scope field')
     value = (req.scope or {}).get("query") if stype == "query" else (req.scope or {}).get("value")
     if stype not in context_object.SCOPE_TYPES or not value:
         raise HTTPException(status_code=422,
@@ -97,7 +104,11 @@ def post_context_object(
     if req.question_type is not None and req.question_type not in context_object.QUESTION_TYPES:
         raise HTTPException(status_code=422,
                             detail=f"question_type must be one of {context_object.QUESTION_TYPES}")
-    return context_object.assemble(stype, value, only=req.only,
-                                   evidence_limit=req.evidence_limit,
-                                   include_promoted=req.include_promoted,
-                                   question_type=req.question_type)
+    try:
+        return context_object.assemble(stype, value, only=req.only,
+                                       evidence_limit=req.evidence_limit,
+                                       include_promoted=req.include_promoted,
+                                       question_type=req.question_type,
+                                       filters=req.filters)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))

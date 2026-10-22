@@ -13,6 +13,13 @@ BOH is designed for work where “the system found a passage” is not enough. A
 useful answer also needs provenance, authority posture, conflict state,
 freshness, and an explicit account of what was withheld.
 
+## Current source update
+
+The October 2026 update adds native Markdown intake, managed source lifecycle,
+identifier/phrase retrieval with indexed-snapshot coverage, a separate evidence
+diversity evaluator, clearer UI status, and a reusable local HTTP consumer.
+See [capabilities, setup and verification limits](docs/PUBLIC_UPDATE_2026_10.md).
+
 ## What the product demonstrates
 
 - **Governed capture and intake** — accept supported text and document formats,
@@ -34,8 +41,9 @@ freshness, and an explicit account of what was withheld.
 
 ## Product tour
 
-All images below are captures of the real BOH application running against an
-isolated seeded demo. They contain no private corpus or operator data.
+All images below are retained captures of the earlier BOH application running
+against an isolated seeded demo. They contain no private corpus or operator
+data; they are not new acceptance captures for the October source update.
 
 ### Governed workspace
 

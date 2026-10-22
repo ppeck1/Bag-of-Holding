@@ -35,7 +35,7 @@ body {
 /* ---------- App frame ---------- */
 .app {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   grid-template-rows: var(--topbar-h) 1fr;
   grid-template-areas: "brand topbar" "sidebar main";
   height: 100%;
@@ -63,6 +63,7 @@ body {
 
 .topbar {
   grid-area: topbar;
+  min-width: 0;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-default);
   display: flex; align-items: center;
@@ -175,6 +176,7 @@ body {
 /* ---------- Main scroll region ---------- */
 .main {
   grid-area: main;
+  min-width: 0;
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
@@ -188,6 +190,10 @@ body {
 .inspector-resize:hover, .inspector-resize.dragging { background: var(--accent); }
 /* Responsive: below 1280px the inspector overlays content as a fixed panel; resize is disabled */
 @media (max-width: 1279px) {
+  .app { --topbar-h: 88px; }
+  .topbar { flex-wrap: wrap; align-content: center; gap: 6px 8px; }
+  .topbar .search { flex: 1 1 180px; min-width: 140px; max-width: none; }
+  .topbar .grow { display: none; }
   .main { grid-template-columns: 1fr !important; }
   .inspector-resize { display: none; }
   .inspector {
@@ -200,11 +206,14 @@ body {
 .fold-wrap { display: grid; grid-template-columns: 1fr var(--inspector-w); height: 100%; min-height: 0; overflow: hidden; }
 .fold-wrap .fold { min-width: 0; }
 .content {
+  min-width: 0;
   overflow-y: auto;
   padding: var(--space-6);
   display: flex; flex-direction: column;
   gap: var(--space-6);
 }
+/* Scroll overflowing content instead of shrinking notices and sections. */
+.content > * { flex-shrink: 0; }
 .content-narrow { max-width: 1120px; width: 100%; }
 
 /* page header */

@@ -68,26 +68,64 @@ function currentnessOf(status) {
   return "unknown";
 }
 
+const countOrNull = (v) => Number.isInteger(v) && v >= 0 ? v : null;
+const has = (o, key) => o != null && Object.prototype.hasOwnProperty.call(o, key);
+
+export function securityPresentation(security) {
+  if (security?.configured === true && security.record_valid === false)
+    return { label: "TOKEN INVALID", detail: "The configured operator verifier is invalid. Browser authorization is not established by this badge." };
+  if (security?.configured === true && security.record_valid === true)
+    return { label: "TOKEN CONFIGURED", detail: "An operator verifier is configured. This does not verify the token in this browser tab." };
+  if (security?.configured === false && security.record_valid === true)
+    return { label: "DEV-OPEN", detail: "No operator verifier is configured; operator-protected local routes are open." };
+  return { label: "SECURITY UNAVAILABLE", detail: "Operator verifier state could not be observed." };
+}
+
+export function indexResultNotice(result) {
+  if (result?.error) return { ns: "conflict", message: `Index run failed: ${result.error}` };
+  if (!result || !["scanned", "indexed", "skipped", "failed"].every(k => countOrNull(result[k]) !== null))
+    return { ns: "stale", message: "Index result unavailable. Check Status before retrying; completion could not be verified." };
+  const summary = `Scanned ${result.scanned} · Indexed ${result.indexed} · Skipped ${result.skipped} · Failed ${result.failed}`;
+  return { ns: result.failed > 0 ? "stale" : "current",
+    message: `Index run complete${result.failed > 0 ? " with failed files" : ""}: ${summary}` };
+}
+
+export function resetResultNotice(result) {
+  if (result?.error) return { ns: "conflict", message: `State reset failed: ${result.error}` };
+  if (result?.ok === false) return { ns: "conflict", message: "State reset failed. Check Status before retrying." };
+  if (result?.ok !== true || result.reset_type !== "state_only" || !Array.isArray(result.errors) || !Array.isArray(result.cleared_tables))
+    return { ns: "stale", message: "State reset outcome unavailable. Check Status before retrying." };
+  return { ns: result.errors.length ? "stale" : "current", message: result.errors.length
+    ? `State reset partially completed: ${result.errors.length} table errors. Indexed documents and library files are preserved.`
+    : "Workspace state reset complete. Indexed documents and library files are preserved." };
+}
+
 function statusCellsFrom(st) {
   if (!st || st.error) return null;
-  const ol = st.ollama || {};
-  const ollamaVal = ol.enabled ? (ol.available ? "AVAILABLE" : "ENABLED / DOWN") : "OPTIONAL / OFF";
-  const errs = st.index_errors || 0;
+  const unavailable = new Set(st.unavailable_fields || []);
+  const knownCount = (key, v) => !unavailable.has(key) && countOrNull(v) !== null;
+  const countValue = (key, v) => knownCount(key, v) ? String(v) : "UNAVAILABLE";
+  const ol = st.ollama;
+  const ollamaKnown = !unavailable.has("ollama") && typeof ol?.enabled === "boolean" && typeof ol?.available === "boolean";
+  const ollamaVal = ollamaKnown ? (ol.enabled ? (ol.available ? "AVAILABLE" : "ENABLED / DOWN") : "OPTIONAL / OFF") : "UNAVAILABLE";
+  const errs = knownCount("index_errors", st.index_errors) ? st.index_errors : null;
   return [
-    { label: "Server",        value: (st.server || "—").toUpperCase(), tone: st.server === "ok" ? "current" : "stale", kind: "dot" },
-    { label: "Last indexed",  value: st.last_indexed_at ? String(st.last_indexed_at) : "never", tone: "primary", kind: "text" },
-    { label: "Indexed docs",  value: String(st.indexed_docs ?? "—"), tone: "primary", kind: "text" },
-    { label: "Graph edges",   value: String(st.graph_edges ?? "—"), tone: "muted", kind: "text" },
-    { label: "Review queue",  value: String((st.review_queue && st.review_queue.pending) ?? 0), tone: "muted", kind: "text" },
-    { label: "Index errors",  value: String(errs), tone: errs > 0 ? "stale" : "current", kind: "dot" },
-    { label: "Ollama",        value: ollamaVal, tone: ol.available ? "current" : "muted", kind: "dot" },
+    { label: "Server",        value: typeof st.server === "string" ? st.server.toUpperCase() : "UNAVAILABLE", tone: st.server === "ok" ? "current" : "stale", kind: "dot" },
+    { label: "Last indexed",  value: !unavailable.has("autoindex") && has(st, "last_indexed_at") ? (st.last_indexed_at === null ? "never" : String(st.last_indexed_at)) : "UNAVAILABLE", tone: "primary", kind: "text" },
+    { label: "Indexed docs",  value: countValue("indexed_docs", st.indexed_docs), tone: "primary", kind: "text" },
+    { label: "Graph edges",   value: countValue("graph_edges", st.graph_edges), tone: "muted", kind: "text" },
+    { label: "Review queue",  value: countValue("review_queue", st.review_queue?.pending), tone: "muted", kind: "text" },
+    { label: "Index errors",  value: errs === null ? "UNAVAILABLE" : String(errs), tone: errs === null ? "muted" : errs > 0 ? "stale" : "current", kind: "dot" },
+    { label: "Ollama",        value: ollamaVal, tone: ollamaKnown && ol.available ? "current" : "muted", kind: "dot" },
   ];
 }
 
 /** Status screen data. */
 export async function fetchStatus() {
   const st = await api("/api/status");
-  return { statusCells: statusCellsFrom(st) || [], raw: st };
+  return { statusCells: statusCellsFrom(st) || [], raw: st,
+    error: !st || st.error ? "Runtime status unavailable" : null,
+    security: st && !st.error ? st.operator_token : null };
 }
 
 /** Overview data: currentness tiles (inferred), node count, recent docs, status cells. */
@@ -98,26 +136,27 @@ export async function fetchOverview() {
     api("/api/status"),
     api("/api/docs?per_page=8"),
   ]);
-  if (dash && dash.error && coh && coh.error) {
-    return { error: dash.error };
-  }
-
-  const c = (coh && coh.counts) || {};
-  const conflicts = (dash && (dash.conflicts ?? dash.open_conflicts ?? dash.conflict_docs)) ?? 0;
-  const expired = (dash && dash.epistemic_expired) ?? ((c.stale || 0) + (c.critical_decay || 0));
-  const unknown = (dash && dash.epistemic_no_state) ?? 0;
+  const dashboard = dash && !dash.error ? dash : {};
+  const c = coh && !coh.error ? coh.counts || {} : {};
+  const status = st && !st.error ? st : {};
+  const unavailable = new Set(status.unavailable_fields || []);
+  const conflicts = countOrNull(dashboard.conflicts ?? dashboard.open_conflicts ?? dashboard.conflict_docs);
+  const decay = countOrNull(c.stale) !== null && countOrNull(c.critical_decay) !== null ? c.stale + c.critical_decay : null;
+  const expired = countOrNull(dashboard.epistemic_expired) ?? decay;
+  const unknown = countOrNull(dashboard.epistemic_no_state);
 
   const metrics = [
-    { key: "current",  ns: "current",  count: c.fresh || 0,  delta: "from coherence", dir: "flat" },
-    { key: "stale",    ns: "stale",    count: c.aging || 0,  delta: "from coherence", dir: "flat" },
-    { key: "expired",  ns: "expired",  count: expired || 0,  delta: "inferred",       dir: "flat" },
-    { key: "conflict", ns: "conflict", count: conflicts || 0,delta: "open conflicts", dir: "flat" },
-    { key: "unknown",  ns: "unknown",  count: unknown || 0,  delta: "no epistemic state", dir: "flat" },
+    { key: "current",  ns: "current",  count: countOrNull(c.fresh), delta: "from coherence", dir: "flat" },
+    { key: "stale",    ns: "stale",    count: countOrNull(c.aging), delta: "from coherence", dir: "flat" },
+    { key: "expired",  ns: "expired",  count: expired, delta: "inferred", dir: "flat" },
+    { key: "conflict", ns: "conflict", count: conflicts, unit: "open conflicts", delta: "open conflicts", dir: "flat" },
+    { key: "unknown",  ns: "unknown",  count: unknown, delta: "no epistemic state", dir: "flat" },
   ];
 
-  const items = (docsResp && (docsResp.docs || docsResp.items)) || [];
-  const recentDocs = items.map((d, i) => ({
-    id: d.id || d.doc_id || `doc-${i}`,
+  const docsAvailable = docsResp && !docsResp.error && Array.isArray(docsResp.docs || docsResp.items);
+  const items = docsAvailable ? (docsResp.docs || docsResp.items) : [];
+  const recentDocs = items.map((d) => ({
+    id: d.id || d.doc_id || null,
     title: d.title || d.name || "(untitled)",
     path: d.path || null,
     project: d.project || "—",
@@ -129,10 +168,27 @@ export async function fetchOverview() {
     updated: d.updated || d.updated_at || d.indexed_at || "—",
   }));
 
-  const nodeCount = (dash && dash.total_docs) ?? recentDocs.length;
+  const nodeCount = countOrNull(dashboard.total_docs) ?? (!unavailable.has("indexed_docs") ? countOrNull(status.indexed_docs) : null);
+  const pending = unavailable.has("review_queue") ? null : countOrNull(status.review_queue?.pending);
+  const errors = unavailable.has("index_errors") ? null : countOrNull(status.index_errors);
+  const attention = [
+    { ns: "conflict", count: conflicts, label: "open conflicts", target: "review", action: "Open Review Center" },
+    { ns: "review", count: pending, label: "pending review items", target: "review", action: "Open Review Center" },
+    { ns: "stale", count: errors, label: "index error events", target: "log", action: "Open activity log" },
+  ];
+  const sources = [
+    { label: "Dashboard", available: countOrNull(dashboard.total_docs) !== null },
+    { label: "Coherence", available: countOrNull(c.fresh) !== null && countOrNull(c.aging) !== null },
+    { label: "Runtime status", available: typeof status.server === "string" },
+    { label: "Recent documents", available: !!docsAvailable },
+  ];
+  const missingSources = sources.filter(s => !s.available).map(s => s.label);
+  const partial = missingSources.length || unavailable.size || metrics.some(m => m.count === null) || nodeCount === null;
+  const loadState = sources.every(s => !s.available) ? "error" : partial ? "partial" : nodeCount === 0 ? "empty" : "populated";
 
   return {
     inferred: true,
+    loadState, missingSources, docsAvailable: !!docsAvailable, attention,
     metrics,
     nodeCount,
     recentDocs,

@@ -1,19 +1,17 @@
 /* BOH new UI (Phase A) — Current State / Overview. Port of OverviewScreen (screens.jsx).
    Currentness tiles, recent-changes table, and system-status cells come from the live
-   adapter (js/api.js → data). "Needs attention" is a prototype affordance (fixtures)
-   until conflict/review/intake summary endpoints are wired. */
+   adapter (js/api.js → data). Missing observations remain explicitly unavailable. */
 
 import { h } from "../dom.js";
 import { Button, Card, MetricTile, Badge, MarkerPip, Tooltip, AlertBanner, EmptyState, Skeleton, Tabs } from "../primitives.js";
 import { nsMeta } from "../ns.js";
-import * as FX from "../fixtures.js";
 import { StatusCell } from "./settings.js";
 
 const CURRENTNESS_KEYS = ["current", "stale", "expired", "conflict", "unknown"];
 let _tab = "overview";
 
 export function OverviewScreen(props) {
-  const { protoState, selection, data, onSelectMetric, onSelectDoc, onToast, onConfirm, onNavigate } = props;
+  const { protoState, selection, data, onSelectMetric, onSelectDoc, onRetry, onConfirm, onNavigate } = props;
   const D = data || {};
 
   const head = h("div", { className: "page-head" },
@@ -28,15 +26,14 @@ export function OverviewScreen(props) {
       { value: "overview", label: "Overview" }, { value: "fold", label: "Fold Workspace" }] }));
 
   if (protoState === "loading") return h("div", { className: "content content-narrow" }, head, OverviewLoading());
-  if (protoState === "empty")   return h("div", { className: "content content-narrow" }, head, OverviewEmpty({ onNavigate }));
-  if (protoState === "error")   return h("div", { className: "content content-narrow" }, head, OverviewError({ onToast }));
-  if (protoState === "denied")  return h("div", { className: "content content-narrow" }, head, OverviewDenied({ onNavigate }));
+  if (protoState === "error")   return h("div", { className: "content content-narrow" }, head, OverviewError({ onRetry, onNavigate }));
 
   const partial = protoState === "partial";
-  const metrics = (D.metrics || FX.metrics).filter((m) => CURRENTNESS_KEYS.includes(m.key));
-  const docs = D.recentDocs || FX.documents;
-  const statusCells = D.statusCells || FX.systemStatus;
-  const nodeCount = D.nodeCount != null ? D.nodeCount : FX.overviewCounts.nodes;
+  const metrics = (D.metrics || []).filter((m) => CURRENTNESS_KEYS.includes(m.key));
+  const docs = D.recentDocs || [];
+  const statusCells = D.statusCells || [];
+  const nodeCount = D.nodeCount;
+  const attention = D.attention || [];
 
   return h("div", { className: "content content-narrow" },
     head,
@@ -46,44 +43,45 @@ export function OverviewScreen(props) {
       "These tiles map the backend coherence/conflict summary onto the design's currentness namespace; the mapping is provisional until a native currentness endpoint exists."] }),
 
     partial && AlertBanner({ ns: "stale",
-      action: Button({ variant: "secondary", className: "sm", onClick: () => onToast("Retrying index scan — prototype action", "review"), children: ["Retry scan"] }),
-      children: [h("strong", { style: { color: "var(--text-primary)" } }, "Partial data. "), "The last index scan was interrupted; counts may be incomplete until the scan completes."] }),
+      action: Button({ variant: "secondary", className: "sm", onClick: onRetry, children: ["Retry"] }),
+      children: [h("strong", { style: { color: "var(--text-primary)" } }, "Partial data. "), "Some observations are unavailable. Available values are shown below; retry to refresh."] }),
+
+    protoState === "empty" && OverviewEmpty({ onNavigate }),
 
     // Currentness
     h("section", { className: "section" },
       h("div", { className: "section-head" },
         h("span", { className: "t-subheading" }, "Currentness"),
-        h("span", { className: "count t-small" }, `${nodeCount} nodes`),
+        h("span", { className: "count t-small" }, nodeCount == null ? "Document total unavailable" : `${nodeCount} documents`),
         h("span", { className: "spacer" }),
         h("span", { className: "t-small muted" }, "Fill = currentness · counts, not node fills")),
       h("div", { className: "metric-grid" },
         metrics.map((m) => MetricTile({
-          ns: m.ns, count: m.count, delta: m.delta, dir: m.dir,
+          ns: m.ns, count: m.count == null ? "Unavailable" : m.count, delta: m.delta, dir: m.dir,
           selected: selection && selection.type === "metric" && selection.ns === m.ns,
           onClick: () => onSelectMetric(m),
         })))),
 
-    // Needs attention (prototype affordance)
+    // Summary counts are observations; no operation is implied by navigation.
     h("section", { className: "section" },
       h("div", { className: "section-head" }, h("span", { className: "t-subheading" }, "Needs attention now"),
-        h("span", { className: "spacer" }), h("span", { className: "t-small muted" }, "prototype summary")),
+        h("span", { className: "spacer" }), h("span", { className: "t-small muted" }, "Observed summary counts")),
       Card({ bodyFlush: true, children: h("div", { className: "attn-list" },
-        FX.attention.map((a) => { const meta = nsMeta(a.ns); return h("div", { className: "attn-row" },
+        attention.every(a => a.count === 0) && attention.length > 0 && h("div", { className: "t-small muted" }, "No attention items reported by these sources."),
+        attention.filter(a => a.count !== 0).map((a) => { const meta = nsMeta(a.ns); return h("div", { className: "attn-row" },
           h("span", { className: "attn-glyph", style: { color: meta.color, background: `color-mix(in oklab, ${meta.color} 14%, transparent)` } }, meta.glyph),
-          h("div", { className: "attn-text" }, h("div", { className: "lead" }, a.lead), h("div", { className: "sub" }, a.sub)),
-          Button({ variant: a.action.variant, className: "sm",
-            glyph: a.action.variant === "governed" ? "↺" : (a.action.variant === "containment" ? "⊗" : null),
-            onClick: () => { if (a.action.variant === "governed") onToast("Opened a review item — a reviewer must act before anything changes.", "review"); else onNavigate(a.target); },
-            children: [a.action.label] })); })) })),
+          h("div", { className: "attn-text" }, h("div", { className: "lead" }, a.count == null ? `${a.label}: unavailable` : `${a.count} ${a.label}`)),
+          Button({ variant: "secondary", className: "sm", onClick: () => onNavigate(a.target), children: [a.action] })); })) })),
 
     // Recent changes (real docs)
     h("section", { className: "section" },
       h("div", { className: "section-head" },
         h("span", { className: "t-subheading" }, "Recent changes"),
-        h("span", { className: "count t-small" }, `${docs.length} documents`),
+        h("span", { className: "count t-small" }, D.docsAvailable ? `${docs.length} recent documents` : "Recent documents unavailable"),
         h("span", { className: "spacer" }),
         Button({ variant: "ghost", className: "sm", onClick: () => onNavigate("library"), children: ["Browse Library →"] })),
       Card({ bodyFlush: true, children: h("div", { style: { overflowX: "auto" } },
+        !docs.length && h("div", { className: "t-small muted" }, D.docsAvailable ? "No recent documents returned." : "Recent documents could not be loaded."),
         h("table", { className: "tbl" },
           h("thead", null, h("tr", null,
             h("th", { style: { width: "132px" } }, "State"),
@@ -95,7 +93,7 @@ export function OverviewScreen(props) {
             h("th", { className: "num", style: { width: "90px" } }, "Updated"))),
           h("tbody", null, docs.map((d) => h("tr", {
             className: selection && selection.type === "doc" && selection.doc.id === d.id ? "selected" : "",
-            tabindex: "0", onClick: () => onSelectDoc(d), onKeydown: (e) => { if (e.key === "Enter") onSelectDoc(d); },
+            tabindex: d.id ? "0" : null, onClick: () => d.id && onSelectDoc(d), onKeydown: (e) => { if (e.key === "Enter" && d.id) onSelectDoc(d); },
           },
             h("td", null, Badge({ ns: d.currentness || "unknown" })),
             h("td", null, h("span", { className: "doc-title" }, d.title),
@@ -112,8 +110,8 @@ export function OverviewScreen(props) {
       Card({ bodyFlush: true, children: [
         h("div", { className: "card-head", style: { borderBottom: "1px solid var(--border-default)" } },
           h("span", { className: "t-small muted" }, "Local runtime · Bag of Holding"), h("span", { className: "spacer" }),
-          Button({ variant: "secondary", className: "sm", glyph: "↺", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Discards derived index data and re-scans the managed library. Source files are untouched and the operation is recoverable by re-running.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] })),
-        h("div", { className: "card-body" }, h("div", { className: "status-grid" }, statusCells.map((s) => StatusCell({ s, partial })))),
+          Button({ variant: "secondary", className: "sm", glyph: "↺", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Re-scans the managed library and updates the index. Source files are preserved.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] })),
+        h("div", { className: "card-body" }, statusCells.length ? h("div", { className: "status-grid" }, statusCells.map((s) => StatusCell({ s }))) : h("div", { className: "t-small muted" }, "Runtime status unavailable.")),
       ] })));
 }
 
@@ -138,17 +136,11 @@ function OverviewEmpty({ onNavigate }) {
       Button({ variant: "secondary", glyph: "▦", onClick: () => onNavigate("library"), children: ["Index library"] })] }) });
 }
 
-function OverviewError({ onToast }) {
+function OverviewError({ onRetry, onNavigate }) {
   return Card({ children: EmptyState({ glyph: "!", title: "Could not load Current State",
-    desc: "The resolver did not respond. No data has been changed. Retry, or open the activity log to see what failed.",
-    actions: [Button({ variant: "primary", glyph: "↺", onClick: () => onToast("Retrying — prototype action", "review"), children: ["Retry"] }),
-      Button({ variant: "ghost", children: ["Open activity log"] })] }) });
-}
-
-function OverviewDenied({ onNavigate }) {
-  return Card({ children: EmptyState({ glyph: "⊘", title: "Permission denied",
-    desc: "Current State requires a configured local operator token. Go to Settings → Security & Advanced to enter your session token.",
-    actions: Button({ variant: "secondary", onClick: () => onNavigate && onNavigate("settings"), children: ["Open Settings"] }) }) });
+    desc: "Overview observations could not be loaded. Retry to read them again, or open the activity log.",
+    actions: [Button({ variant: "primary", glyph: "↺", onClick: onRetry, children: ["Retry"] }),
+      Button({ variant: "ghost", onClick: () => onNavigate("log"), children: ["Open activity log"] })] }) });
 }
 
 export function PlaceholderScreen({ title, glyph, desc, onNavigate }) {

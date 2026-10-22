@@ -318,7 +318,13 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
              evidence_limit: int = 8, include_promoted: bool = False,
              question_type: str | None = None, radius: int = 1,
              edge_types: list[str] | None = None,
-             governed_result: Any | None = None) -> dict:
+             governed_result: Any | None = None,
+             filters: dict[str, Any] | None = None) -> dict:
+    requested_filters = retrieval.validate_filters(filters)
+    if requested_filters and scope_type != 'query':
+        raise ValueError('retrieval filters are supported only for query context objects')
+    if governed_result is not None:
+        retrieval.require_matching_scope(requested_filters, governed_result)
     warnings: list[str] = []
     show_promoted = promoted_exposure.visible(include_promoted)
     requested = {"type": scope_type, "value": value}
@@ -351,6 +357,8 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
         query, filters = value, {"project": value}
     else:
         query, filters = value, {}
+    if scope_type == 'query':
+        filters = requested_filters
     packs = []
     governed_wire: dict[str, Any] | None = None
     normalized_result: Any | None = None
@@ -420,6 +428,8 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
     node_unknowns: list[dict] = []
     state: dict[str, Any] = {}
     if scope_type == "doc" and members:
+        from app.core.source_lifecycle import get_status
+        source_status = get_status(value)
         packet = current_fold_from_folded_node(value)
         if packet is not None:
             pd = packet.as_dict()
@@ -429,6 +439,7 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
                      "why_current": pd.get("why_current"),
                      "local_state": pd.get("local_state")}
             node_unknowns = pd.get("unknowns") or []
+        state['source_lifecycle'] = source_status
     if scope_type == "node" and members:
         # WO-R4: neighborhood state over STORED edges only, with pressure contributors
         # (the fold resolver's enumerated inputs, inverted) and authority paths.
@@ -503,6 +514,7 @@ def assemble(scope_type: str, value: str, *, only: str | None = None,
         "actions": actions,
     }
     if scope_type == "query" and governed_wire is not None:
+        result["retrieval"] = governed_wire.get("retrieval", {})
         result["excluded_summary"] = governed_wire.get("excluded_summary", [])
         result["gate_result"] = governed_wire.get("gate_result", {})
         result["warnings"] = list(dict.fromkeys(

@@ -158,7 +158,7 @@ def test_authority_normalization_improves_judged_ranking_without_regression():
         "promoted_only_02_request_closed",
         "promoted_only_03_server_closed",
     }
-    assert failures_by_code["answerability_mismatch"] <= {
+    assert failures_by_code.get("answerability_mismatch", set()) <= {
         "promoted_only_02_request_closed",
         "promoted_only_03_server_closed",
         "strict_disallowed_02_draft",
@@ -169,6 +169,9 @@ def test_authority_normalization_improves_judged_ranking_without_regression():
         "promoted_only_02_request_closed",
         "promoted_only_03_server_closed",
         "strict_disallowed_02_draft",
+        # A different checksum no longer pulls an unrelated expired lineage
+        # record into the candidate population. v0.2 corrects that old judgment.
+        "stale_current_03_current_checksum",
     }
 
     old_observations = {
@@ -271,7 +274,7 @@ def test_strong_identifier_lane_improves_false_answer_and_forbidden_diagnostics(
     metrics = evaluated["metrics"]
 
     assert evaluated["failure_counts"]["forbidden_relevance_hit"] <= 6
-    assert evaluated["failure_counts"]["answerability_mismatch"] <= 3
+    assert evaluated["failure_counts"].get("answerability_mismatch", 0) == 0
     assert metrics["expected_unanswerable_false_positive_rate"] <= 0.333333
     assert metrics["recall_at_5"] >= 0.933333
     assert metrics["mrr"] == 1.0

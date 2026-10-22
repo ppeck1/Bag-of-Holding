@@ -91,6 +91,9 @@ def init_db():
     _add_column_if_missing(conn, "docs", "promoted_by_certificate",     "TEXT DEFAULT NULL")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_epistemic_d ON docs(epistemic_d)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_custodian_state ON docs(custodian_review_state)")
+    # Durable source observations are separate from authority and indexed history.
+    from app.core.source_lifecycle import initialize as initialize_source_lifecycle
+    initialize_source_lifecycle(conn)
     # Retrieval v1: stable chunk index for LLM context packs.
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS doc_chunks (

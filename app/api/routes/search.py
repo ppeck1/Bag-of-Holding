@@ -3,7 +3,8 @@
 Phase 8 additions: optional Daenary filter parameters.
 """
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from app.api.retrieval_validation import require_query_fields
 from app.core import search as search_engine
 from app.core.logical_libraries import InvalidLibraryId, resolve_logical_library
 
@@ -11,6 +12,7 @@ router = APIRouter(prefix="/api")
 
 @router.get("/search", summary="Full-text search with explainable scoring")
 def search(
+    request: Request,
     q: str = Query(..., description="Search query"),
     plane: Optional[str] = Query(None, description="Filter by plane_scope path"),
     library_id: Optional[str] = Query(None, description="Logical library browsing scope"),
@@ -24,6 +26,7 @@ def search(
     uncertain_only: bool = Query(False, description="Return only state=0/contain docs (high-signal, low-certainty)"),
     conflicts_only: bool = Query(False, description="Return only docs with open conflicts"),
 ):
+    require_query_fields(request, {'q','plane','library_id','limit','dimension','state','min_quality','min_confidence','stale','uncertain_only','conflicts_only'})
     try:
         library = resolve_logical_library(library_id)
         results = search_engine.search(

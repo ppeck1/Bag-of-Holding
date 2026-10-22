@@ -17,7 +17,7 @@ export function ComponentSheet({ onToast, onConfirm }) {
   return h("div", { className: "content content-narrow" },
     h("div", { className: "page-head" },
       h("div", { className: "t-display" }, "Component Sheet"),
-      h("div", { className: "sub t-small" }, "The foundry — every primitive once. Visual acceptance for Phase A.")),
+      h("div", { className: "sub t-small" }, "Component preview — sample values and visual examples. Preview controls do not perform maintenance.")),
 
     Section("Buttons (6 variants)",
       ...btnVariants.map((v) => P.Button({ variant: v, onClick: () => onToast(`${v} button`), children: [v] }))),
@@ -70,7 +70,7 @@ export function ComponentSheet({ onToast, onConfirm }) {
           actions: P.Button({ variant: "primary", glyph: "+", children: ["Primary action"] }) })) })),
 
     Section("Modal",
-      P.Button({ variant: "danger", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace?",
-        body: "Irreversibly removes local index data and layouts. Source files are not deleted.",
-        confirmLabel: "Reset workspace", variant: "danger", danger: true }), children: ["Open danger modal"] })));
+      P.Button({ variant: "danger", onClick: () => onConfirm({ kind: "preview", title: "Component preview",
+        body: "Visual example only. Closing this preview performs no operation.",
+        confirmLabel: "Close preview", variant: "danger" }), children: ["Open danger modal"] })));
 }

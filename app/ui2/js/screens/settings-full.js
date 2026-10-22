@@ -7,7 +7,7 @@ import { Card, Tabs, Segmented, Select, Toggle, Button, AlertBanner, Badge, Skel
 
 let _tab = "general";
 
-export function SettingsFullScreen({ settings, onSet, onConfirm, onToast }) {
+export function SettingsFullScreen({ settings, onSet, onConfirm, onToast, onSecurityChange }) {
   let root;
   function rebuild() { const old = root; const n = build(); old.replaceWith(n); }
   function build() {
@@ -28,7 +28,7 @@ export function SettingsFullScreen({ settings, onSet, onConfirm, onToast }) {
       _tab === "intake"   ? IntakeAutomationTab() :
       _tab === "ai"       ? AITab({ onToast }) :
       _tab === "viz"      ? StatusDrivenTab("Visualization", vizFields) :
-                            SecurityTab({ onConfirm, onToast }));
+                            SecurityTab({ onConfirm, onToast, onSecurityChange }));
     return root;
   }
   return build();
@@ -42,7 +42,7 @@ function GeneralTab({ settings, onSet }) {
       Segmented({ value: settings.mode, onChange: v => onSet("mode", v), options: [{ value: "simple", label: "Simple" }, { value: "advanced", label: "Advanced" }] })),
     settingRow("Default landing page", "Which workspace screen opens on launch.", "NEXT RUN", "NEEDS SETTINGS API",
       Select({ value: settings.landing, onChange: v => onSet("landing", v), width: 200, options: [{ value: "current", label: "Current State" }, { value: "review", label: "Review Center" }, { value: "library", label: "Library" }, { value: "status", label: "Status" }] })),
-    settingRow("Diagnostic badges", "Show the DEV-OPEN badge and diagnostic chips in the top bar.", "LIVE", "BROWSER LOCAL",
+    settingRow("Diagnostic badges", "Show observed security state and diagnostic chips in the top bar.", "LIVE", "BROWSER LOCAL",
       Toggle({ checked: settings.diagnostics, onChange: v => onSet("diagnostics", v), label: "Diagnostic badges" })),
   ] }));
 }
@@ -258,8 +258,9 @@ function lockRow(label, state) {
   return h("div", { class: "flex gap-2 items-center" }, h("span", { class: "badge", style: { color, background: `color-mix(in oklab, ${color} 14%, transparent)`, border: `1px solid color-mix(in oklab, ${color} 30%, transparent)`, padding: "2px 8px", borderRadius: "999px", fontSize: "10px" } }, state), h("span", { class: "t-small muted" }, label));
 }
 
-function SecurityTab({ onConfirm, onToast }) {
+function SecurityTab({ onConfirm, onToast, onSecurityChange }) {
   const wrap = h("div", { style: { marginTop: "16px" } });
+  function refreshSecurity() { render(); onSecurityChange && onSecurityChange(); }
 
   async function render() {
     const [st, tokenStatus, connector] = await Promise.all([
@@ -267,19 +268,19 @@ function SecurityTab({ onConfirm, onToast }) {
       api("/api/security/tokens"),
       api("/api/security/mcp-connector", { headers: tokenHeaders() }),
     ]);
-    if (tokenStatus.error) {
-      wrap.replaceChildren(AlertBanner({ ns: "conflict", children: [`Security status unavailable: ${tokenStatus.error}`] }));
+    if (!tokenStatus || tokenStatus.error || ![tokenStatus.operator, tokenStatus.retrieval].every(s => typeof s?.configured === "boolean" && typeof s?.record_valid === "boolean")) {
+      wrap.replaceChildren(AlertBanner({ ns: "conflict", children: ["Security status unavailable. Refresh Settings to read it again."] }));
       return;
     }
     const operator = tokenStatus.operator || {};
     const retrieval = tokenStatus.retrieval || {};
     wrap.replaceChildren(Card({ title: "Security & Advanced", children: [
       AlertBanner({ ns: "advisory", children: ["BOH stores only salted verifiers. Plaintext stays in this browser tab. These BOH tokens do not authenticate ChatGPT MCP. Settings manages the OAuth gateway path; the no-auth stdio tunnel path is script-started."] }),
-      settingRow("Default actor", "BOH_DEFAULT_ACTOR - actor used for unauthenticated local requests.", "RESTART REQUIRED", "READ-ONLY ENV", h("span", { class: "t-small muted" }, st.default_actor || "dev_operator")),
+      settingRow("Default actor", "BOH_DEFAULT_ACTOR - actor used for unauthenticated local requests.", "RESTART REQUIRED", "READ-ONLY ENV", h("span", { class: "t-small muted" }, st.default_actor || "Unavailable")),
       h("div", { class: "security-token-section" }, "Server credentials"),
-      ServerTokenRow({ kind: "operator", serverState: operator, operatorState: operator, onToast, onRefresh: render, onConfirm }),
+      ServerTokenRow({ kind: "operator", serverState: operator, operatorState: operator, onToast, onRefresh: refreshSecurity, onConfirm }),
       SessionTokenRow({ onToast }),
-      ServerTokenRow({ kind: "retrieval", serverState: retrieval, operatorState: operator, onToast, onRefresh: render, onConfirm }),
+      ServerTokenRow({ kind: "retrieval", serverState: retrieval, operatorState: operator, onToast, onRefresh: refreshSecurity, onConfirm }),
       RetrievalSessionTokenRow({ onToast }),
       ...McpConnectorRows({ connector, onToast, onRefresh: render }),
       h("div", { class: "setting-row" },
@@ -287,8 +288,8 @@ function SecurityTab({ onConfirm, onToast }) {
           h("div", { class: "s-name" }, "Maintenance actions"),
           h("div", { class: "s-desc" }, "Index maintenance remains governed by operator authorization.")),
         h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
-          Button({ variant: "secondary", className: "sm", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Discards derived index data and re-scans. Source files are untouched.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
-          Button({ variant: "danger", className: "sm", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace?", body: "Irreversibly removes all local index data and layouts.", confirmLabel: "Reset workspace", variant: "danger", danger: true }), children: ["Reset workspace"] }))),
+          Button({ variant: "secondary", className: "sm", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Re-scans the managed library and updates the index. Source files are preserved.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
+          Button({ variant: "danger", className: "sm", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace state?", body: "Clears governance and runtime state, including open items, locks, feedback, and governance events. Indexed documents, library files, and the review queue are preserved. Cleared state cannot be undone here.", confirmLabel: "Reset workspace state", variant: "danger", danger: true }), children: ["Reset workspace state"] }))),
     ] }));
   }
 
@@ -568,8 +569,8 @@ function LegacySecurityTab({ onConfirm, onToast }) {
       RetrievalSessionTokenRow({ onToast }),
       h("div", { class: "setting-row" }, h("div", { class: "s-main" }, h("div", { class: "s-name" }, "Maintenance actions")),
         h("div", { class: "s-control col gap-2", style: { alignItems: "flex-start" } },
-          Button({ variant: "secondary", className: "sm", glyph: "↺", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Discards derived index data and re-scans. Source files are untouched.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
-          Button({ variant: "danger", className: "sm", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace?", body: "Irreversibly removes all local index data and layouts.", confirmLabel: "Reset workspace", variant: "danger", danger: true }), children: ["Reset workspace"] }))),
+          Button({ variant: "secondary", className: "sm", glyph: "↺", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Re-scans the managed library and updates the index. Source files are preserved.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
+          Button({ variant: "danger", className: "sm", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace state?", body: "Clears governance and runtime state, including open items, locks, feedback, and governance events. Indexed documents, library files, and the review queue are preserved. Cleared state cannot be undone here.", confirmLabel: "Reset workspace state", variant: "danger", danger: true }), children: ["Reset workspace state"] }))),
     ] }));
   });
   wrap.innerHTML = `<div class="t-small muted" style="margin-top:16px">Loading…</div>`;
