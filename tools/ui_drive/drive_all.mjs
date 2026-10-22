@@ -134,6 +134,45 @@ try {
   rec('SearchContext', false, 'THREW ' + (e.stack || e).split('\n').slice(0, 2).join(' | '));
 }
 
+// Scope changes clear cached evidence and invalidate a response from the prior library.
+{
+  const savedFetch = globalThis.fetch;
+  const pending = [];
+  try {
+    const { SearchContextScreen } = await import('../../app/ui2/js/screens/search-context.js?scope-regression=1');
+    globalThis.fetch = (url,opts) => String(url) === '/api/current-context-brief'
+      ? new Promise(resolve => pending.push({ body: JSON.parse(opts.body), resolve }))
+      : savedFetch(url,opts);
+    const screen = id => SearchContextScreen({activeLibraryId:id,activeLibrary:{name:id},onNavigate:()=>{}});
+    const finish = (request,summary) => request.resolve({ok:true,headers:{get:()=> 'application/json'},json:async()=>({
+      contract:'CurrentContextBrief v0.1',current_context_summary:summary,answerable_now:false,
+      best_evidence:[],newest_evidence:[],withheld:[],warnings:[],unknowns:[],superseded_or_conflicted:[]})});
+    let c = mount(screen('alpha'));
+    const input = findInput(c,'Ask for current context');
+    input.value = 'scope regression';
+    input._handlers.input.forEach(f => f({target:input}));
+    clickButtonExact(c,'Brief');
+    finish(pending[0],'ALPHA_EVIDENCE');
+    await sleep(10);
+    rec('SearchContext/brief-carries-library',pending[0].body.library_id === 'alpha' && text(c).includes('ALPHA_EVIDENCE'),'scoped POST body');
+    clickButtonExact(c,'Brief');
+    c = mount(screen('beta'));
+    rec('SearchContext/library-change-clears-evidence',!text(c).includes('ALPHA_EVIDENCE'),'old evidence cleared');
+    finish(pending[1],'LATE_ALPHA_EVIDENCE');
+    await sleep(10);
+    c = mount(screen('beta'));
+    rec('SearchContext/late-library-response-ignored',!text(c).includes('LATE_ALPHA_EVIDENCE'),'late response cannot repopulate cache');
+    clickButtonExact(c,'Brief');
+    rec('SearchContext/new-library-request',pending[2].body.library_id === 'beta','new scoped POST body');
+    finish(pending[2],'BETA_EVIDENCE');
+    await sleep(10);
+  } catch(e) {
+    rec('SearchContext/scope',false,'THREW '+String(e));
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
+}
+
 // 1. Current State
 try {
   const api = await import('../../app/ui2/js/api.js'); const { OverviewScreen } = await import('../../app/ui2/js/screens/overview.js');

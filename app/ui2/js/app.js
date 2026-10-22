@@ -18,21 +18,11 @@ import { CaptureScreen } from "./screens/capture.js";
 import { SettingsFullScreen } from "./screens/settings-full.js";
 import { ActivityScreen } from "./screens/activity.js";
 import { ContextPackScreen } from "./screens/context-pack.js";
-import { api, fetchOverview, fetchStatus, fetchFoldGraph, getToken, tokenHeaders } from "./api.js";
+import { api, fetchOverview, fetchStatus, fetchFoldGraph, getToken, tokenHeaders, indexResultNotice, resetResultNotice } from "./api.js";
 import { PLANES, normalizePlaneKey } from "./ns.js";
 
 const STORE_KEY = "boh_v2_phase_a";
 const PLANE_KEYS = Object.keys(PLANES); // stable reference to all 8 plane keys
-
-const PROTO_STATES = [
-  { value: "auto", label: "Auto (live)" },
-  { value: "populated", label: "Populated" },
-  { value: "empty", label: "Empty corpus" },
-  { value: "loading", label: "Loading" },
-  { value: "partial", label: "Partial data" },
-  { value: "error", label: "Error" },
-  { value: "denied", label: "Permission denied" },
-];
 
 function loadSettings() {
   const def = { density: "comfortable", mode: "advanced", landing: "current", diagnostics: true, activeLibraryId: "all" };
@@ -42,16 +32,14 @@ function loadSettings() {
 const state = {
   settings: loadSettings(),
   route: (location.hash.replace(/^#/, "") || loadSettings().landing),
-  forcedState: "auto",
   selection: null,
   alertsOpen: false,
-  protoOpen: false,
   toasts: [],
   confirm: null,
   overview: { status: "idle", data: null }, // idle|loading|ready|error
   statusData: { status: "idle", data: null },
   fold: { status: "idle", data: null, libraryId: loadSettings().activeLibraryId || "all" },
-  libraries: { status: "idle", items: [{ id: "all", name: "All libraries", count: 0 }] },
+  libraries: { status: "idle", items: [{ id: "all", name: "All libraries", count: null }] },
   libraryManagerOpen: false,
   libraryManager: { status: "idle", items: [] },
   activeLibraryId: loadSettings().activeLibraryId || "all",
@@ -130,18 +118,25 @@ function navigate(r) {
   render();
 }
 
+let overviewRequest = 0, statusRequest = 0;
 function ensureOverview(force) {
   if (!force && state.overview.status !== "idle") return;
+  const request = ++overviewRequest;
   state.overview = { status: "loading", data: null }; render();
   fetchOverview().then((d) => {
-    state.overview = d && d.error ? { status: "error", data: null } : { status: "ready", data: d };
+    if (request !== overviewRequest) return;
+    state.overview = { status: d.loadState === "error" ? "error" : "ready", data: d };
     render();
   });
 }
 function ensureStatus(force) {
   if (!force && state.statusData.status !== "idle") return;
+  const request = ++statusRequest;
   state.statusData = { status: "loading", data: null }; render();
-  fetchStatus().then((d) => { state.statusData = { status: "ready", data: d }; render(); });
+  fetchStatus().then((d) => {
+    if (request !== statusRequest) return;
+    state.statusData = { status: d.error ? "error" : "ready", data: d }; render();
+  });
 }
 function ensureFold(force) {
   const libraryId = state.activeLibraryId || "all";
@@ -161,7 +156,7 @@ function ensureLibraries(force) {
   api("/api/libraries").then((d) => {
     const items = d && !d.error && Array.isArray(d.libraries)
       ? d.libraries
-      : [{ id: "all", name: "All libraries", count: 0 }];
+      : [{ id: "all", name: "All libraries", count: null }];
     const activeExists = items.some(l => l.id === state.activeLibraryId);
     state.libraries = { status: d && d.error ? "error" : "ready", items };
     if (!activeExists) {
@@ -241,11 +236,9 @@ function reorderLibrary(lib, delta) {
 }
 
 function overviewProtoState() {
-  if (state.forcedState !== "auto") return state.forcedState;
-  if (state.overview.status === "loading") return "loading";
+  if (["idle", "loading"].includes(state.overview.status)) return "loading";
   if (state.overview.status === "error") return "error";
-  if (state.overview.data && (!state.overview.data.recentDocs || state.overview.data.recentDocs.length === 0)) return "empty";
-  return "populated";
+  return state.overview.data?.loadState || "error";
 }
 
 function currentScreen() {
@@ -254,14 +247,14 @@ function currentScreen() {
     return OverviewScreen({
       protoState: overviewProtoState(), mode: state.settings.mode,
       selection: state.selection, data: state.overview.data,
-      onSelectMetric: (m) => setState({ selection: (state.selection && state.selection.type === "metric" && state.selection.ns === m.ns) ? null : { type: "metric", ns: m.ns, count: m.count, delta: m.delta }, inspectorOpen: true }),
+      onSelectMetric: (m) => setState({ selection: (state.selection && state.selection.type === "metric" && state.selection.ns === m.ns) ? null : { type: "metric", ns: m.ns, count: m.count, unit: m.unit || "documents", delta: m.delta }, inspectorOpen: true }),
       onSelectDoc: (d) => setState({ selection: (state.selection && state.selection.type === "doc" && state.selection.doc.id === d.id) ? null : { type: "doc", doc: d }, inspectorOpen: true }),
-      onToast: pushToast, onConfirm: (c) => setState({ confirm: c }), onNavigate: navigate,
+      onRetry: () => { ensureOverview(true); ensureStatus(true); }, onConfirm: (c) => setState({ confirm: c }), onNavigate: navigate,
     });
   }
-  if (r === "settings") return SettingsFullScreen({ settings: state.settings, onSet: setSetting, onConfirm: (c) => setState({ confirm: c }), onToast: pushToast });
-  if (r === "status") return StatusScreen({ statusCells: (state.statusData.data && state.statusData.data.statusCells) || [], onConfirm: (c) => setState({ confirm: c }), onToast: pushToast });
-  if (r === "components") return ComponentSheet({ onToast: pushToast, onConfirm: (c) => setState({ confirm: c }) });
+  if (r === "settings") return SettingsFullScreen({ settings: state.settings, onSet: setSetting, onConfirm: (c) => setState({ confirm: c }), onToast: pushToast, onSecurityChange: () => ensureStatus(true) });
+  if (r === "status") return StatusScreen({ statusCells: state.statusData.data?.statusCells || [], loadState: state.statusData.status, onRetry: () => ensureStatus(true), onConfirm: (c) => setState({ confirm: c }), onToast: pushToast });
+  if (r === "components") return ComponentSheet({ onToast: msg => pushToast(`Preview: ${msg}`, "unknown"), onConfirm: () => setState({ confirm: { kind: "preview", title: "Component preview", body: "This is a visual example. Closing this preview performs no operation.", confirmLabel: "Close preview", variant: "secondary" } }) });
   if (r === "fold") {
     if (state.fold.status === "loading" || state.fold.status === "idle")
       return PlaceholderScreen({ title: "Fold Workspace", glyph: "◈", desc: "Loading fold state…", onNavigate: navigate });
@@ -477,28 +470,6 @@ function currentScreen() {
   return PlaceholderScreen({ ...meta, onNavigate: navigate });
 }
 
-function ProtoControls() {
-  if (!state.protoOpen) {
-    return h("button", { className: "proto-fab", onClick: () => setState({ protoOpen: true }) },
-      h("span", { className: "glyph" }, Icon({ name: "gear", size: 15 })), "Prototype");
-  }
-  return h("div", { className: "proto-panel" },
-    h("div", { className: "pp-head" }, h("span", { className: "t-subheading" }, "Prototype controls"),
-      h("span", { className: "spacer" }), h("button", { className: "icon-btn", onClick: () => setState({ protoOpen: false }), "aria-label": "Close" }, Icon({ name: "close", size: 14 }))),
-    h("div", { className: "pp-body" },
-      h("div", { className: "pp-group" }, h("span", { className: "pp-label t-micro" }, "Overview screen state"),
-        h("div", { className: "state-radios" }, PROTO_STATES.map((s) => h("button", {
-          className: `state-radio ${state.forcedState === s.value ? "active" : ""}`.trim(),
-          onClick: () => { state.forcedState = s.value; if (state.route !== "current") navigate("current"); else render(); },
-        }, h("span", { className: "sr-dot" }), s.label)))),
-      h("div", { className: "pp-group" }, h("span", { className: "pp-label t-micro" }, "Density"),
-        Segmented({ value: state.settings.density, onChange: (v) => setSetting("density", v), options: [{ value: "comfortable", label: "Comfortable" }, { value: "compact", label: "Compact" }] })),
-      h("div", { className: "pp-group" }, h("span", { className: "pp-label t-micro" }, "Mode"),
-        Segmented({ value: state.settings.mode, onChange: (v) => setSetting("mode", v), options: [{ value: "simple", label: "Simple" }, { value: "advanced", label: "Advanced" }] })),
-      Button({ variant: "secondary", className: "sm", glyph: "▤", onClick: () => { navigate("components"); setState({ protoOpen: false }); }, children: ["Open Component Sheet"] }),
-      h("div", { className: "pp-note" }, "Prototype-only controls — fixture toggles, no backend writes.")));
-}
-
 function LibraryManagerModal() {
   const manager = state.libraryManager || { status: "idle", items: [] };
   const rows = manager.items || [];
@@ -529,7 +500,7 @@ function LibraryManagerModal() {
           },
             h("div", { style: { minWidth: 0 } },
               h("div", { className: "t-body", style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, label),
-              h("div", { className: "t-mono muted" }, `${lib.count ?? 0} docs`)),
+              h("div", { className: "t-mono muted" }, lib.count == null ? "Document count unavailable" : `${lib.count} docs`)),
             lib.hideable
               ? Toggle({
                   checked: !lib.hidden,
@@ -588,7 +559,8 @@ function render() {
   // Derive live counts from already-loaded state — no extra fetches.
   const conflictMetric = (state.overview.data && state.overview.data.metrics || []).find(m => m.key === "conflict");
   const unresolvedAlerts = conflictMetric ? (conflictMetric.count || 0) : 0;
-  const runningJobs = 0; // no jobs endpoint; chip hidden when 0
+  const runtime = state.statusData.data?.raw;
+  const runningJobs = runtime && !runtime.error && !(runtime.unavailable_fields || []).includes("autoindex") && typeof runtime.autoindex?.running === "boolean" ? Number(runtime.autoindex.running) : null;
   const lastIndexedCell = state.statusData.data && state.statusData.data.statusCells &&
     state.statusData.data.statusCells.find(c => c.label === "Last indexed");
   const lastIndexed = lastIndexedCell ? lastIndexedCell.value : null;
@@ -600,7 +572,7 @@ function render() {
       libraries: state.libraries.items, activeLibraryId: state.activeLibraryId, onSelectLibrary: setActiveLibrary,
       onManageLibraries: openLibraryManager,
       onOpenAlerts: () => setState({ alertsOpen: true }), alertCount: unresolvedAlerts, jobCount: runningJobs,
-      lastIndexed, diagnostics: state.settings.diagnostics,
+      lastIndexed, security: state.statusData.data?.security, diagnostics: state.settings.diagnostics,
       onSearch: (q) => { state.pendingSearch = q; navigate("search"); } }),
     Sidebar({ route: state.route, onNavigate: navigate }),
     h("div", {
@@ -611,7 +583,7 @@ function render() {
       showInspector && Inspector({ selection: state.selection,
         onClose: () => setState({ selection: null }),
         onCollapse: () => setState({ inspectorOpen: false, selection: null }),
-        onTrace: () => pushToast("Routing to Authority & Audit → Trace & Gates (Phase B).", "review") })),
+        onTrace: () => navigate("authority") })),
     state.alertsOpen && AlertsDrawer({ onClose: () => setState({ alertsOpen: false }), onToast: pushToast }),
     state.libraryManagerOpen && LibraryManagerModal(),
     state.confirm && Modal({ title: state.confirm.title, onClose: () => setState({ confirm: null }),
@@ -634,12 +606,9 @@ function render() {
                 headers: tokenHeaders(),
                 body: JSON.stringify({ library_root: null, max_files: 5000, changed_only: false, include_scratch: false }),
               }).then(d => {
-                if (d && d.error) {
-                  pushToast(`Rebuild failed: ${d.error}`, "conflict");
-                  return;
-                }
-                pushToast("Rebuild started. Check status below.", "current");
-                setTimeout(() => ensureStatus(true), 1000);
+                const notice = indexResultNotice(d);
+                pushToast(notice.message, notice.ns);
+                ensureStatus(true); ensureOverview(true);
               });
             }
             // Reset Workspace
@@ -656,17 +625,12 @@ function render() {
                 headers: tokenHeaders(),
                 body: JSON.stringify({ confirm: "RESET" }),
               }).then(d => {
-                if (d && d.error) {
-                  pushToast(`Reset failed: ${d.error}`, "conflict");
-                  return;
-                }
-                pushToast("Workspace reset complete. Reload page to see changes.", "current");
-                setTimeout(() => { ensureStatus(true); ensureOverview(true); }, 1000);
+                const notice = resetResultNotice(d);
+                pushToast(notice.message, notice.ns);
+                ensureStatus(true); ensureOverview(true);
               });
             }
-            // Clear Caches (not implemented)
-            else if (kind === "caches") {
-              pushToast("Clear caches is not yet implemented.", "stale");
+            else if (kind === "preview") {
               setState({ confirm: null });
             }
             else if (kind === "clear-security-token") {
@@ -680,7 +644,7 @@ function render() {
             }
             // Fallback for unknown actions
             else {
-              pushToast(`${state.confirm.confirmLabel} — prototype action, no backend change.`, state.confirm.danger ? "conflict" : "current");
+              pushToast("This action is unavailable. No operation was submitted.", "stale");
               setState({ confirm: null });
             }
           }, children: [state.confirm.confirmLabel] })),
@@ -695,8 +659,7 @@ function render() {
               h("div", { className: "sp-row" }, h("span", { className: "k" }, "Source files"), h("span", { style: { color: "var(--state-current)" } }, "untouched"))),
         state.confirm.danger && h("div", { className: "t-small", style: { color: "var(--state-conflict)" } }, "This action is irreversible. Review the scope preview before confirming."),
       ] }),
-    ToastHost({ toasts: state.toasts }),
-    ProtoControls());
+    ToastHost({ toasts: state.toasts }));
 
   mount(root(), tree);
 }
@@ -708,6 +671,7 @@ window.addEventListener("hashchange", () => {
 
 // boot
 ensureLibraries();
+ensureStatus();
 if (state.route === "current") ensureOverview();
 if (state.route === "status") ensureStatus();
 if (state.route === "fold") ensureFold();

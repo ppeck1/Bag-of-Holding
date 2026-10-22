@@ -386,6 +386,30 @@ def _extract_docx_for_index(path: Path) -> str:
 
 
 def index_file(path: Path, library_root: Path) -> dict:
+    from app.core import source_lifecycle
+    try:
+        observation = source_lifecycle.observe_file(path, library_root)
+    except (OSError, ValueError) as exc:
+        reason = "SOURCE_MISSING: source is unavailable" if isinstance(exc, FileNotFoundError) else "SOURCE_PATH: source observation failed: " + str(exc)
+        source_lifecycle.note_failure(path, library_root, reason)
+        try:
+            relative = path.relative_to(library_root).as_posix()
+            if ".." in Path(relative).parts:
+                relative = path.name
+        except ValueError:
+            relative = path.name
+        return {"path": relative, "doc_id": None, "lint_errors": [reason], "indexed": False}
+    try:
+        result = _index_observed_file(path, library_root, observation)
+    except Exception as exc:
+        source_lifecycle.note_failure(path, library_root, str(exc))
+        raise
+    if not result.get("indexed"):
+        source_lifecycle.note_failure(path, library_root, "; ".join(str(e) for e in result.get("lint_errors", [])))
+    return result
+
+
+def _index_observed_file(path: Path, library_root: Path, source_observation: dict) -> dict:
     """Index a single file (Markdown, HTML, JSON, or plain text).
 
     Phase 4 additions on top of preserved v0P logic:
@@ -399,26 +423,57 @@ def index_file(path: Path, library_root: Path) -> dict:
     Phase 13 additions:
       - Multi-format preprocessing: .html, .json, .txt converted to indexable MD
     """
-    rel_path = path.relative_to(library_root).as_posix()
-    raw_bytes = path.read_bytes()
-    text = raw_bytes.decode("utf-8", errors="replace")
+    native_markdown = path.suffix.lower() in {".md", ".markdown"}
+    plain_admission = False
+    if native_markdown:
+        from app.services.plain_markdown import (
+            PlainMarkdownError, read_source, derive_metadata, guard_explicit_identity,
+        )
+        rel_path = path.name
+        try:
+            rel_path = path.relative_to(library_root).as_posix()
+            raw_bytes, text, source_info = read_source(path, library_root)
+        except (PlainMarkdownError, ValueError) as exc:
+            safe_path = rel_path if ".." not in Path(rel_path).parts else path.name
+            return {"path": safe_path, "doc_id": None, "lint_errors": [str(exc)], "indexed": False}
+    else:
+        rel_path = path.relative_to(library_root).as_posix()
+        raw_bytes = path.read_bytes()
+        text = raw_bytes.decode("utf-8", errors="replace")
 
-    # Phase 13: preprocess non-markdown files
+    # Existing non-Markdown conversion remains unchanged.
     text = _preprocess_for_index(path, text)
-
-    # Phase 8: use full parser to capture daenary: block
-    boh, raw_header, body, parse_errors = parse_frontmatter_full(text)
+    parser_text = text.removeprefix("\ufeff") if native_markdown else text
+    boh, raw_header, body, parse_errors = parse_frontmatter_full(parser_text)
+    if native_markdown:
+        try:
+            if boh is None:
+                boh = derive_metadata(rel_path, raw_bytes, text, source_info, raw_header, parse_errors, db)
+                # Metadata is stored separately; every indexed source character is original.
+                body, raw_header, parse_errors = text, {}, []
+                plain_admission = True
+            elif not isinstance(boh, dict):
+                raise PlainMarkdownError("PLAIN_MARKDOWN_METADATA: BOH metadata must be a mapping")
+            elif any(boh.get(key) is not None and not isinstance(boh[key], dict) for key in ("scope", "rubrix")):
+                raise PlainMarkdownError("PLAIN_MARKDOWN_METADATA: scope and rubrix blocks must be mappings")
+        except PlainMarkdownError as exc:
+            return {"path": rel_path, "doc_id": None, "lint_errors": [str(exc)], "indexed": False}
 
     if boh is None:
-        return {
-            "path": rel_path,
-            "doc_id": None,
-            "lint_errors": parse_errors,
-            "indexed": False,
-        }
+        return {"path": rel_path, "doc_id": None, "lint_errors": parse_errors, "indexed": False}
 
     lint_errors = parse_errors + validate_header(boh)
     doc_id = boh.get("id") or str(uuid.uuid4())
+    if native_markdown and not plain_admission:
+        try:
+            guard_explicit_identity(rel_path, doc_id, db)
+        except PlainMarkdownError as exc:
+            return {"path": rel_path, "doc_id": doc_id, "lint_errors": [str(exc)], "indexed": False}
+    from app.core import source_lifecycle
+    try:
+        source_lifecycle.guard_identity(doc_id, library_root, source_observation)
+    except ValueError as exc:
+        return {"path": rel_path, "doc_id": doc_id, "lint_errors": [str(exc)], "indexed": False}
     scope = boh.get("scope", {}) or {}
     rubrix = boh.get("rubrix", {}) or {}
 
@@ -540,11 +595,11 @@ def index_file(path: Path, library_root: Path) -> dict:
                     "canonical_layer": contract.get("canonical_layer"),
                 },
                 body,
-                frontmatter_text=json.dumps(raw_header or {}, indent=2),
+                frontmatter_text="" if plain_admission else json.dumps(raw_header or {}, indent=2),
             )
         except Exception:
-            # Chunks are rebuildable; document indexing remains authoritative.
-            pass
+            # A failed replacement must not leave old chunks labelled current.
+            raise
 
         conn.execute("DELETE FROM defs WHERE doc_id = ?", (doc_id,))
         defs = extract_definitions(body, plane_scope)
@@ -573,6 +628,7 @@ def index_file(path: Path, library_root: Path) -> dict:
 
         # Phase 8: persist Daenary coordinates (replace old rows)
         upsert_coordinates(conn, doc_id, daenary_coords)
+        source_lifecycle.record_success(conn, doc_id, path, library_root, raw_bytes, source_observation)
 
         conn.commit()
     finally:
@@ -631,8 +687,12 @@ def crawl_library(library_root: str) -> dict:
     Phase 4: returns lineage_events count in summary.
     Phase 8: returns daenary_coordinates count; syncs DCNS edges after crawl.
     """
-    root = Path(library_root).resolve()
+    from app.core import source_lifecycle
+    from app.core.autoindex import discover_inventory, exclusion_reason
+    root = Path(library_root).expanduser().absolute()
+    scan_id = source_lifecycle.begin_scan(root)
     if not root.exists():
+        source_lifecycle.finish_scan(root, scan_id, set(), False, 'root_unavailable', lambda path: False)
         return {"error": f"Library root does not exist: {library_root}"}
 
     # Phase 13: scan multiple supported formats
@@ -642,21 +702,28 @@ def crawl_library(library_root: str) -> dict:
         "*.cfg", "*.conf", "*.properties", "*.env.example", "*.xml", "*.tex",
         "*.bib", "*.log", "*.ipynb", "*.docx",
     ]
-    seen = set()
-    all_paths = []
-    for glob in SUPPORTED_GLOBS:
-        for path in sorted(root.rglob(glob)):
-            if str(path) in seen:
-                continue
-            seen.add(str(path))
-            if path.name.endswith(".review.md") or path.name.endswith(".review.json"):
-                continue  # I2: skip review artifacts
-            all_paths.append(path)
-
+    extensions = {Path('x' + pattern[1:]).suffix for pattern in SUPPORTED_GLOBS}
+    def in_scope(relative):
+        candidate = Path(relative)
+        return (not candidate.is_absolute() and '..' not in candidate.parts
+                and candidate.suffix.lower() in extensions
+                and not exclusion_reason(root / candidate, root, include_scratch=True))
+    inventory = discover_inventory(str(root), 2**63-1, True, extensions=extensions)
+    candidates = {row['relative_path'] for row in inventory['manifest'] if row['action'] == 'candidate'}
+    if inventory['identity'] is not None:
+        source_lifecycle.enroll_legacy(root, in_scope)
+    renamed = source_lifecycle.reconcile_renames(root, candidates) if inventory['complete'] else 0
     results = []
-    for path in all_paths:
-        result = index_file(path, root)
-        results.append(result)
+    try:
+        for relative in sorted(candidates):
+            results.append(index_file(root / relative, root))
+    except BaseException:
+        source_lifecycle.finish_scan(root, scan_id, candidates, False, 'interrupted', in_scope)
+        raise
+    after = discover_inventory(str(root), 2**63-1, True, extensions=extensions)
+    after_candidates = {row['relative_path'] for row in after['manifest'] if row['action'] == 'candidate'}
+    complete = inventory['complete'] and after['complete'] and inventory['identity'] == after['identity'] and candidates == after_candidates
+    source_lifecycle.finish_scan(root, scan_id, candidates, complete, 'complete' if complete else 'scan_uncertain', in_scope)
 
     indexed      = [r for r in results if r.get("indexed")]
     errors       = [r for r in results if r.get("lint_errors")]
@@ -681,5 +748,6 @@ def crawl_library(library_root: str) -> dict:
         "supersession_links_created": super_events,
         "daenary_coordinates_indexed": daenary_total,
         "dcns_edges_synced": dcns_summary.get("edges_written", 0),
+        "source_lifecycle": {"scan_complete": complete, "renamed": renamed},
         "results": results,
     }

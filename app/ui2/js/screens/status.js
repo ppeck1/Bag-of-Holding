@@ -3,7 +3,7 @@
    fetched from /api/autoindex/status with polling while running. */
 
 import { h } from "../dom.js";
-import { api, escHtml, getToken, tokenHeaders } from "../api.js";
+import { api, escHtml, getToken, tokenHeaders, indexResultNotice } from "../api.js";
 import { Card, Button, AlertBanner, Badge, Skeleton } from "../primitives.js";
 import { StatusCell } from "./settings.js";
 
@@ -20,13 +20,13 @@ function AutoindexStatus() {
   function loadStatus() {
     api("/api/autoindex/status").then(status => {
       if (!status || status.error) {
-        if (contentDiv) contentDiv.innerHTML = `<div class="t-small muted" style="padding:12px">Not available.</div>`;
+        wrap.replaceChildren(Card({ children: [h("div", { class: "t-small muted" }, "Index job status unavailable."), Button({ onClick: loadStatus, children: ["Retry job status"] })] }));
         return;
       }
 
       const lastRun = status.last_run_ts
         ? new Date(status.last_run_ts * 1000).toLocaleString()
-        : "Never";
+        : status.last_run_ts === null ? "Never" : "Unavailable";
 
       const rows = [
         kvRow("Last run", lastRun),
@@ -35,13 +35,14 @@ function AutoindexStatus() {
         kvRow("Skipped", fmt(status.last_skipped)),
         status.last_failed > 0
           ? h("div", { class: "kv-row" }, h("span", { class: "k" }, "Failed"), h("span", { class: "v", style: { color: "var(--state-conflict)" } }, String(status.last_failed)))
-          : kvRow("Failed", "0"),
+          : kvRow("Failed", fmt(status.last_failed)),
         status.elapsed_ms ? kvRow("Elapsed", `${status.elapsed_ms}ms`) : null,
-        status.running || rebuilding ? h("div", { class: "kv-row" }, h("span", { class: "k" }, "Status"), h("span", { class: "pulse-dot", style: { display: "inline-block", marginRight: "6px" } }), "Running…") : null,
+        kvRow("Status", status.running === true ? "Running" : status.running === false ? "Idle" : "Unavailable"),
+        rebuilding ? kvRow("Request", "Waiting for index result…") : null,
       ].filter(Boolean);
 
       const rebuildHandler = () => {
-        if (rebuilding) return;
+        if (rebuilding || status.running === true) return;
         const tok = getToken();
         if (!tok) {
           if (contentDiv) contentDiv.innerHTML = `<div class="t-small" style="color:var(--state-conflict);padding:8px">Operator token required. Set in Settings → Security & Advanced.</div>`;
@@ -58,14 +59,8 @@ function AutoindexStatus() {
           rebuilding = false;
           if (rebuildBtn) rebuildBtn.disabled = false;
           if (rebuildBtn) rebuildBtn.textContent = "Rebuild index";
-          if (result && result.error) {
-            if (contentDiv) contentDiv.innerHTML = `<div class="t-small" style="color:var(--state-conflict);padding:8px">Rebuild failed: ${escHtml(result.error)}</div>`;
-            setTimeout(loadStatus, 2000);
-          } else if (result) {
-            const summary = `Scanned ${result.scanned || 0} · Indexed ${result.indexed || 0} · Skipped ${result.skipped || 0} · Failed ${result.failed || 0}`;
-            if (contentDiv) contentDiv.innerHTML = `<div class="t-small" style="color:var(--state-current);padding:8px">✓ Rebuild complete: ${summary}</div>`;
-            setTimeout(loadStatus, 2000);
-          }
+          const notice = indexResultNotice(result);
+          if (contentDiv) contentDiv.replaceChildren(AlertBanner({ ns: notice.ns, children: [notice.message] }), Button({ onClick: loadStatus, children: ["Refresh job status"] }));
         });
       };
 
@@ -75,7 +70,7 @@ function AutoindexStatus() {
           h("div", { style: { marginTop: "12px" } },
             (rebuildBtn = Button({
               variant: "secondary",
-              disabled: rebuilding,
+              disabled: rebuilding || status.running === true,
               onClick: rebuildHandler,
               children: ["Rebuild index"]
             }))
@@ -114,6 +109,9 @@ function SchedulerSection() {
   api("/api/status").then(d => {
     if (!d || d.error) { body.innerHTML = `<div class="t-small muted">Not available.</div>`; return; }
     const s = d.intake_scheduler || {};
+    if (!s.state || typeof s.enabled !== "boolean" || typeof s.running !== "boolean") {
+      body.replaceChildren(h("div", { class: "t-small muted" }, "Scheduler status unavailable.")); return;
+    }
     const state = String(s.state || "disabled");
     const rows = [
       h("div", { class: "kv-row" }, h("span", { class: "k" }, "Scheduler"),
@@ -137,23 +135,23 @@ function SchedulerSection() {
   return wrap;
 }
 
-export function StatusScreen({ statusCells, onConfirm }) {
+export function StatusScreen({ statusCells, loadState, onRetry, onConfirm }) {
   const cells = statusCells && statusCells.length ? statusCells : [];
   return h("div", { class: "content content-narrow" },
     h("div", { class: "page-head" },
       h("div", { class: "t-display" }, "Status"),
       h("div", { class: "sub t-small" }, "Local runtime, jobs, and watcher health for Bag of Holding.")),
     h("section", { class: "section" },
-      h("div", { class: "section-head" }, h("span", { class: "t-subheading" }, "Runtime")),
-      Card({ children: h("div", { class: "status-grid" }, cells.map((s) => StatusCell({ s }))) })),
+      h("div", { class: "section-head" }, h("span", { class: "t-subheading" }, "Runtime"), Button({ onClick: onRetry, disabled: loadState === "loading", children: ["Refresh status"] })),
+      Card({ children: loadState === "loading" ? h("div", null, "Loading runtime status…") : cells.length ? h("div", { class: "status-grid" }, cells.map((s) => StatusCell({ s }))) : h("div", { class: "t-small muted" }, "Runtime status unavailable.") })),
     h("section", { class: "section" },
       h("div", { class: "section-head" }, h("span", { class: "t-subheading" }, "Auto-Index")),
       Card({ children: AutoindexStatus() })),
     h("section", { class: "section" },
       h("div", { class: "section-head" }, h("span", { class: "t-subheading" }, "Maintenance")),
       Card({ children: h("div", { class: "flex gap-2 wrap" },
-        Button({ variant: "secondary", glyph: "↺", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Discards derived index data and re-scans the managed library. Source files are untouched; recoverable by re-running.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
-        Button({ variant: "secondary", onClick: () => onConfirm({ kind: "caches", title: "Clear caches?", body: "Clears derived caches and saved layouts. Operational only — no corpus data is affected.", confirmLabel: "Clear caches", variant: "secondary" }), children: ["Clear caches"] }),
-        Button({ variant: "danger", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace?", body: "Irreversibly removes all local index data, layouts, and review queue state for this workspace. Source files in the managed library are not deleted.", confirmLabel: "Reset workspace", variant: "danger", danger: true }), children: ["Reset workspace"] })) })),
+        Button({ variant: "secondary", glyph: "↺", onClick: () => onConfirm({ kind: "rebuild", title: "Rebuild index?", body: "Re-scans the managed library and updates the index. Source files are preserved.", confirmLabel: "Rebuild index", variant: "secondary" }), children: ["Rebuild index"] }),
+        Button({ variant: "secondary", disabled: true, children: ["Clear caches (unavailable)"] }),
+        Button({ variant: "danger", onClick: () => onConfirm({ kind: "reset", title: "Reset workspace state?", body: "Clears governance and runtime state, including open items, locks, feedback, and governance events. Indexed documents, library files, and the review queue are preserved. Cleared state cannot be undone here.", confirmLabel: "Reset workspace state", variant: "danger", danger: true }), children: ["Reset workspace state"] })) })),
     SchedulerSection());
 }

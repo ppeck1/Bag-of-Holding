@@ -16,6 +16,7 @@ Config (via environment variables, extendable to config.toml):
 import hashlib
 import json
 import os
+import stat
 import time
 from pathlib import Path
 from typing import Optional
@@ -128,28 +129,47 @@ def exclusion_reason(path: Path, root: Path, include_scratch: bool = False) -> s
     return None
 
 
+def discover_inventory(library_root: str, max_files: int = 5000,
+                       include_scratch: bool = False, *, extensions=None) -> dict:
+    """Enumeration coverage is explicit; a list alone cannot prove absence."""
+    root = Path(library_root).expanduser().absolute()
+    manifest, complete, reason, identity = [], True, 'complete', None
+    allowed = SUPPORTED_EXTENSIONS if extensions is None else extensions
+    try:
+        info = root.lstat()
+        if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+            raise OSError('root is not an unlinked directory')
+        identity = (info.st_dev, info.st_ino)
+        if max_files <= 0:
+            return {'manifest': [], 'complete': False, 'reason': 'file_limit', 'identity': identity}
+        def traversal_error(error):
+            raise error
+        for directory, folders, files in os.walk(root, onerror=traversal_error, followlinks=False):
+            folders.sort()
+            for name in list(folders):
+                child = (Path(directory) / name).lstat()
+                if stat.S_ISLNK(child.st_mode) or getattr(child, 'st_file_attributes', 0) & 0x400:
+                    folders.remove(name)
+                    complete, reason = False, 'linked_directory'
+            for name in sorted(files):
+                path = Path(directory) / name
+                if path.suffix.lower() not in allowed:
+                    continue
+                if len(manifest) >= max_files:
+                    return {'manifest': manifest, 'complete': False, 'reason': 'file_limit', 'identity': identity}
+                relative = _rel(path, root)
+                excluded = exclusion_reason(path, root, include_scratch)
+                manifest.append({'relative_path': relative, 'classification': classify_relative_path(relative),
+                                 'action': 'skipped_excluded' if excluded else 'candidate',
+                                 'reason': excluded or 'candidate', 'lint_warning_count': 0})
+    except OSError:
+        complete, reason = False, 'root_or_enumeration_unavailable'
+    return {'manifest': manifest, 'complete': complete, 'reason': reason, 'identity': identity}
+
+
 def discover_manifest(library_root: str, max_files: int = 5000,
                       include_scratch: bool = False) -> list[dict]:
-    """Discover supported files and classify index action before indexing."""
-    root = Path(library_root).expanduser().resolve()
-    if not root.exists():
-        return []
-    manifest: list[dict] = []
-    for p in root.rglob("*"):
-        if len(manifest) >= max_files:
-            break
-        if not p.is_file() or p.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            continue
-        rel = _rel(p, root)
-        reason = exclusion_reason(p, root, include_scratch=include_scratch)
-        manifest.append({
-            "relative_path": rel,
-            "classification": classify_relative_path(rel),
-            "action": "skipped_excluded" if reason else "candidate",
-            "reason": reason or "candidate",
-            "lint_warning_count": 0,
-        })
-    return manifest
+    return discover_inventory(library_root, max_files, include_scratch)['manifest']
 
 
 def scan_library(library_root: str, max_files: int = 5000, include_scratch: bool = False) -> list[str]:
@@ -198,6 +218,7 @@ def run_auto_index(
     max_files: int = AUTO_INDEX_MAX_FILES,
     changed_only: bool = True,
     include_scratch: bool = False,
+    *, _extensions=None,
 ) -> dict:
     """Scan and index the library. Returns stats dict.
 
@@ -224,34 +245,39 @@ def run_auto_index(
     finally:
         conn.close()
 
-    manifest = discover_manifest(root, max_files=max_files, include_scratch=include_scratch)
+    from app.core import source_lifecycle
+    root_path = Path(root).expanduser().absolute()
+    scan_id = source_lifecycle.begin_scan(root_path)
+    inventory = discover_inventory(str(root_path), max_files, include_scratch, extensions=_extensions)
+    manifest = inventory['manifest']
+    extensions = SUPPORTED_EXTENSIONS if _extensions is None else _extensions
+    def in_scope(relative):
+        candidate = Path(relative)
+        return (not candidate.is_absolute() and '..' not in candidate.parts
+                and candidate.suffix.lower() in extensions
+                and not exclusion_reason(root_path / candidate, root_path, include_scratch))
+    if inventory['identity'] is not None:
+        source_lifecycle.enroll_legacy(root_path, in_scope)
+    candidates = {row['relative_path'] for row in manifest if row['action'] == 'candidate'}
+    renamed = source_lifecycle.reconcile_renames(root_path, candidates) if inventory['complete'] else 0
     paths   = [str(Path(root).resolve() / m["relative_path"]) for m in manifest if m["action"] == "candidate"]
     scanned = len(manifest)
     indexed = skipped = failed = 0
     log: list[dict] = []
 
-    root_path = Path(root).resolve()
     for path in paths:
         path_obj = Path(path)
         rel = path_obj.relative_to(root_path).as_posix() if path_obj.is_absolute() else path
         try:
-            if changed_only:
-                existing = db.fetchone("SELECT text_hash FROM docs WHERE path = ?", (rel,))
-                if existing:
-                    current_hash = _file_hash(path)
-                    if existing["text_hash"] and existing["text_hash"] == current_hash:
-                        skipped += 1
-                        log.append({
-                            "path": rel,
-                            "relative_path": rel,
-                            "classification": classify_relative_path(rel),
-                            "status": "skipped_unchanged",
-                            "action": "skipped_unchanged",
-                            "reason": "content_hash_unchanged",
-                            "lint_warning_count": 0,
-                        })
-                        continue
+            if changed_only and source_lifecycle.reobserve(path_obj, root_path):
+                skipped += 1
+                log.append({'path': rel, 'relative_path': rel, 'classification': classify_relative_path(rel),
+                            'status': 'skipped_unchanged', 'action': 'skipped_unchanged',
+                            'reason': 'content_hash_unchanged', 'lint_warning_count': 0})
+                continue
             result = crawler.index_file(path_obj, root_path)
+            if not result.get("indexed"):
+                raise ValueError("Index admission rejected: " + "; ".join(str(e) for e in result.get("lint_errors", [])))
             indexed += 1
             lint = result.get("lint_errors", [])
             entry = {
@@ -293,7 +319,11 @@ def run_auto_index(
                     entry["analysis"] = {"error": str(ae)[:100]}
 
             log.append(entry)
-        except Exception as exc:
+        except BaseException as exc:
+            if not isinstance(exc, Exception):
+                source_lifecycle.finish_scan(root_path, scan_id, candidates, False, 'interrupted', in_scope)
+                raise
+            source_lifecycle.note_failure(path_obj, root_path, str(exc))
             failed += 1
             exc_type = type(exc).__name__
             reason, fix = _classify_failure(exc_type, str(exc), rel)
@@ -310,7 +340,12 @@ def run_auto_index(
                 "recommended_fix": fix,
             })
 
-    post_manifest = discover_manifest(root, max_files=max_files, include_scratch=include_scratch)
+    after = discover_inventory(str(root_path), max_files, include_scratch, extensions=_extensions)
+    post_manifest = after['manifest']
+    after_candidates = {row['relative_path'] for row in post_manifest if row['action'] == 'candidate'}
+    scan_complete = inventory['complete'] and after['complete'] and inventory['identity'] == after['identity'] and candidates == after_candidates
+    scan_reason = 'complete' if scan_complete else (inventory['reason'] if not inventory['complete'] else after['reason'] if not after['complete'] else 'inventory_changed')
+    source_lifecycle.finish_scan(root_path, scan_id, candidates, scan_complete, scan_reason, in_scope)
     logged_paths = {e.get("relative_path") or e.get("path") for e in log}
     for m in post_manifest:
         if m["action"] == "skipped_excluded" and m["relative_path"] not in logged_paths:
@@ -353,6 +388,7 @@ def run_auto_index(
         "log": log[-20:],
         "manifest": log,
         "indexed_candidates_total": len(paths),
+        "source_lifecycle": {"scan_complete": scan_complete, "reason": scan_reason, "renamed": renamed},
     }
 
 

@@ -1,0 +1,64 @@
+[
+  {
+    "source": "tests/test_plain_markdown_intake.py",
+    "public": "tests/test_plain_markdown_intake_public.py",
+    "omitted": [
+      "measured",
+      "test_eight_pinned_sources_are_native_and_idempotent",
+      "test_actual_native_consumers_respect_scope_authority_and_report_quality",
+      "test_probe_refuses_unowned_or_inherited_state"
+    ]
+  },
+  {
+    "source": "tests/test_evidence_diversity_evaluation.py",
+    "public": "tests/test_evidence_diversity_evaluation_public.py",
+    "omitted": [
+      "test_approved_controls_conform_without_retrieval_or_legacy_relabeling",
+      "test_probe_rejects_external_inputs_before_collection",
+      "test_owned_child_refuses_an_unmarked_root_before_app_import",
+      "test_actual_collection_strips_bad_live_bindings_and_credentials"
+    ]
+  },
+  {
+    "source": "tests/test_source_lifecycle.py",
+    "public": "tests/test_source_lifecycle_public.py",
+    "omitted": [
+      "test_probe_refuses_unowned_or_inherited_state"
+    ],
+    "adaptation": "Original lifecycle assertions retained; observation helper calls four public core surfaces directly, omitting operational MCP surface."
+  },
+  {
+    "source": "tests/test_exact_lookup_completeness.py",
+    "public": "tests/test_exact_lookup_completeness_public.py",
+    "omitted": [
+      "measured",
+      "test_all_current_contract_checks_pass",
+      "test_exact_target_survives_prior_windows",
+      "test_complete_coverage_does_not_promise_every_match_in_output",
+      "test_probe_protocol_fails_closed",
+      "test_probe_rejects_arbitrary_inputs"
+    ],
+    "adaptation": "Synthetic document helper copied separately; private multi-surface measurement harness excluded."
+  },
+  {
+    "source": "tests/test_platform_pilot.py",
+    "public": "tests/test_platform_pilot_public.py",
+    "omitted": [
+      "test_environment_strips_inherited_credentials_and_binds_owned_paths",
+      "test_checkpoint_detects_tamper_and_excludes_hidden_database",
+      "test_sample_hash_and_paths_fail_closed",
+      "test_offline_snapshot_requires_new_owned_roots_preserves_bytes",
+      "test_regular_cannot_escape_root"
+    ]
+  },
+  {
+    "source": "tests/test_retrieval_scope_correctness.py",
+    "public": "tests/test_retrieval_scope_correctness_public.py",
+    "omitted": [
+      "test_mcp_and_sdk_preserve_library_scope",
+      "test_real_sdk_rejects_unknown_scope_before_dispatch",
+      "test_versioned_judgments_preserve_original_and_name_policy_corrections",
+      "test_scope_measurement_retains_relevance_failures_and_rejects_unsupported_scopes"
+    ]
+  }
+]

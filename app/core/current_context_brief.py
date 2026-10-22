@@ -57,6 +57,7 @@ def _evidence_item(pack: Mapping[str, Any]) -> dict[str, Any]:
         "status": pack.get("status"),
         "canonical_layer": pack.get("canonical_layer"),
         "freshness": _jsonable(pack.get("freshness") or {}),
+        "source_lifecycle": _jsonable(pack.get("source_lifecycle") or {}),
         "provenance": _jsonable(pack.get("provenance") or {}),
         "intake_provenance": _jsonable(pack.get("intake_provenance")),
         "citation_uri": pack.get("citation_uri")
@@ -181,8 +182,12 @@ def build_current_context_brief(
     include_promoted: bool = False,
     max_context_chars: int = 6000,
     governed_result: Any | None = None,
+    filters: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     capped = _clamp_limit(limit)
+    filters = retrieval.validate_filters(filters)
+    if governed_result is not None:
+        retrieval.require_matching_scope(filters, governed_result)
     normalized = (
         governed_result
         if governed_result is not None
@@ -192,6 +197,7 @@ def build_current_context_brief(
             limit=capped,
             max_context_chars=max_context_chars,
             include_promoted=include_promoted,
+            filters=filters,
         )
     )
     retrieval_result = (
@@ -204,6 +210,7 @@ def build_current_context_brief(
         include_promoted=include_promoted,
         question_type="exploratory",
         governed_result=normalized,
+        filters=filters,
     )
     gate = _jsonable(retrieval_result.get("gate_result") or {})
     retrieved_packs = [

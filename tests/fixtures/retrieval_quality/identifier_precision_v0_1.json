@@ -1,0 +1,1220 @@
+{
+  "schema_version": "boh.identifier-precision/v0.1",
+  "deck_id": "literal-precision-v0.1",
+  "as_of": "2026-10-20T12:00:00+00:00",
+  "judgment_status": "owner_review_pending",
+  "judgment_policy": "Predeclared synthetic lookup contract. Confirmation cases are not statistically blind or private-library representative. Do not revise labels after observing results.",
+  "documents": [
+    {
+      "doc_id": "literal-scope",
+      "document_version": "1.0.0",
+      "title": "Lookup scope",
+      "path": "alpha/scope.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-scope",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The OAuth scope is boh.read. Read access is restricted to retrieval."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-spaced",
+      "document_version": "1.0.0",
+      "title": "Lookup spaced",
+      "path": "alpha/spaced.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-spaced",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The boh read words occur here without a dotted scope identifier."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-sibling",
+      "document_version": "1.0.0",
+      "title": "Lookup sibling",
+      "path": "alpha/sibling.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-sibling",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The boh.write identifier represents a different operation."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-prefix",
+      "document_version": "1.0.0",
+      "title": "Lookup prefix",
+      "path": "alpha/prefix.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-prefix",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The unrelated identifier xboh.read is recorded here."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-suffix",
+      "document_version": "1.0.0",
+      "title": "Lookup suffix",
+      "path": "alpha/suffix.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-suffix",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The unrelated identifier boh.read.extra is recorded here."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-generic",
+      "document_version": "1.0.0",
+      "title": "Lookup generic",
+      "path": "alpha/generic.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-generic",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "Read order read order read order. Missing scope access and retrieval ledger."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-snake",
+      "document_version": "1.0.0",
+      "title": "Lookup snake",
+      "path": "alpha/snake.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-snake",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The environment key is BOH_DB. Do not substitute BOH_DATA."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-snake-spaced",
+      "document_version": "1.0.0",
+      "title": "Lookup snake-spaced",
+      "path": "alpha/snake-spaced.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-snake-spaced",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "BOH DB are separate words; BOH_DB_EXTRA is a different key."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-hyphen",
+      "document_version": "1.0.0",
+      "title": "Lookup hyphen",
+      "path": "alpha/hyphen.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-hyphen",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The shipment marker is KX-17. It is distinct from KX-170."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-hyphen-neighbor",
+      "document_version": "1.0.0",
+      "title": "Lookup hyphen-neighbor",
+      "path": "alpha/hyphen-neighbor.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-hyphen-neighbor",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "KX-170 and KX 17 refer to neighboring records."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-alpha-hyphen",
+      "document_version": "1.0.0",
+      "title": "Lookup alpha-hyphen",
+      "path": "alpha/alpha-hyphen.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-alpha-hyphen",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The explicit code name is silver-latch."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-alpha-spaced",
+      "document_version": "1.0.0",
+      "title": "Lookup alpha-spaced",
+      "path": "alpha/alpha-spaced.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-alpha-spaced",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "A silver latch appears in ordinary descriptive prose."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-phrase",
+      "document_version": "1.0.0",
+      "title": "Lookup phrase",
+      "path": "alpha/phrase.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-phrase",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The azure lantern protocol begins before dawn."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": "literal-split-fields"
+    },
+    {
+      "doc_id": "literal-phrase-neighbor",
+      "document_version": "1.0.0",
+      "title": "Lookup phrase-neighbor",
+      "path": "alpha/phrase-neighbor.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-phrase-neighbor",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The azure bright lantern is not the contiguous phrase."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-split-fields",
+      "document_version": "1.0.0",
+      "title": "Lookup split-fields",
+      "path": "alpha/split-fields.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-split-fields",
+          "chunk_index": 0,
+          "heading_path": "lantern",
+          "chunk_type": "body",
+          "text": "azure"
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-card-only",
+      "document_version": "1.0.0",
+      "title": "lynx.write",
+      "path": "alpha/card-only.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-card-only",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "A local connector reference is recorded."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-stopword-card",
+      "document_version": "1.0.0",
+      "title": "In a",
+      "path": "alpha/stopword-card.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-stopword-card",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "A card stores the short quoted phrase."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-heading",
+      "document_version": "1.0.0",
+      "title": "Lookup heading",
+      "path": "alpha/heading.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-heading",
+          "chunk_index": 0,
+          "heading_path": "nimbus.fetch",
+          "chunk_type": "body",
+          "text": "A heading carries the code identifier."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-confirm-dot",
+      "document_version": "1.0.0",
+      "title": "Lookup confirm-dot",
+      "path": "alpha/confirm-dot.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-confirm-dot",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The independent audit identifier is meridian.scan."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-confirm-dot-decoy",
+      "document_version": "1.0.0",
+      "title": "Lookup confirm-dot-decoy",
+      "path": "alpha/confirm-dot-decoy.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-confirm-dot-decoy",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The meridian scan prose and meridian.scanner are different."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-confirm-snake",
+      "document_version": "1.0.0",
+      "title": "Lookup confirm-snake",
+      "path": "alpha/confirm-snake.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-confirm-snake",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The independent configuration key is VEGA_ROOT."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-confirm-hyphen",
+      "document_version": "1.0.0",
+      "title": "Lookup confirm-hyphen",
+      "path": "alpha/confirm-hyphen.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-confirm-hyphen",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The independent receipt marker is QZ-84."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-confirm-phrase",
+      "document_version": "1.0.0",
+      "title": "Lookup confirm-phrase",
+      "path": "alpha/confirm-phrase.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-confirm-phrase",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The violet compass rests beside the ledger."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-draft",
+      "document_version": "1.0.0",
+      "title": "Lookup draft",
+      "path": "alpha/draft.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "draft",
+      "authority_state": "unreviewed",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": true,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-draft",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The draft-only identifier is draft.read."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-beta-only",
+      "document_version": "1.0.0",
+      "title": "Lookup beta-only",
+      "path": "beta/beta-only.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "canonical",
+      "authority_state": "approved",
+      "canonical_layer": "canonical",
+      "corpus_class": "CORPUS_CLASS:CANON",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": {
+        "plane": "canonical",
+        "non_authoritative": false,
+        "confidence": 0.98,
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      },
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-beta-only",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The library-only identifier is beta.read."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    },
+    {
+      "doc_id": "literal-promoted",
+      "document_version": "1.0.0",
+      "title": "Lookup promoted",
+      "path": "alpha/promoted.md",
+      "logical_library_id": "lib-shared",
+      "project": "Literal Precision",
+      "status": "draft",
+      "authority_state": "unreviewed",
+      "canonical_layer": "supporting",
+      "corpus_class": "CORPUS_CLASS:PROMOTED_INTAKE",
+      "private": false,
+      "epistemic_last_evaluated": "2026-07-01T00:00:00+00:00",
+      "epistemic_valid_until": "2030-01-01T00:00:00+00:00",
+      "daenary": [],
+      "plane_card": null,
+      "chunks": [
+        {
+          "chunk_id": "literal-chunk-promoted",
+          "chunk_index": 0,
+          "heading_path": "Lookup ledger",
+          "chunk_type": "body",
+          "text": "The promoted-only identifier is promoted.fetch."
+        }
+      ],
+      "conflicts_with": [],
+      "superseded_by": null
+    }
+  ],
+  "cases": [
+    {
+      "id": "dotted",
+      "query": "boh.read",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-scope"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "dotted-case",
+      "query": "BOH.READ",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-scope"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "dotted-question",
+      "query": "Which OAuth scope enables boh.read access?",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-scope"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "dotted-absent",
+      "query": "read scope absent.fetch",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "underscore",
+      "query": "BOH_DB",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-snake"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "underscore-absent",
+      "query": "configuration ABSENT_ROOT",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "hyphen-number",
+      "query": "KX-17",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-hyphen"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "backtick-hyphen",
+      "query": "`silver-latch`",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-alpha-hyphen"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "backtick-absent",
+      "query": "ledger `absent-latch`",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "quoted-phrase",
+      "query": "\"azure lantern\"",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-phrase"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "quoted-absent",
+      "query": "protocol \"azure midnight lantern\"",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "phrase-with-identifier",
+      "query": "\"OAuth scope\" boh.read",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-scope"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "all-identifiers-required",
+      "query": "boh.read ABSENT_ROOT",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "card-identifier",
+      "query": "lynx.write",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-card-only"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "card-stopword-phrase",
+      "query": "\"in a\"",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-stopword-card"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "heading-identifier",
+      "query": "nimbus.fetch",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-heading"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "strict-draft",
+      "query": "draft.read",
+      "mode": "strict_answer",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "explore-draft",
+      "query": "draft.read",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-draft"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "wrong-library",
+      "query": "beta.read",
+      "mode": "exploration",
+      "filters": {
+        "library_id": "alpha"
+      },
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "promoted-0-0",
+      "query": "promoted.fetch",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "promoted-0-1",
+      "query": "promoted.fetch",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": true,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "promoted-1-0",
+      "query": "promoted.fetch",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": true,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "promoted-1-1",
+      "query": "promoted.fetch",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": true,
+      "include_promoted": true,
+      "expected_doc_ids": [
+        "literal-promoted"
+      ],
+      "group": "development"
+    },
+    {
+      "id": "strict-promoted",
+      "query": "promoted.fetch",
+      "mode": "strict_answer",
+      "filters": {},
+      "server_promoted_gate": true,
+      "include_promoted": true,
+      "expected_doc_ids": [],
+      "group": "development"
+    },
+    {
+      "id": "confirm-dot",
+      "query": "MERIDIAN.SCAN",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-confirm-dot"
+      ],
+      "group": "confirmation"
+    },
+    {
+      "id": "confirm-dot-absent",
+      "query": "audit meridian.missing",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "confirmation"
+    },
+    {
+      "id": "confirm-snake",
+      "query": "vega_root",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-confirm-snake"
+      ],
+      "group": "confirmation"
+    },
+    {
+      "id": "confirm-snake-absent",
+      "query": "ledger VEGA_MISSING",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "confirmation"
+    },
+    {
+      "id": "confirm-hyphen",
+      "query": "QZ-84",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-confirm-hyphen"
+      ],
+      "group": "confirmation"
+    },
+    {
+      "id": "confirm-hyphen-absent",
+      "query": "receipt QZ-85",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "confirmation"
+    },
+    {
+      "id": "confirm-phrase",
+      "query": "\"violet compass\"",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [
+        "literal-confirm-phrase"
+      ],
+      "group": "confirmation"
+    },
+    {
+      "id": "confirm-phrase-absent",
+      "query": "\"violet bright compass\"",
+      "mode": "exploration",
+      "filters": {},
+      "server_promoted_gate": false,
+      "include_promoted": false,
+      "expected_doc_ids": [],
+      "group": "confirmation"
+    }
+  ]
+}

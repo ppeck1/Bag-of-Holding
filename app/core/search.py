@@ -17,6 +17,7 @@ import time
 
 from app.db import connection as db
 from app.core.canon import canon_score
+from app.core import source_lifecycle
 from app.core.planar import planar_alignment_score
 from app.core.daenary import format_coordinate_summary, is_stale
 
@@ -84,6 +85,7 @@ def search(
     library_clause, library_params, _library = docs_where_clause(library_id, alias="d")
     show_promoted = promoted_exposure.env_gate_open()
     promoted_clause = promoted_exposure.exclusion_sql("d", show_promoted=show_promoted)
+    source_clause = source_lifecycle.current_clause('d.doc_id')
 
     # FTS5 BM25 search. The raw query is never passed to MATCH: terms are tokenized and quoted
     # as FTS5 string literals so operator characters ('-', ':', parentheses) cannot raise a
@@ -101,7 +103,7 @@ def search(
                    bm25(docs_fts) as bm25_score
             FROM docs_fts
             JOIN docs d ON d.path = docs_fts.path
-            WHERE docs_fts MATCH ?{library_clause}{promoted_clause}
+            WHERE docs_fts MATCH ?{library_clause}{promoted_clause}{source_clause}
             ORDER BY bm25_score
             LIMIT ?
             """,
@@ -119,7 +121,7 @@ def search(
     # Load full doc rows for scoring
     placeholders = ",".join("?" * len(paths))
     docs = db.fetchall(
-        f"SELECT * FROM docs WHERE path IN ({placeholders})",
+        f"SELECT d.*, {source_lifecycle.payload_sql('d.doc_id')} AS source_lifecycle_json FROM docs d WHERE path IN ({placeholders}){source_clause}",
         tuple(paths),
     )
     # WO-2: promoted intake docs are excluded unless the server env gate is open.
@@ -238,6 +240,7 @@ def search(
                 "daenary_adjustment": round(daenary_adj, 4),
             },
             "has_conflict": has_conflict,
+            "source_lifecycle": source_lifecycle.decode_status(doc.get('source_lifecycle_json')),
         }
         if coord_summary:
             result_row["daenary_summary"] = coord_summary

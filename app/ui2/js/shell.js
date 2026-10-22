@@ -3,9 +3,8 @@
    Uses a full-subtree re-render model: the app root re-renders on state change. */
 
 import { h } from "./dom.js";
-import { api, escHtml } from "./api.js";
+import { api, escHtml, securityPresentation } from "./api.js";
 import { NS, PLANES, nsMeta } from "./ns.js";
-import * as FX from "./fixtures.js";
 import { Icon, Badge, Button, Tooltip, Popover, Segmented, MarkerPip, WhyCurrent, Accordion, EmptyState, AlertBanner } from "./primitives.js";
 import { AssociatedFilePreview } from "./file-preview.js";
 
@@ -15,10 +14,10 @@ const NAV_GROUPS = [
     { id: "intake",  glyph: "+", label: "Capture & Intake" },
     { id: "search",  glyph: "?", label: "Search" },
     { id: "library", glyph: "▦", label: "Library" },
-    { id: "review",  glyph: "✓", label: "Review Center", pip: 11 },
+    { id: "review",  glyph: "✓", label: "Review Center" },
   ] },
   { label: "Governance", items: [
-    { id: "authority", glyph: "⚖", label: "Authority & Audit", pip: 3 },
+    { id: "authority", glyph: "⚖", label: "Authority & Audit" },
   ] },
   { label: "System", items: [
     { id: "status",   glyph: "●", label: "Status" },
@@ -73,7 +72,7 @@ function libraryLabel(activeLibrary, libraries) {
 }
 
 function LibraryPopover({ libraries, activeLibraryId, onSelectLibrary, onManageLibraries }) {
-  const items = libraries && libraries.length ? libraries : [{ id: "all", name: "All libraries", count: 0 }];
+  const items = libraries && libraries.length ? libraries : [{ id: "all", name: "All libraries", count: null }];
   return h("div", null,
     h("div", { className: "popover-title t-micro" }, "Logical libraries"),
     h("div", { className: "t-small muted", style: { padding: "0 10px 6px", fontSize: "11px" } },
@@ -84,7 +83,7 @@ function LibraryPopover({ libraries, activeLibraryId, onSelectLibrary, onManageL
     },
       h("span", null, escHtml(lib.name || lib.id)),
       h("span", { className: "spacer" }),
-      h("span", { className: "t-mono" }, String(lib.count ?? 0)),
+      h("span", { className: "t-mono" }, String(lib.count ?? "unavailable")),
       lib.id === activeLibraryId && Icon({ name: "check", size: 14, className: "check" }))),
     h("div", { style: { borderTop: "1px solid var(--border-default)", margin: "4px 0 0", padding: "4px 6px 2px" } },
       h("button", { className: "menu-item", onClick: () => onManageLibraries && onManageLibraries() },
@@ -115,17 +114,19 @@ function PlanesPopover({ visiblePlanes, onToggle, onShowAll }) {
 
 export function TopBar({ mode, onMode, visiblePlanes, onTogglePlane, onShowAllPlanes,
                          libraries, activeLibraryId, onSelectLibrary, onManageLibraries,
-                         onOpenAlerts, alertCount, jobCount, lastIndexed, diagnostics, onSearch }) {
+                         onOpenAlerts, alertCount, jobCount, lastIndexed, security, diagnostics, onSearch }) {
   let _searchInput;
   function doSearch() {
     const q = _searchInput && _searchInput.value.trim();
     if (q && onSearch) onSearch(q);
   }
-  const indexed = lastIndexed && lastIndexed !== "never" ? lastIndexed : null;
-  const indexedTooltip = indexed ? `Last indexed: ${indexed}` : "Not yet indexed";
+  const indexed = lastIndexed && !["never", "UNAVAILABLE"].includes(lastIndexed) ? lastIndexed : null;
+  const indexingKnown = indexed || lastIndexed === "never";
+  const indexedTooltip = indexed ? `Last indexed: ${indexed}` : indexingKnown ? "Not yet indexed" : "Last indexing time could not be observed.";
   const indexedChip = h("span", { className: "chip is-static" },
     h("span", { className: "glyph", style: { color: indexed ? "var(--state-current)" : "var(--text-muted)" } }, indexed ? "✓" : "○"),
-    indexed ? "Indexed" : "Not indexed");
+    indexed ? "Indexed" : indexingKnown ? "Not indexed" : "Index status unavailable");
+  const securityBadge = securityPresentation(security);
   const activeLibrary = (libraries || []).find(l => l.id === activeLibraryId) || (libraries || [])[0];
   return h("header", { className: "topbar" },
     Popover({ align: "left", width: 260,
@@ -156,36 +157,34 @@ export function TopBar({ mode, onMode, visiblePlanes, onTogglePlane, onShowAllPl
       (_searchInput = h("input", { placeholder: "Search corpus, planes, certificates…", "aria-label": "Global search",
         onKeydown: (e) => { if (e.key === "Enter") doSearch(); } }))),
     h("span", { className: "grow" }),
-    jobCount > 0
-      ? Popover({ align: "right", width: 320,
+    Popover({ align: "right", width: 320,
           trigger: ({ toggle }) => h("button", { className: "chip", onClick: toggle, "aria-label": "Jobs" },
-            Icon({ name: "jobs", size: 14 }), "Jobs", h("span", { className: "count-pip" }, jobCount)),
-          children: () => JobsPopover() })
-      : null,
+            Icon({ name: "jobs", size: 14 }), "Index job", jobCount > 0 && h("span", { className: "count-pip" }, jobCount)),
+          children: () => JobsPopover() }),
     alertCount > 0
       ? h("button", { className: "chip sev-conflict", onClick: onOpenAlerts, "aria-label": "Alerts" },
           Icon({ name: "bell", size: 14 }), "Alerts", h("span", { className: "count-pip" }, alertCount))
       : h("button", { className: "chip", onClick: onOpenAlerts, "aria-label": "Alerts" },
           Icon({ name: "bell", size: 14 }), "Activity"),
     Tooltip({ text: indexedTooltip, below: true, children: [indexedChip] }),
-    diagnostics && Tooltip({ text: "Security state: DEV-OPEN. Protected local controls are unlocked in this prototype.", below: true, children: [
-      h("span", { className: "chip dev-open" }, h("span", { className: "glyph" }, "⚠"), "DEV-OPEN")] }),
+    diagnostics && Tooltip({ text: securityBadge.detail, below: true, children: [
+      h("span", { className: `chip ${securityBadge.label === "DEV-OPEN" ? "dev-open" : "is-static"}` }, securityBadge.label)] }),
     Segmented({ sm: true, value: mode, onChange: onMode, options: [{ value: "simple", label: "Simple" }, { value: "advanced", label: "Advanced" }] }));
 }
 
 export function JobsPopover() {
-  const TONE = { running: "var(--accent)", queued: "var(--text-muted)", done: "var(--state-current)" };
-  return h("div", { style: { width: "100%" } },
-    h("div", { className: "popover-title t-micro" }, "Active jobs"),
-    h("div", { className: "col gap-1", style: { padding: "0 4px 4px" } },
-      FX.jobs.map((j) => h("div", { className: "col gap-1", style: { padding: "8px 8px", borderRadius: "7px", background: "var(--bg-panel)" } },
-        h("div", { className: "flex items-center between" },
-          h("span", { className: "t-body", style: { color: "var(--text-primary)", fontWeight: 500 } },
-            j.state === "running" && h("span", { className: "pulse-dot", style: { display: "inline-block", marginRight: "8px" } }), j.name),
-          h("span", { className: "t-micro", style: { color: TONE[j.state] } }, j.state)),
-        h("span", { className: "t-small muted" }, j.detail),
-        j.state !== "done" && h("div", { style: { height: "4px", borderRadius: "999px", background: "var(--bg-input)", overflow: "hidden", marginTop: "2px" } },
-          h("div", { style: { width: `${j.pct}%`, height: "100%", background: TONE[j.state] } }))))));
+  const body = h("div", { className: "t-small muted" }, "Loading index job status…");
+  const wrap = h("div", null, h("div", { className: "popover-title t-micro" }, "Auto-index"), body);
+  api("/api/autoindex/status").then(status => {
+    if (!status || status.error || typeof status.running !== "boolean") {
+      body.replaceChildren(h("div", null, "Index job status unavailable.")); return;
+    }
+    body.replaceChildren(
+      h("div", null, status.running ? "Auto-index running" : "Auto-index idle"),
+      h("div", null, !Object.prototype.hasOwnProperty.call(status, "last_run_ts") ? "Last run unavailable" : status.last_run_ts === null ? "No index run recorded" : `Last run: ${new Date(status.last_run_ts * 1000).toLocaleString()}`),
+      h("div", null, `Last run indexed: ${status.last_indexed ?? "unavailable"} · Failed: ${status.last_failed ?? "unavailable"}`));
+  });
+  return wrap;
 }
 
 export function AlertsDrawer({ onClose, onToast }) {
@@ -252,13 +251,13 @@ export function Inspector({ selection, onClose, onCollapse, onTrace }) {
   } else if (selection.type === "metric") {
     const meta = nsMeta(selection.ns);
     body = h("div", { className: "inspector-body" },
-      h("div", { className: "flex items-center gap-2" }, Badge({ ns: selection.ns }), h("span", { className: "t-mono" }, `${selection.count} nodes`)),
+      h("div", { className: "flex items-center gap-2" }, Badge({ ns: selection.ns }), h("span", { className: "t-mono" }, selection.count == null ? "Count unavailable" : `${selection.count} ${selection.unit || "documents"}`)),
       h("div", { className: "kv" },
         kvRow("Namespace", namespaceOf(selection.ns)),
         kvRow("Lead channel", "fill = currentness"),
         kvRow("Delta", selection.delta)),
-      AlertBanner({ ns: selection.ns, children: [`${meta.label} is a ${namespaceOf(selection.ns).toLowerCase()} signal. Opening the filtered view is a Phase B affordance.`] }),
-      Button({ variant: "governed", glyph: "↺", onClick: () => onTrace && onTrace(), children: ["Open filtered view"] }));
+      AlertBanner({ ns: selection.ns, children: [`${meta.label} is an inferred ${namespaceOf(selection.ns).toLowerCase()} summary. A matching document filter is unavailable.`] }),
+      Button({ variant: "secondary", disabled: true, children: ["Filtered view unavailable"] }));
   } else if (selection.type === "doc") {
     const d = selection.doc;
     const subtitle = [d.project !== "—" && d.project, d.updated !== "—" && d.updated].filter(Boolean).join(" · ");

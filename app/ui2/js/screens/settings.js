@@ -13,7 +13,7 @@ export function SettingsScreen({ settings, onSet }) {
     { key: "landing", name: "Default landing page", desc: "Which workspace screen opens on launch.", live: "NEXT RUN", impl: "NEEDS CONFIG API",
       control: Select({ value: settings.landing, onChange: (v) => onSet("landing", v), width: 200,
         options: [{ value: "current", label: "Current State" }, { value: "review", label: "Review Center" }, { value: "library", label: "Library" }, { value: "status", label: "Status" }] }) },
-    { key: "diagnostics", name: "Diagnostic badge visibility", desc: "Show the DEV-OPEN security badge and other diagnostic chips in the top bar.", live: "LIVE", impl: "EXISTING BACKEND",
+    { key: "diagnostics", name: "Diagnostic badge visibility", desc: "Show observed security state and diagnostic chips in the top bar.", live: "LIVE", impl: "EXISTING BACKEND",
       control: Toggle({ checked: settings.diagnostics, onChange: (v) => onSet("diagnostics", v), label: "Diagnostic badges" }) },
   ];
   return h("div", { className: "content content-narrow" },

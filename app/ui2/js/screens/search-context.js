@@ -12,6 +12,8 @@ let _brief = null;
 let _loading = false;
 let _error = "";
 let _includePromoted = false;
+let _resultLibrary = 'all';
+let _requestSerial = 0;
 
 function libraryParam(activeLibraryId) {
   const id = activeLibraryId || "all";
@@ -52,18 +54,29 @@ export function SearchContextScreen({
   activeLibrary,
   activeLibraryId,
 }) {
+  const libraryId = activeLibraryId || 'all';
+  if (_resultLibrary !== libraryId) {
+    _resultLibrary = libraryId;
+    _requestSerial += 1;
+    _keywordResults = null;
+    _brief = null;
+    _loading = false;
+    _error = '';
+  }
   let root;
   function rebuild() { const old = root; const n = build(); old.replaceWith(n); }
 
   function runKeyword() {
     const q = _query.trim();
     if (!q) return;
+    const requestSerial = ++_requestSerial;
     _loading = true;
     _error = "";
     _keywordResults = null;
     _brief = null;
     rebuild();
     api(`/api/search?q=${encodeURIComponent(q)}&limit=30${libraryParam(activeLibraryId)}`).then((d) => {
+      if (requestSerial !== _requestSerial) return;
       _loading = false;
       if (d && d.error) {
         _error = d.error;
@@ -78,6 +91,7 @@ export function SearchContextScreen({
   function runBrief() {
     const q = _query.trim();
     if (!q) return;
+    const requestSerial = ++_requestSerial;
     _loading = true;
     _error = "";
     _keywordResults = null;
@@ -91,8 +105,10 @@ export function SearchContextScreen({
         mode: "exploration",
         limit: 8,
         include_promoted: _includePromoted,
+        library_id: activeLibraryId || 'all',
       }),
     }).then((d) => {
+      if (requestSerial !== _requestSerial) return;
       _loading = false;
       if (d && d.error) {
         _error = d.error;
@@ -121,7 +137,7 @@ export function SearchContextScreen({
       h("div", { class: "page-head" },
         h("div", { class: "t-display" }, "Search"),
         h("div", { class: "sub t-small" },
-          `Keyword search is scoped to ${scopeName}. Current Context Brief is retrieval-scoped.`)),
+          `Search and Current Context are scoped to ${scopeName}.`)),
       Card({ children: h("div", { class: "col gap-3" },
         h("div", { class: "flex between items-center gap-3 wrap" },
           Segmented({ value: _mode, onChange: (v) => { _mode = v; _error = ""; _brief = null; _keywordResults = null; rebuild(); }, options: [
